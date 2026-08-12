@@ -60,10 +60,9 @@ export function TransactionModal({ open, onOpenChange, type }: TransactionModalP
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) throw new Error("Usuário não autenticado");
 
-      const { error } = await supabase.from('financial_transactions').insert({
+      const insertData: any = {
         description: data.description,
         amount: parseFloat(data.amount),
-        date: data.date || undefined,
         due_date: data.due_date || null,
         category: data.category,
         project_id: data.project_id === 'none' ? null : data.project_id,
@@ -71,7 +70,13 @@ export function TransactionModal({ open, onOpenChange, type }: TransactionModalP
         status: data.status,
         type: type,
         user_id: userData.user.id
-      });
+      };
+      
+      if (data.date) {
+        insertData.date = data.date;
+      }
+
+      const { error } = await supabase.from('financial_transactions').insert(insertData);
       
       if (error) throw error;
     },
