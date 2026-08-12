@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { 
@@ -19,12 +19,14 @@ interface TransactionModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   type: 'receita' | 'despesa';
+  initialProjectId?: string;
 }
+
 
 const REVENUE_CATEGORIES = ["Venda", "Consultoria", "Honorário", "Dividendos", "Aporte", "Outros"];
 const EXPENSE_CATEGORIES = ["Obra", "Manutenção", "Imposto", "Marketing", "Administrativo", "Pessoal", "Viagem", "Outros"];
 
-export function TransactionModal({ open, onOpenChange, type }: TransactionModalProps) {
+export function TransactionModal({ open, onOpenChange, type, initialProjectId }: TransactionModalProps) {
   const queryClient = useQueryClient();
   
   const [formData, setFormData] = useState({
@@ -33,11 +35,21 @@ export function TransactionModal({ open, onOpenChange, type }: TransactionModalP
     date: new Date().toISOString().split('T')[0],
     due_date: "",
     category: "Outros",
-    project_id: "none",
+    project_id: initialProjectId || "none",
     contact_id: "none",
     status: "pendente" as 'pendente' | 'pago',
     notes: ""
   });
+
+  useEffect(() => {
+    if (open) {
+      setFormData(prev => ({
+        ...prev,
+        project_id: initialProjectId || "none"
+      }));
+    }
+  }, [open, initialProjectId]);
+
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects-select'],

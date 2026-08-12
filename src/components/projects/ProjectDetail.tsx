@@ -14,7 +14,8 @@ import {
   Briefcase,
   TrendingDown,
   TrendingUp,
-  Wallet
+  Wallet,
+  Plus
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,9 +23,13 @@ import { Progress } from "@/components/ui/progress";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { TaskModal } from "../modals/TaskModal";
+import { TransactionModal } from "../modals/TransactionModal";
+
 
 export function ProjectDetail() {
   const { projectId } = useParams({ from: '/projetos/$projectId' });
+  const [activeModal, setActiveModal] = useState<'task' | 'revenue' | 'expense' | null>(null);
 
   const { data: project, isLoading } = useQuery({
     queryKey: ['project', projectId],
@@ -43,6 +48,7 @@ export function ProjectDetail() {
       return data;
     }
   });
+
 
   if (isLoading) return (
     <div className="flex items-center justify-center h-96">
@@ -96,10 +102,20 @@ export function ProjectDetail() {
             <h2 className="text-3xl font-bold tracking-tight">{project.name}</h2>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={() => setActiveModal('task')}>
+            <Plus className="h-4 w-4 mr-2" /> Tarefa
+          </Button>
+          <Button variant="outline" size="sm" className="text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100" onClick={() => setActiveModal('revenue')}>
+            <TrendingUp className="h-4 w-4 mr-2" /> Receita
+          </Button>
+          <Button variant="outline" size="sm" className="text-destructive border-destructive/20 bg-destructive/5 hover:bg-destructive/10" onClick={() => setActiveModal('expense')}>
+            <TrendingDown className="h-4 w-4 mr-2" /> Despesa
+          </Button>
           <Button variant="outline" size="icon"><MoreVertical className="h-4 w-4" /></Button>
-          <Button>Editar Projeto</Button>
+          <Button>Editar</Button>
         </div>
+
       </div>
 
       {/* Stats Cards */}
@@ -215,6 +231,24 @@ export function ProjectDetail() {
           </div>
         </div>
       </div>
+      <TaskModal 
+        open={activeModal === 'task'} 
+        onOpenChange={(open) => !open && setActiveModal(null)}
+        initialProjectId={projectId}
+      />
+      <TransactionModal 
+        open={activeModal === 'revenue'} 
+        onOpenChange={(open) => !open && setActiveModal(null)}
+        type="receita"
+        initialProjectId={projectId}
+      />
+      <TransactionModal 
+        open={activeModal === 'expense'} 
+        onOpenChange={(open) => !open && setActiveModal(null)}
+        type="despesa"
+        initialProjectId={projectId}
+      />
     </div>
   );
 }
+
