@@ -21,6 +21,13 @@ type ProjectCategory = Database["public"]["Enums"]["project_status"] | string;
 interface ProjectModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialData?: {
+    name?: string;
+    description?: string;
+    category?: string;
+    notes?: string;
+    ideaId?: string;
+  } | null;
 }
 
 const CATEGORIES = [
@@ -37,7 +44,7 @@ const STATUS_OPTIONS = [
   { value: "concluido", label: "Concluído" },
 ];
 
-export function ProjectModal({ open, onOpenChange }: ProjectModalProps) {
+export function ProjectModal({ open, onOpenChange, initialData }: ProjectModalProps) {
   const queryClient = useQueryClient();
   
   const [formData, setFormData] = useState({
@@ -52,6 +59,19 @@ export function ProjectModal({ open, onOpenChange }: ProjectModalProps) {
     next_action: "",
     notes: ""
   });
+  
+  useEffect(() => {
+    if (open && initialData) {
+      setFormData(prev => ({
+        ...prev,
+        name: initialData.name || "",
+        description: initialData.description || "",
+        category: initialData.category || "Outros",
+        notes: initialData.notes || "",
+        status: "em_analise"
+      }));
+    }
+  }, [open, initialData]);
 
   const createProject = useMutation({
     mutationFn: async (data: typeof formData) => {
@@ -70,6 +90,15 @@ export function ProjectModal({ open, onOpenChange }: ProjectModalProps) {
       
       // Simular registro na timeline (pode ser uma tabela real se existir, ou apenas log)
       console.log("Projeto criado e registrado na timeline");
+      if (initialData?.ideaId) {
+        await supabase
+          .from('ideas')
+          .update({ 
+            status: 'virou_projeto' as any,
+            notes: (initialData.notes || '') + '\n[Convertido em projeto]'
+          })
+          .eq('id', initialData.ideaId);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });

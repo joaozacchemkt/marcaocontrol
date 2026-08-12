@@ -8,7 +8,8 @@ export const Route = createFileRoute("/ideias")({
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Lightbulb, Search, Plus, Calendar, Star, Trash2, ArrowRight } from "lucide-react";
+import { Lightbulb, Search, Plus, Calendar, Star, Trash2, ArrowRight, ExternalLink } from "lucide-react";
+import { ProjectModal } from "@/components/modals/ProjectModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +19,8 @@ import { ptBR } from "date-fns/locale";
 
 function IdeiasPage() {
   const [search, setSearch] = useState("");
+  const [selectedIdea, setSelectedIdea] = useState<any>(null);
+  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: ideas = [], isLoading } = useQuery({
@@ -43,10 +46,23 @@ function IdeiasPage() {
     }
   });
 
+  const { data: projects = [] } = useQuery({
+    queryKey: ['projects-minimal'],
+    queryFn: async () => {
+      const { data } = await supabase.from('projects').select('id, name, objective'); // objective ou notes para encontrar origem
+      return data || [];
+    }
+  });
+
   const filteredIdeas = ideas.filter(i => 
     i.title.toLowerCase().includes(search.toLowerCase()) ||
     (i.description?.toLowerCase().includes(search.toLowerCase()))
   );
+
+  const handleTransform = (idea: any) => {
+    setSelectedIdea(idea);
+    setIsProjectModalOpen(true);
+  };
 
   return (
     <AppLayout>
@@ -107,16 +123,41 @@ function IdeiasPage() {
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
-                  <Button variant="outline" size="sm" className="h-8 text-xs font-bold uppercase tracking-wider">
-                    Transformar em Projeto
-                    <ArrowRight className="ml-2 h-3 w-3" />
-                  </Button>
+                  <div className="flex gap-2">
+                    {idea.status === 'virou_projeto' ? (
+                      <Button variant="default" size="sm" className="h-8 text-xs font-bold uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700">
+                        Abrir projeto
+                        <ExternalLink className="ml-2 h-3 w-3" />
+                      </Button>
+                    ) : (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="h-8 text-xs font-bold uppercase tracking-wider"
+                        onClick={() => handleTransform(idea)}
+                      >
+                        Transformar em Projeto
+                        <ArrowRight className="ml-2 h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+      <ProjectModal 
+        open={isProjectModalOpen} 
+        onOpenChange={setIsProjectModalOpen}
+        initialData={selectedIdea ? {
+          name: selectedIdea.title,
+          description: selectedIdea.description,
+          category: selectedIdea.category,
+          notes: selectedIdea.notes,
+          ideaId: selectedIdea.id
+        } : null}
+      />
     </AppLayout>
   );
 }
