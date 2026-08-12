@@ -75,7 +75,7 @@ export function ProjectDetail() {
                 {project.category || "Sem categoria"}
               </Badge>
               <Badge variant="secondary" className="capitalize">
-                {project.status.replace(/_/g, ' ')}
+                {project.status?.replace(/_/g, ' ')}
               </Badge>
             </div>
             <h2 className="text-3xl font-bold tracking-tight">{project.name}</h2>
