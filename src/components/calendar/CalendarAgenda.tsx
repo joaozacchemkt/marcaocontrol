@@ -27,7 +27,7 @@ export function CalendarAgenda() {
   const [month, setMonth] = useState<Date>(startOfMonth(new Date()));
   const [density, setDensity] = useState<Density>("comfortable");
   const [collapsed, setCollapsed] = useState(false);
-  const [layout, setLayout] = useState<number[]>([70, 30]);
+  const [layout, setLayout] = useState<Record<string, number> | undefined>(undefined);
   const [hydrated, setHydrated] = useState(false);
   const [eventModal, setEventModal] = useState(false);
   const [taskModal, setTaskModal] = useState(false);
@@ -38,8 +38,8 @@ export function CalendarAgenda() {
       const rawLayout = window.localStorage.getItem(LAYOUT_KEY);
       if (rawLayout) {
         const parsed = JSON.parse(rawLayout);
-        if (Array.isArray(parsed) && parsed.length === 2 && parsed.every((n) => typeof n === "number")) {
-          setLayout(parsed);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          setLayout(parsed as Record<string, number>);
         }
       }
       const savedDensity = window.localStorage.getItem(DENSITY_KEY) as Density | null;
@@ -53,7 +53,7 @@ export function CalendarAgenda() {
     setHydrated(true);
   }, []);
 
-  const persistLayout = (sizes: number[]) => {
+  const persistLayout = (sizes: Record<string, number>) => {
     setLayout(sizes);
     try {
       window.localStorage.setItem(LAYOUT_KEY, JSON.stringify(sizes));
@@ -235,18 +235,19 @@ export function CalendarAgenda() {
         <div className="h-[calc(100vh-14rem)] min-h-[560px]">{calendarCard}</div>
       ) : hydrated ? (
         <ResizablePanelGroup
-          direction="horizontal"
-          className="h-[calc(100vh-14rem)] min-h-[560px] gap-0"
-          onLayout={persistLayout}
+          orientation="horizontal"
+          className="h-[calc(100vh-14rem)] min-h-[560px]"
+          {...(layout ? { defaultLayout: layout } : {})}
+          onLayoutChanged={persistLayout}
         >
-          <ResizablePanel defaultSize={layout[0] ?? 70} minSize={55} maxSize={85} className="pr-2">
+          <ResizablePanel id="agenda-calendar" defaultSize="70" minSize="55" maxSize="85" className="pr-2">
             {calendarCard}
           </ResizablePanel>
           <ResizableHandle
             withHandle
-            className="mx-1 w-1.5 rounded-full bg-border/60 transition-colors hover:bg-primary/50 data-[resize-handle-state=drag]:bg-primary"
+            className="mx-1 w-1.5 rounded-full bg-border/60 transition-colors hover:bg-primary/50"
           />
-          <ResizablePanel defaultSize={layout[1] ?? 30} minSize={15} maxSize={45} className="pl-2">
+          <ResizablePanel id="agenda-details" defaultSize="30" minSize="15" maxSize="45" className="pl-2">
             {detailsCard}
           </ResizablePanel>
         </ResizablePanelGroup>
