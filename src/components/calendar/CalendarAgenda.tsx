@@ -1,324 +1,261 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Calendar } from "@/components/ui/calendar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Slider } from "@/components/ui/slider";
-import { format, isSameDay, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { Loader2, Calendar as CalendarIcon, Clock, CheckCircle2, AlertCircle, Timer, MapPin, Maximize2 } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Label } from "@/components/ui/label";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import { MonthGrid, type DayCounts } from "@/components/calendar/MonthGrid";
+import { DayDetailsPanel } from "@/components/calendar/DayDetailsPanel";
+import { EventModal } from "@/components/modals/EventModal";
+import { TaskModal } from "@/components/modals/TaskModal";
+import { isSameDay, parseISO, startOfMonth } from "date-fns";
+import { Loader2, Settings2, PanelRightOpen } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
-import { motion, AnimatePresence } from "framer-motion";
+
+const LAYOUT_KEY = "agenda:panel-layout";
+const DENSITY_KEY = "agenda:density";
+const COLLAPSED_KEY = "agenda:panel-collapsed";
+
+type Density = "compact" | "comfortable" | "spacious";
 
 export function CalendarAgenda() {
+  const isMobile = useIsMobile();
   const [date, setDate] = useState<Date | undefined>(new Date());
-  const [zoomLevel, setZoomLevel] = useState(1);
+  const [month, setMonth] = useState<Date>(startOfMonth(new Date()));
+  const [density, setDensity] = useState<Density>("comfortable");
+  const [collapsed, setCollapsed] = useState(false);
+  const [layout, setLayout] = useState<number[]>([70, 30]);
+  const [hydrated, setHydrated] = useState(false);
+  const [eventModal, setEventModal] = useState(false);
+  const [taskModal, setTaskModal] = useState(false);
 
-  const { data: tasks, isLoading: tasksLoading } = useQuery({
-    queryKey: ['tasks-calendar'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('tasks')
-        .select('*, projects(name)')
-        .not('deadline', 'is', null)
-        .order('deadline', { ascending: true });
-      
-      if (error) throw error;
-      return (data || []) as any[];
+  // Preferências locais (persistência via localStorage)
+  useEffect(() => {
+    try {
+      const rawLayout = window.localStorage.getItem(LAYOUT_KEY);
+      if (rawLayout) {
+        const parsed = JSON.parse(rawLayout);
+        if (Array.isArray(parsed) && parsed.length === 2 && parsed.every((n) => typeof n === "number")) {
+          setLayout(parsed);
+        }
+      }
+      const savedDensity = window.localStorage.getItem(DENSITY_KEY) as Density | null;
+      if (savedDensity === "compact" || savedDensity === "comfortable" || savedDensity === "spacious") {
+        setDensity(savedDensity);
+      }
+      setCollapsed(window.localStorage.getItem(COLLAPSED_KEY) === "true");
+    } catch {
+      /* preferências indisponíveis: mantém padrões */
     }
-  });
+    setHydrated(true);
+  }, []);
 
-  const { data: events, isLoading: eventsLoading } = useQuery({
-    queryKey: ['events-calendar'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('events')
-        .select('*')
-        .order('start_time', { ascending: true });
-      
-      if (error) throw error;
-      return (data || []) as any[];
-    }
-  });
-
-  const selectedDateTasks = tasks?.filter(task => 
-    task.deadline && isSameDay(parseISO(task.deadline), date || new Date())
-  ) || [];
-
-  const selectedDateEvents = events?.filter(event => 
-    isSameDay(parseISO(event.start_time), date || new Date())
-  ) || [];
-
-  const isLoading = tasksLoading || eventsLoading;
-
-  const modifiers = {
-    booked: (d: Date) => {
-      const hasTask = tasks?.some(t => t.deadline && isSameDay(parseISO(t.deadline), d));
-      const hasMeeting = events?.some(e => isSameDay(parseISO(e.start_time), d));
-      return !!(hasTask || hasMeeting);
+  const persistLayout = (sizes: number[]) => {
+    setLayout(sizes);
+    try {
+      window.localStorage.setItem(LAYOUT_KEY, JSON.stringify(sizes));
+    } catch {
+      /* ignora falha de storage */
     }
   };
 
+  const updateDensity = (value: Density) => {
+    setDensity(value);
+    try {
+      window.localStorage.setItem(DENSITY_KEY, value);
+    } catch {
+      /* ignora falha de storage */
+    }
+  };
+
+  const updateCollapsed = (value: boolean) => {
+    setCollapsed(value);
+    try {
+      window.localStorage.setItem(COLLAPSED_KEY, String(value));
+    } catch {
+      /* ignora falha de storage */
+    }
+  };
+
+  const { data: tasks, isLoading: tasksLoading } = useQuery({
+    queryKey: ["tasks-calendar"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tasks")
+        .select("*, projects(name)")
+        .not("deadline", "is", null)
+        .order("deadline", { ascending: true });
+
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+
+  const { data: events, isLoading: eventsLoading } = useQuery({
+    queryKey: ["events-calendar"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("events")
+        .select("*")
+        .order("start_time", { ascending: true });
+
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+
+  const { data: finances } = useQuery({
+    queryKey: ["finances-calendar"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("financial_transactions")
+        .select("*")
+        .not("due_date", "is", null);
+
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+
+  const isLoading = tasksLoading || eventsLoading;
+
+  const selectedDateTasks =
+    tasks?.filter((task) => task.deadline && isSameDay(parseISO(task.deadline), date || new Date())) || [];
+  const selectedDateEvents =
+    events?.filter((event) => isSameDay(parseISO(event.start_time), date || new Date())) || [];
+  const selectedDateFinances =
+    finances?.filter((t) => t.due_date && isSameDay(parseISO(t.due_date), date || new Date())) || [];
+
+  const getCounts = (day: Date): DayCounts => ({
+    events: events?.filter((e) => isSameDay(parseISO(e.start_time), day)).length || 0,
+    tasks: tasks?.filter((t) => t.deadline && isSameDay(parseISO(t.deadline), day)).length || 0,
+    finances: finances?.filter((t) => t.due_date && isSameDay(parseISO(t.due_date), day)).length || 0,
+  });
+
+  const settings = (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Ajustes de visualização">
+          <Settings2 className="h-4 w-4" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-56 space-y-3">
+        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+          Densidade da grade
+        </Label>
+        <div className="grid grid-cols-3 gap-1">
+          {(["compact", "comfortable", "spacious"] as Density[]).map((option) => (
+            <Button
+              key={option}
+              size="sm"
+              variant={density === option ? "default" : "outline"}
+              className="h-7 text-[10px] font-bold"
+              onClick={() => updateDensity(option)}
+            >
+              {option === "compact" ? "Compacto" : option === "comfortable" ? "Médio" : "Amplo"}
+            </Button>
+          ))}
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 w-full text-[10px] font-bold"
+          onClick={() => updateCollapsed(!collapsed)}
+        >
+          {collapsed ? "Mostrar painel do dia" : "Recolher painel do dia"}
+        </Button>
+      </PopoverContent>
+    </Popover>
+  );
+
+  const calendarCard = (
+    <Card className={cn("h-full min-w-0 border-border/50 bg-card/50 p-4 backdrop-blur-sm", isMobile && "p-3")}>
+      {isLoading ? (
+        <div className="flex h-full min-h-[420px] flex-col items-center justify-center gap-3">
+          <Loader2 className="h-6 w-6 animate-spin text-primary opacity-40" />
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+            Sincronizando...
+          </p>
+        </div>
+      ) : (
+        <MonthGrid
+          month={month}
+          onMonthChange={setMonth}
+          selected={date}
+          onSelect={(d) => {
+            setDate(d);
+            setMonth(startOfMonth(d));
+          }}
+          getCounts={getCounts}
+          density={isMobile ? "compact" : density}
+        />
+      )}
+    </Card>
+  );
+
+  const detailsCard = (
+    <Card className="h-full min-w-0 overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm">
+      <DayDetailsPanel
+        date={date}
+        events={selectedDateEvents}
+        tasks={selectedDateTasks}
+        finances={selectedDateFinances}
+        onAddEvent={() => setEventModal(true)}
+        onAddTask={() => setTaskModal(true)}
+        onCollapse={isMobile ? undefined : () => updateCollapsed(true)}
+      />
+    </Card>
+  );
+
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card/30 p-4 rounded-2xl border border-border/50 backdrop-blur-md">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-primary/10 border border-primary/20">
-            <Maximize2 className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <h2 className="text-sm font-black uppercase tracking-widest">Ajuste de Visualização</h2>
-            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">Ampliar ou reduzir elementos da agenda</p>
-          </div>
+    <div className="space-y-4 pb-10">
+      <div className="flex items-center justify-end gap-1">
+        {collapsed && !isMobile && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-[11px] font-bold uppercase"
+            onClick={() => updateCollapsed(false)}
+          >
+            <PanelRightOpen className="mr-1 h-3.5 w-3.5" /> Painel do dia
+          </Button>
+        )}
+        {settings}
+      </div>
+
+      {isMobile ? (
+        <div className="space-y-4">
+          {calendarCard}
+          <div className="min-h-[320px]">{detailsCard}</div>
         </div>
-        <div className="flex items-center gap-4 w-full sm:w-64">
-          <span className="text-[10px] font-black text-muted-foreground uppercase">{Math.round(zoomLevel * 100)}%</span>
-          <Slider 
-            value={[zoomLevel]} 
-            min={0.7} 
-            max={1.3} 
-            step={0.05} 
-            onValueChange={([val]) => val !== undefined && setZoomLevel(val)}
-            className="flex-1"
+      ) : collapsed ? (
+        <div className="h-[calc(100vh-14rem)] min-h-[560px]">{calendarCard}</div>
+      ) : hydrated ? (
+        <ResizablePanelGroup
+          direction="horizontal"
+          className="h-[calc(100vh-14rem)] min-h-[560px] gap-0"
+          onLayout={persistLayout}
+        >
+          <ResizablePanel defaultSize={layout[0] ?? 70} minSize={55} maxSize={85} className="pr-2">
+            {calendarCard}
+          </ResizablePanel>
+          <ResizableHandle
+            withHandle
+            className="mx-1 w-1.5 rounded-full bg-border/60 transition-colors hover:bg-primary/50 data-[resize-handle-state=drag]:bg-primary"
           />
-        </div>
-      </div>
+          <ResizablePanel defaultSize={layout[1] ?? 30} minSize={15} maxSize={45} className="pl-2">
+            {detailsCard}
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      ) : (
+        <div className="h-[calc(100vh-14rem)] min-h-[560px]">{calendarCard}</div>
+      )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div className="lg:col-span-4 space-y-8" style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'top left' }}>
-          <Card className="border-border/50 bg-card/50 backdrop-blur-sm shadow-2xl overflow-hidden transition-all duration-300">
-            <CardHeader className="pb-2 bg-muted/30">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <CalendarIcon className="w-4 h-4 text-primary" />
-                Navegação
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0 sm:p-4">
-              <Calendar
-                mode="single"
-                selected={date}
-                onSelect={setDate}
-                className="rounded-md border-none mx-auto"
-                locale={ptBR}
-                modifiers={modifiers}
-                modifiersClassNames={{
-                  booked: "after:content-[''] after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:bg-primary after:rounded-full relative font-bold text-primary"
-                }}
-              />
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/50 bg-card/50 backdrop-blur-sm shadow-lg">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Visão Geral</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex justify-between items-center p-3 rounded-lg bg-background/50 border border-border/50">
-                <div className="flex items-center gap-2">
-                  <Timer className="w-4 h-4 text-primary" />
-                  <span className="text-sm text-muted-foreground">Pendências</span>
-                </div>
-                <span className="text-sm font-bold">{tasks?.length || 0}</span>
-              </div>
-              <div className="flex justify-between items-center p-3 rounded-lg bg-background/50 border border-border/50">
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-primary" />
-                  <span className="text-sm text-muted-foreground">Eventos</span>
-                </div>
-                <span className="text-sm font-bold">{events?.length || 0}</span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="lg:col-span-8" style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'top right' }}>
-          <Card className="h-full border-border/50 bg-card/50 backdrop-blur-sm flex flex-col min-h-[600px] shadow-2xl relative overflow-hidden transition-all duration-300">
-            <div className="absolute top-0 left-0 w-1 h-full bg-primary/20" />
-            <CardHeader className="flex flex-row items-center justify-between border-b border-border/50 pb-6 bg-muted/10">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <Badge variant="outline" className="text-[10px] uppercase tracking-tighter bg-primary/5 border-primary/20 text-primary">
-                    {date ? format(date, "MMMM yyyy", { locale: ptBR }) : ""}
-                  </Badge>
-                </div>
-                <CardTitle className="text-2xl font-black tracking-tight">
-                  {date ? format(date, "EEEE, dd", { locale: ptBR }) : "Selecione um dia"}
-                </CardTitle>
-              </div>
-              <div className="text-right">
-                <p className="text-3xl font-black text-primary/20 leading-none">
-                  {selectedDateTasks.length + selectedDateEvents.length}
-                </p>
-                <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-tighter">Atividades</p>
-              </div>
-            </CardHeader>
-            
-            <CardContent className="flex-1 p-0">
-              <ScrollArea className="h-[550px]">
-                <div className="p-6">
-                  {isLoading ? (
-                    <div className="flex flex-col items-center justify-center h-60 gap-3">
-                      <Loader2 className="w-8 h-8 animate-spin text-primary opacity-20" />
-                      <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground animate-pulse">Sincronizando...</p>
-                    </div>
-                  ) : selectedDateTasks.length === 0 && selectedDateEvents.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-32 text-center">
-                      <div className="w-16 h-16 rounded-full bg-muted/30 flex items-center justify-center mb-6">
-                        <CalendarIcon className="w-8 h-8 text-muted-foreground/50" />
-                      </div>
-                      <h3 className="text-lg font-bold text-foreground/80">Agenda Livre</h3>
-                      <p className="text-sm text-muted-foreground max-w-[250px] mx-auto mt-2">
-                        Não há compromissos ou prazos registrados para este dia.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-10">
-                      {selectedDateEvents.length > 0 && (
-                        <div className="space-y-4">
-                          <div className="flex items-center gap-2 mb-6">
-                            <div className="h-px flex-1 bg-border/50" />
-                            <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.3em] px-4 py-1 rounded-full border border-primary/20 bg-primary/5">Compromissos</h3>
-                            <div className="h-px flex-1 bg-border/50" />
-                          </div>
-                          <div className="space-y-4">
-                            {selectedDateEvents.map((event) => (
-                              <div 
-                                key={event.id}
-                                className="group grid grid-cols-[80px_1fr] gap-6 p-5 rounded-2xl border border-border/50 bg-background/40 hover:bg-background/80 transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
-                              >
-                                <div className="flex flex-col items-center justify-center border-r border-border/50 pr-6">
-                                  <span className="text-lg font-black text-foreground group-hover:text-primary transition-colors">
-                                    {format(parseISO(event.start_time), "HH:mm")}
-                                  </span>
-                                  <Clock className="w-3 h-3 text-muted-foreground mt-1 opacity-50" />
-                                </div>
-                                <div className="space-y-2">
-                                  <h4 className="text-lg font-bold text-foreground leading-tight group-hover:text-primary transition-colors">
-                                    {event.title}
-                                  </h4>
-                                  {(event.location || event.description) && (
-                                    <div className="space-y-2 mt-2">
-                                      {event.location && (
-                                        <p className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
-                                          <MapPin className="w-3 h-3 text-primary/60" />
-                                          {event.location}
-                                        </p>
-                                      )}
-                                      {event.description && (
-                                        <p className="text-sm text-muted-foreground/80 leading-relaxed italic border-l-2 border-primary/20 pl-4 py-1">
-                                          {event.description}
-                                        </p>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {selectedDateTasks.length > 0 && (
-                        <div className="space-y-4">
-                          <div className="flex items-center gap-2 mb-6">
-                            <div className="h-px flex-1 bg-border/50" />
-                            <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.3em] px-4 py-1 rounded-full border border-primary/20 bg-primary/5">Prazos de Entrega</h3>
-                            <div className="h-px flex-1 bg-border/50" />
-                          </div>
-                          <div className="space-y-4">
-                            {selectedDateTasks.map((task) => (
-                              <div 
-                                key={task.id}
-                                className={cn(
-                                  "group relative flex flex-col gap-4 p-5 rounded-2xl border border-border/50 bg-background/40 hover:bg-background/80 transition-all duration-300 hover:shadow-xl",
-                                  task.status === 'concluido' && "opacity-50 grayscale-[0.5]"
-                                )}
-                              >
-                                <div className="flex items-start justify-between gap-4">
-                                  <div className="flex items-center gap-4">
-                                    <div className={cn(
-                                      "w-12 h-12 rounded-xl flex items-center justify-center shadow-inner transition-transform group-hover:scale-110",
-                                      task.status === 'concluido' ? "bg-green-500/10" : 
-                                      task.priority === 'alta' ? "bg-red-500/10" : "bg-primary/10"
-                                    )}>
-                                      {task.status === 'concluido' ? (
-                                        <CheckCircle2 className="w-6 h-6 text-green-500" />
-                                      ) : task.priority === 'alta' ? (
-                                        <AlertCircle className="w-6 h-6 text-red-500" />
-                                      ) : (
-                                        <Timer className="w-6 h-6 text-primary" />
-                                      )}
-                                    </div>
-                                    <div>
-                                      <h4 className={cn(
-                                        "text-lg font-bold text-foreground leading-tight",
-                                        task.status === 'concluido' && "line-through text-muted-foreground"
-                                      )}>
-                                        {task.title}
-                                      </h4>
-                                      {task.projects && (
-                                        <div className="flex items-center gap-2 mt-1">
-                                          <Badge variant="secondary" className="text-[9px] font-black uppercase tracking-widest px-2 py-0">
-                                            {task.projects.name}
-                                          </Badge>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                  <div className="flex flex-col items-end gap-2">
-                                    <Badge variant={
-                                      task.priority === 'alta' ? 'destructive' : 
-                                      task.priority === 'media' ? 'secondary' : 'outline'
-                                    } className="text-[9px] font-black uppercase tracking-widest px-2 shadow-sm">
-                                      {task.priority}
-                                    </Badge>
-                                    <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tighter">
-                                      {task.status.replace('_', ' ')}
-                                    </span>
-                                  </div>
-                                </div>
-                                
-                                {task.description && (
-                                  <div className="pl-16">
-                                    <p className="text-sm text-muted-foreground/80 leading-relaxed bg-muted/30 p-3 rounded-lg border border-border/30">
-                                      {task.description}
-                                    </p>
-                                  </div>
-                                )}
-
-                                <div className="flex items-center justify-between pl-16 pt-2 border-t border-border/30">
-                                  {task.responsible ? (
-                                    <div className="flex items-center gap-2 text-[11px]">
-                                      <span className="text-muted-foreground font-medium uppercase tracking-tighter opacity-60">Responsável:</span>
-                                      <span className="text-foreground font-black group-hover:text-primary transition-colors">{task.responsible}</span>
-                                    </div>
-                                  ) : <div />}
-                                  
-                                  {task.waiting_for && (
-                                    <Badge variant="outline" className="text-[9px] bg-amber-500/5 text-amber-600 border-amber-500/20 font-bold italic">
-                                      Aguardando: {task.waiting_for}
-                                    </Badge>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </ScrollArea>
-            </CardContent>
-            
-            <div className="p-4 bg-muted/20 border-t border-border/50 text-center">
-               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/50">Marcão Control v2.1 • Inteligência em Gestão</p>
-            </div>
-          </Card>
-        </div>
-      </div>
+      <EventModal open={eventModal} onOpenChange={setEventModal} />
+      <TaskModal open={taskModal} onOpenChange={setTaskModal} />
     </div>
   );
 }
