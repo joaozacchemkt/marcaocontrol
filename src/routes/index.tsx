@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   Briefcase, 
   CheckSquare, 
@@ -7,55 +9,138 @@ import {
   TrendingUp, 
   AlertCircle,
   Clock,
-  MessageSquare
+  MessageSquare,
+  TrendingDown,
+  Wallet,
+  User,
+  ExternalLink
 } from "lucide-react";
+import { format, isPast, isToday, differenceInDays } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Link } from "@tanstack/react-router";
+import { Progress } from "@/components/ui/progress";
 
 export const Route = createFileRoute("/")({
   component: Dashboard,
 });
 
 function Dashboard() {
-  const date = new Date().toLocaleDateString('pt-BR', { 
+  const { data: projects = [] } = useQuery({
+    queryKey: ['dashboard-projects'],
+    queryFn: async () => {
+      const { data } = await supabase.from('projects').select('*, tasks(*)');
+      return data || [];
+    }
+  });
+
+  const { data: tasks = [] } = useQuery({
+    queryKey: ['dashboard-tasks'],
+    queryFn: async () => {
+      const { data } = await supabase.from('tasks').select('*, projects(name)').order('created_at', { ascending: false });
+      return data || [];
+    }
+  });
+
+  const { data: transactions = [] } = useQuery({
+    queryKey: ['dashboard-transactions'],
+    queryFn: async () => {
+      const { data } = await supabase.from('financial_transactions').select('*');
+      return data || [];
+    }
+  });
+
+  const dateStr = new Date().toLocaleDateString('pt-BR', { 
     weekday: 'long', 
     year: 'numeric', 
     month: 'long', 
     day: 'numeric' 
   });
 
+  // Cálculos Reais
+  const activeProjectsCount = projects.filter(p => p.status !== 'concluido' && p.status !== 'pausado').length;
+  const pendingTasksCount = tasks.filter(t => t.status !== 'concluido').length;
+  
+  const totalReceitas = transactions
+    .filter(t => t.type === 'receita' && t.status === 'pago')
+    .reduce((acc, t) => acc + t.amount, 0);
+  
+  const aReceber = transactions
+    .filter(t => t.type === 'receita' && t.status === 'pendente')
+    .reduce((acc, t) => acc + t.amount, 0);
+
+  const aPagar = transactions
+    .filter(t => t.type === 'despesa' && t.status === 'pendente')
+    .reduce((acc, t) => acc + t.amount, 0);
+
+  // Prioridades do dia (até 5)
+  const priorities = tasks
+    .filter(t => t.status !== 'concluido')
+    .sort((a, b) => {
+      const isOverdueA = a.deadline && isPast(new Date(a.deadline)) && !isToday(new Date(a.deadline)) ? 1 : 0;
+      const isOverdueB = b.deadline && isPast(new Date(b.deadline)) && !isToday(new Date(b.deadline)) ? 1 : 0;
+      if (isOverdueA !== isOverdueB) return isOverdueB - isOverdueA;
+      
+      const priorityWeight = { alta: 3, media: 2, baixa: 1 };
+      if (priorityWeight[a.priority as keyof typeof priorityWeight] !== priorityWeight[b.priority as keyof typeof priorityWeight]) {
+        return priorityWeight[b.priority as keyof typeof priorityWeight] - priorityWeight[a.priority as keyof typeof priorityWeight];
+      }
+      
+      if (a.deadline && b.deadline) return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+      if (a.deadline) return -1;
+      if (b.deadline) return 1;
+      return 0;
+    })
+    .slice(0, 5);
+
+  // Aguardando Terceiros
+  const waitingTasks = tasks.filter(t => t.status === 'aguardando_terceiro');
+
+  // Projetos que precisam de atenção
+  const projectsNeedingAttention = projects
+    .filter(p => p.status !== 'concluido')
+    .filter(p => {
+      const hasOverdueTasks = p.tasks?.some((t: any) => t.deadline && isPast(new Date(t.deadline)) && !isToday(new Date(t.deadline)) && t.status !== 'concluido');
+      const deadlineSoon = p.deadline && differenceInDays(new Date(p.deadline), new Date()) < 7;
+      return hasOverdueTasks || deadlineSoon;
+    })
+    .slice(0, 3);
+
   return (
     <AppLayout>
       <header className="mb-8">
         <h2 className="text-3xl font-bold tracking-tight">Olá, Marcão</h2>
-        <p className="text-muted-foreground capitalize">{date}</p>
+        <p className="text-muted-foreground capitalize">{dateStr}</p>
       </header>
 
       {/* Resumo Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
         <StatCard 
           title="Projetos Ativos" 
-          value="12" 
+          value={activeProjectsCount.toString()} 
           icon={Briefcase} 
-          trend="+2 este mês"
+          trend="Em andamento"
         />
         <StatCard 
-          title="Tarefas Pendentes" 
-          value="24" 
+          title="Pendências" 
+          value={pendingTasksCount.toString()} 
           icon={CheckSquare} 
-          trend="5 críticas"
-          status="warning"
+          trend={`${tasks.filter(t => t.priority === 'alta' && t.status !== 'concluido').length} críticas`}
+          status={tasks.some(t => t.priority === 'alta' && t.status !== 'concluido') ? "warning" : undefined}
         />
         <StatCard 
           title="A Receber" 
-          value="R$ 45.200" 
+          value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(aReceber)} 
           icon={TrendingUp} 
-          trend="+R$ 12k previstos"
+          trend="Previsto"
           status="success"
         />
         <StatCard 
           title="A Pagar" 
-          value="R$ 12.800" 
+          value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(aPagar)} 
           icon={DollarSign} 
-          trend="R$ 3k vencendo"
+          trend="Pendente"
           status="destructive"
         />
       </div>
@@ -64,27 +149,48 @@ function Dashboard() {
         {/* Prioridades do Dia */}
         <DashboardSection title="Prioridades do Dia" icon={AlertCircle}>
           <div className="space-y-3">
-            <PriorityItem title="Reunião com Investidor" time="14:00" project="Residencial Alpha" />
-            <PriorityItem title="Revisar contrato Terreno Sul" time="16:30" project="Expansão Imobiliária" />
-            <PriorityItem title="Call com Arquiteto" time="10:00" project="Reforma Loft" />
+            {priorities.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">Nenhuma prioridade urgente.</p>
+            ) : priorities.map(task => (
+              <PriorityItem 
+                key={task.id}
+                title={task.title} 
+                time={task.deadline ? format(new Date(task.deadline), "dd/MM") : "S/D"} 
+                project={task.projects?.name || "Geral"} 
+                priority={task.priority}
+              />
+            ))}
           </div>
         </DashboardSection>
 
-        {/* Pendências de Hoje */}
-        <DashboardSection title="Pendências" icon={CheckSquare}>
+        {/* Aguardando Terceiros */}
+        <DashboardSection title="Aguardando Terceiros" icon={MessageSquare}>
           <div className="space-y-3">
-            <TodoItem title="Enviar proposta para Cliente X" status="atrasada" />
-            <TodoItem title="Ligar para corretor" status="hoje" />
-            <TodoItem title="Atualizar planilha financeira" status="hoje" />
+            {waitingTasks.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">Ninguém te atrasando hoje.</p>
+            ) : waitingTasks.map(task => (
+              <AttentionItem 
+                key={task.id}
+                name={task.waiting_for || "Terceiro"} 
+                reason={task.title} 
+                project={task.projects?.name}
+                days={differenceInDays(new Date(), new Date(task.updated_at || new Date()))}
+              />
+            ))}
           </div>
         </DashboardSection>
 
-        {/* Lembretes e Retorno */}
-        <DashboardSection title="Atenção" icon={MessageSquare}>
+        {/* Projetos que precisam de atenção */}
+        <DashboardSection title="Projetos em Risco" icon={TrendingDown}>
           <div className="space-y-3">
-            <AttentionItem name="João Silva" reason="Aguardando retorno proposta" />
-            <AttentionItem name="Maria Oliveira" reason="Dúvida sobre terreno" />
-            <AttentionItem name="Projeto Beta" reason="Prazo de licença expirando" status="warning" />
+            {projectsNeedingAttention.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">Projetos sob controle.</p>
+            ) : projectsNeedingAttention.map(project => (
+              <ProjectRiskItem 
+                key={project.id}
+                project={project}
+              />
+            ))}
           </div>
         </DashboardSection>
       </div>
@@ -125,39 +231,61 @@ function DashboardSection({ title, icon: Icon, children }: any) {
   );
 }
 
-function PriorityItem({ title, time, project }: any) {
+function PriorityItem({ title, time, project, priority }: any) {
   return (
-    <div className="flex items-center justify-between p-3 rounded-lg bg-accent/50 border border-transparent hover:border-accent transition-all cursor-pointer">
-      <div>
-        <p className="text-sm font-medium">{title}</p>
-        <p className="text-xs text-muted-foreground">{project}</p>
+    <div className="flex items-center justify-between p-3 rounded-lg bg-accent/30 border border-transparent hover:border-primary/20 transition-all cursor-pointer group">
+      <div className="flex-1 min-w-0 mr-3">
+        <div className="flex items-center gap-2 mb-0.5">
+          <p className="text-sm font-bold truncate group-hover:text-primary transition-colors">{title}</p>
+          <Badge variant={priority === 'alta' ? 'destructive' : 'secondary'} className="h-3 text-[8px] px-1 uppercase py-0 leading-none">
+            {priority}
+          </Badge>
+        </div>
+        <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">{project}</p>
       </div>
-      <div className="text-xs font-semibold bg-background px-2 py-1 rounded border">
+      <div className="text-[10px] font-black bg-background px-2 py-1 rounded border shadow-sm shrink-0">
         {time}
       </div>
     </div>
   );
 }
 
-function TodoItem({ title, status }: any) {
+function AttentionItem({ name, reason, project, days }: any) {
   return (
-    <div className="flex items-center p-2">
-      <div className={cn(
-        "h-2 w-2 rounded-full mr-3",
-        status === 'atrasada' ? "bg-destructive" : "bg-primary"
-      )} />
-      <p className="text-sm">{title}</p>
-      {status === 'atrasada' && <span className="ml-auto text-[10px] font-bold text-destructive uppercase">Atrasado</span>}
+    <div className="p-3 rounded-lg border border-dashed border-amber-500/20 bg-amber-500/5 hover:border-amber-500/40 transition-all">
+      <div className="flex justify-between items-start mb-1">
+        <p className="text-sm font-black text-amber-900">{name}</p>
+        <span className="text-[9px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded uppercase">
+          {days} {days === 1 ? 'dia' : 'dias'}
+        </span>
+      </div>
+      <p className="text-xs text-amber-800 line-clamp-1 mb-1">{reason}</p>
+      <p className="text-[9px] text-muted-foreground uppercase font-bold">{project}</p>
     </div>
   );
 }
 
-function AttentionItem({ name, reason, status }: any) {
+function ProjectRiskItem({ project }: any) {
+  const totalTasks = project.tasks?.length || 0;
+  const completedTasks = project.tasks?.filter((t: any) => t.status === 'concluido').length || 0;
+  const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+
   return (
-    <div className="p-3 rounded-lg border border-dashed border-muted-foreground/20">
-      <p className="text-sm font-semibold">{name}</p>
-      <p className="text-xs text-muted-foreground">{reason}</p>
-    </div>
+    <Link 
+      to="/projetos/$projectId" 
+      params={{ projectId: project.id }}
+      className="block p-3 rounded-lg border border-destructive/10 bg-card hover:border-destructive/30 transition-all"
+    >
+      <div className="flex justify-between items-start mb-2">
+        <p className="text-sm font-bold truncate">{project.name}</p>
+        <AlertCircle className="h-3 w-3 text-destructive shrink-0" />
+      </div>
+      <Progress value={progress} className="h-1 mb-2" />
+      <div className="flex justify-between items-center text-[10px] text-muted-foreground font-bold uppercase">
+        <span>{Math.round(progress)}% Concluído</span>
+        <span className="text-destructive">Atenção Necessária</span>
+      </div>
+    </Link>
   );
 }
 
