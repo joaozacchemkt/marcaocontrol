@@ -16,16 +16,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-
-// Placeholder para os modais que serão criados
-// import { TaskModal } from "../modals/TaskModal";
-// ... etc
+import { TaskModal } from "../modals/TaskModal";
 
 export function GlobalAddButton() {
   const [open, setOpen] = useState(false);
+  const [showTaskModal, setShowTaskModal] = useState(false);
 
   const actions = [
-    { label: "Nova Pendência", icon: CheckSquare, onClick: () => console.log("Task") },
+    { label: "Nova Pendência", icon: CheckSquare, onClick: () => setShowTaskModal(true) },
     { label: "Novo Compromisso", icon: Calendar, onClick: () => console.log("Event") },
     { label: "Novo Projeto", icon: Briefcase, onClick: () => console.log("Project") },
     { label: "Novo Contato", icon: Users, onClick: () => console.log("Contact") },
@@ -56,6 +54,11 @@ export function GlobalAddButton() {
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <TaskModal 
+        open={showTaskModal} 
+        onOpenChange={setShowTaskModal} 
+      />
     </div>
   );
 }
