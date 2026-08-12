@@ -17,16 +17,18 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { TaskModal } from "../modals/TaskModal";
+import { ProjectModal } from "../modals/ProjectModal";
+import { ContactModal } from "../modals/ContactModal";
 
 export function GlobalAddButton() {
   const [open, setOpen] = useState(false);
-  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [activeModal, setActiveModal] = useState<string | null>(null);
 
   const actions = [
-    { label: "Nova Pendência", icon: CheckSquare, onClick: () => setShowTaskModal(true) },
+    { label: "Nova Pendência", icon: CheckSquare, onClick: () => setActiveModal("task") },
     { label: "Novo Compromisso", icon: Calendar, onClick: () => console.log("Event") },
-    { label: "Novo Projeto", icon: Briefcase, onClick: () => console.log("Project") },
-    { label: "Novo Contato", icon: Users, onClick: () => console.log("Contact") },
+    { label: "Novo Projeto", icon: Briefcase, onClick: () => setActiveModal("project") },
+    { label: "Novo Contato", icon: Users, onClick: () => setActiveModal("contact") },
     { label: "Nova Receita", icon: ArrowUpRight, onClick: () => console.log("Revenue"), className: "text-emerald-500" },
     { label: "Nova Despesa", icon: ArrowDownLeft, onClick: () => console.log("Expense"), className: "text-destructive" },
     { label: "Nova Ideia", icon: Lightbulb, onClick: () => console.log("Idea") },
@@ -56,8 +58,16 @@ export function GlobalAddButton() {
       </DropdownMenu>
 
       <TaskModal 
-        open={showTaskModal} 
-        onOpenChange={setShowTaskModal} 
+        open={activeModal === "task"} 
+        onOpenChange={() => setActiveModal(null)} 
+      />
+      <ProjectModal
+        open={activeModal === "project"}
+        onOpenChange={() => setActiveModal(null)}
+      />
+      <ContactModal
+        open={activeModal === "contact"}
+        onOpenChange={() => setActiveModal(null)}
       />
     </div>
   );
