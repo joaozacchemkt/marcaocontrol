@@ -14,7 +14,408 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      activity_history: {
+        Row: {
+          action: string
+          created_at: string | null
+          details: Json | null
+          entity_id: string
+          entity_type: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          details?: Json | null
+          entity_id: string
+          entity_type: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          details?: Json | null
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      contacts: {
+        Row: {
+          avatar_url: string | null
+          category: string | null
+          city: string | null
+          company: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          last_contact: string | null
+          name: string
+          next_contact: string | null
+          notes: string | null
+          phone: string | null
+          role: string | null
+          updated_at: string | null
+          user_id: string
+          whatsapp: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          category?: string | null
+          city?: string | null
+          company?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          last_contact?: string | null
+          name: string
+          next_contact?: string | null
+          notes?: string | null
+          phone?: string | null
+          role?: string | null
+          updated_at?: string | null
+          user_id: string
+          whatsapp?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          category?: string | null
+          city?: string | null
+          company?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          last_contact?: string | null
+          name?: string
+          next_contact?: string | null
+          notes?: string | null
+          phone?: string | null
+          role?: string | null
+          updated_at?: string | null
+          user_id?: string
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
+      events: {
+        Row: {
+          contact_id: string | null
+          created_at: string | null
+          decisions: string | null
+          description: string | null
+          end_time: string | null
+          id: string
+          location: string | null
+          objective: string | null
+          post_meeting_notes: string | null
+          pre_meeting_notes: string | null
+          project_id: string | null
+          start_time: string
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          contact_id?: string | null
+          created_at?: string | null
+          decisions?: string | null
+          description?: string | null
+          end_time?: string | null
+          id?: string
+          location?: string | null
+          objective?: string | null
+          post_meeting_notes?: string | null
+          pre_meeting_notes?: string | null
+          project_id?: string | null
+          start_time: string
+          title: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          contact_id?: string | null
+          created_at?: string | null
+          decisions?: string | null
+          description?: string | null
+          end_time?: string | null
+          id?: string
+          location?: string | null
+          objective?: string | null
+          post_meeting_notes?: string | null
+          pre_meeting_notes?: string | null
+          project_id?: string | null
+          start_time?: string
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "events_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      financial_transactions: {
+        Row: {
+          amount: number
+          category: string | null
+          contact_id: string | null
+          created_at: string | null
+          date: string
+          description: string
+          due_date: string | null
+          id: string
+          notes: string | null
+          project_id: string | null
+          status: Database["public"]["Enums"]["transaction_status"] | null
+          type: Database["public"]["Enums"]["transaction_type"]
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          category?: string | null
+          contact_id?: string | null
+          created_at?: string | null
+          date?: string
+          description: string
+          due_date?: string | null
+          id?: string
+          notes?: string | null
+          project_id?: string | null
+          status?: Database["public"]["Enums"]["transaction_status"] | null
+          type: Database["public"]["Enums"]["transaction_type"]
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          category?: string | null
+          contact_id?: string | null
+          created_at?: string | null
+          date?: string
+          description?: string
+          due_date?: string | null
+          id?: string
+          notes?: string | null
+          project_id?: string | null
+          status?: Database["public"]["Enums"]["transaction_status"] | null
+          type?: Database["public"]["Enums"]["transaction_type"]
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_transactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financial_transactions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ideas: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          notes: string | null
+          status: Database["public"]["Enums"]["idea_status"] | null
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["idea_status"] | null
+          title: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["idea_status"] | null
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          company: string | null
+          full_name: string | null
+          id: string
+          role: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          company?: string | null
+          full_name?: string | null
+          id: string
+          role?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          company?: string | null
+          full_name?: string | null
+          id?: string
+          role?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      projects: {
+        Row: {
+          budget: number | null
+          category: string | null
+          created_at: string | null
+          deadline: string | null
+          description: string | null
+          id: string
+          name: string
+          next_action: string | null
+          notes: string | null
+          objective: string | null
+          start_date: string | null
+          status: Database["public"]["Enums"]["project_status"] | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          budget?: number | null
+          category?: string | null
+          created_at?: string | null
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          next_action?: string | null
+          notes?: string | null
+          objective?: string | null
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["project_status"] | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          budget?: number | null
+          category?: string | null
+          created_at?: string | null
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          next_action?: string | null
+          notes?: string | null
+          objective?: string | null
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["project_status"] | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          contact_id: string | null
+          created_at: string | null
+          deadline: string | null
+          description: string | null
+          id: string
+          notes: string | null
+          priority: Database["public"]["Enums"]["task_priority"] | null
+          project_id: string | null
+          responsible: string | null
+          status: Database["public"]["Enums"]["task_status"] | null
+          title: string
+          updated_at: string | null
+          user_id: string
+          waiting_for: string | null
+        }
+        Insert: {
+          contact_id?: string | null
+          created_at?: string | null
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          notes?: string | null
+          priority?: Database["public"]["Enums"]["task_priority"] | null
+          project_id?: string | null
+          responsible?: string | null
+          status?: Database["public"]["Enums"]["task_status"] | null
+          title: string
+          updated_at?: string | null
+          user_id: string
+          waiting_for?: string | null
+        }
+        Update: {
+          contact_id?: string | null
+          created_at?: string | null
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          notes?: string | null
+          priority?: Database["public"]["Enums"]["task_priority"] | null
+          project_id?: string | null
+          responsible?: string | null
+          status?: Database["public"]["Enums"]["task_status"] | null
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+          waiting_for?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +424,27 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      idea_status:
+        | "ideia"
+        | "estudar"
+        | "oportunidade"
+        | "virou_projeto"
+        | "arquivada"
+      project_status:
+        | "ideia"
+        | "em_analise"
+        | "planejamento"
+        | "em_andamento"
+        | "pausado"
+        | "concluido"
+      task_priority: "baixa" | "media" | "alta"
+      task_status:
+        | "a_fazer"
+        | "em_andamento"
+        | "aguardando_terceiro"
+        | "concluido"
+      transaction_status: "pendente" | "pago"
+      transaction_type: "receita" | "despesa"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +571,31 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      idea_status: [
+        "ideia",
+        "estudar",
+        "oportunidade",
+        "virou_projeto",
+        "arquivada",
+      ],
+      project_status: [
+        "ideia",
+        "em_analise",
+        "planejamento",
+        "em_andamento",
+        "pausado",
+        "concluido",
+      ],
+      task_priority: ["baixa", "media", "alta"],
+      task_status: [
+        "a_fazer",
+        "em_andamento",
+        "aguardando_terceiro",
+        "concluido",
+      ],
+      transaction_status: ["pendente", "pago"],
+      transaction_type: ["receita", "despesa"],
+    },
   },
 } as const
