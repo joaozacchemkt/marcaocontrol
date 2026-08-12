@@ -90,7 +90,7 @@ function IdeiasPage() {
                       Insight
                     </Badge>
                     <span className="text-[10px] text-muted-foreground uppercase font-bold">
-                      {format(new Date(idea.created_at), "dd MMM yyyy", { locale: ptBR })}
+                      {idea.created_at ? format(new Date(idea.created_at), "dd MMM yyyy", { locale: ptBR }) : "N/A"}
                     </span>
                   </div>
                   <h3 className="text-xl font-black mb-2 group-hover:text-primary transition-colors">
