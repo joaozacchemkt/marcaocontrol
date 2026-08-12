@@ -63,9 +63,33 @@ export function CalendarAgenda() {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="lg:col-span-4 space-y-6">
-        <Card className="border-border/50 bg-card/50 backdrop-blur-sm shadow-xl overflow-hidden">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card/30 p-4 rounded-2xl border border-border/50 backdrop-blur-md">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-primary/10 border border-primary/20">
+            <Maximize2 className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-sm font-black uppercase tracking-widest">Ajuste de Visualização</h2>
+            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">Ampliar ou reduzir elementos da agenda</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-4 w-full sm:w-64">
+          <span className="text-[10px] font-black text-muted-foreground uppercase">{Math.round(zoomLevel * 100)}%</span>
+          <Slider 
+            value={[zoomLevel]} 
+            min={0.8} 
+            max={1.4} 
+            step={0.05} 
+            onValueChange={([val]) => setZoomLevel(val)}
+            className="flex-1"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="lg:col-span-4 space-y-8" style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'top left' }}>
+          <Card className="border-border/50 bg-card/50 backdrop-blur-sm shadow-2xl overflow-hidden transition-all duration-300">
           <CardHeader className="pb-2 bg-muted/30">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <CalendarIcon className="w-4 h-4 text-primary" />
