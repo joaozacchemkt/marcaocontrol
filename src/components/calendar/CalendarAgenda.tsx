@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 export function CalendarAgenda() {
   const [date, setDate] = useState<Date | undefined>(new Date());
+  const [zoomLevel, setZoomLevel] = useState(1);
 
   const { data: tasks, isLoading: tasksLoading } = useQuery({
     queryKey: ['tasks-calendar'],
