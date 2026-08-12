@@ -27,7 +27,7 @@ interface ProjectModalProps {
     category?: string;
     notes?: string;
     ideaId?: string;
-  };
+  } | null;
 }
 
 const CATEGORIES = [

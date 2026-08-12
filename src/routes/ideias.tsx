@@ -156,7 +156,7 @@ function IdeiasPage() {
           category: selectedIdea.category,
           notes: selectedIdea.notes,
           ideaId: selectedIdea.id
-        } : undefined}
+        } : null}
       />
     </AppLayout>
   );
