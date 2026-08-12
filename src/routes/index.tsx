@@ -212,8 +212,8 @@ function StatCard({ title, value, icon: Icon, trend, status }: any) {
         <Icon className="h-5 w-5 text-muted-foreground" />
       </div>
       <div>
-        <h3 className="text-2xl font-bold">{value}</h3>
-        <p className={cn("text-xs mt-1", status && statusColors[status])}>{trend}</p>
+        <h3 className="text-2xl font-bold tracking-tight">{value}</h3>
+        <p className={cn("text-xs mt-1 font-medium", status && statusColors[status])}>{trend}</p>
       </div>
     </div>
   );
