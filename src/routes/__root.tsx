@@ -116,15 +116,21 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+function AlertsRunner() {
+  useAlerts();
+  return null;
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  useAlerts();
 
   return (
     <QueryClientProvider client={queryClient}>
+      <AlertsRunner />
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
       <Toaster position="top-right" richColors />
     </QueryClientProvider>
   );
 }
+
