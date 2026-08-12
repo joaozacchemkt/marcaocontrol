@@ -14,6 +14,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ContactModal } from "@/components/modals/ContactModal";
 import { TaskModal } from "@/components/modals/TaskModal";
+import { EventModal } from "@/components/modals/EventModal";
+
 
 
 function ContatosPage() {
@@ -120,7 +122,7 @@ function ContactCard({ contact }: { contact: any }) {
         <Button variant="outline" size="sm" className="flex-1 h-8 text-[10px] uppercase font-bold" onClick={() => setActiveModal('task')}>
           <CheckSquare className="h-3 w-3 mr-1" /> Pendência
         </Button>
-        <Button variant="outline" size="sm" className="flex-1 h-8 text-[10px] uppercase font-bold">
+        <Button variant="outline" size="sm" className="flex-1 h-8 text-[10px] uppercase font-bold" onClick={() => setActiveModal('event')}>
           <Calendar className="h-3 w-3 mr-1" /> Agenda
         </Button>
       </div>
@@ -129,8 +131,15 @@ function ContactCard({ contact }: { contact: any }) {
         open={activeModal === 'task'} 
         onOpenChange={(open: boolean) => !open && setActiveModal(null)}
       />
+      
+      <EventModal
+        open={activeModal === 'event'}
+        onOpenChange={(open: boolean) => !open && setActiveModal(null)}
+        initialContactId={contact.id}
+      />
 
     </div>
   );
 }
+
 
