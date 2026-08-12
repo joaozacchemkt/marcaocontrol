@@ -31,4 +31,3 @@ Finalização do Kanban, implementação de modais globais e desenvolvimento do 
 - **Banco de Dados:** Uso integral das tabelas `tasks`, `projects`, `contacts` e `financial_transactions`.
 - **UX:** Design minimalista, mobile-first e tokens semânticos (shadcn/ui).
 - **Performance:** Otimização de queries com joins (`select('*, projects(name)')`).
-
