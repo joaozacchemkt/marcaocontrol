@@ -80,7 +80,7 @@ export function CalendarAgenda() {
             min={0.7} 
             max={1.3} 
             step={0.05} 
-            onValueChange={([val]) => setZoomLevel(val)}
+            onValueChange={([val]) => val !== undefined && setZoomLevel(val)}
             className="flex-1"
           />
         </div>
