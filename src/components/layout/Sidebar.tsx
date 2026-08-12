@@ -41,6 +41,7 @@ export function Sidebar() {
         </div>
 
 
+
         <nav className="flex-1 space-y-1">
           {menuItems.map((item) => {
             const isActive = location.pathname === item.href;
