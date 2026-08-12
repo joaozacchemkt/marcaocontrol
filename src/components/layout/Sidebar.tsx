@@ -7,10 +7,12 @@ import {
   DollarSign, 
   Lightbulb, 
   Settings,
-  Plus
+  Plus,
+  LayoutDashboard
 } from "lucide-react";
 import { Link, useLocation } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
+import { GlobalAddButton } from "./GlobalAddButton";
 
 const menuItems = [
   { title: "Início", href: "/", icon: Home },
