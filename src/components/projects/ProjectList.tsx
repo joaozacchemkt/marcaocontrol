@@ -127,7 +127,8 @@ export function ProjectList() {
             return (
               <Link 
                 key={project.id} 
-                to={`/projetos/${project.id}`}
+                to="/projetos/$projectId"
+                params={{ projectId: project.id }}
                 className="group block rounded-xl border bg-card p-6 shadow-sm hover:shadow-md hover:border-primary/50 transition-all"
               >
                 <div className="flex items-start justify-between mb-4">

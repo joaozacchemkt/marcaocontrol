@@ -17,6 +17,7 @@ import { Route as FinanceiroRouteImport } from './routes/financeiro'
 import { Route as IdeiasRouteImport } from './routes/ideias'
 import { Route as ProjetosRouteImport } from './routes/projetos'
 import { Route as TarefasRouteImport } from './routes/tarefas'
+import { Route as ProjetosProjectIdRouteImport } from './routes/projetos.$projectId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -58,6 +59,11 @@ const TarefasRoute = TarefasRouteImport.update({
   path: '/tarefas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProjetosProjectIdRoute = ProjetosProjectIdRouteImport.update({
+  id: '/$projectId',
+  path: '/$projectId',
+  getParentRoute: () => ProjetosRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -66,8 +72,9 @@ export interface FileRoutesByFullPath {
   '/contatos': typeof ContatosRoute
   '/financeiro': typeof FinanceiroRoute
   '/ideias': typeof IdeiasRoute
-  '/projetos': typeof ProjetosRoute
+  '/projetos': typeof ProjetosRouteWithChildren
   '/tarefas': typeof TarefasRoute
+  '/projetos/$projectId': typeof ProjetosProjectIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -76,8 +83,9 @@ export interface FileRoutesByTo {
   '/contatos': typeof ContatosRoute
   '/financeiro': typeof FinanceiroRoute
   '/ideias': typeof IdeiasRoute
-  '/projetos': typeof ProjetosRoute
+  '/projetos': typeof ProjetosRouteWithChildren
   '/tarefas': typeof TarefasRoute
+  '/projetos/$projectId': typeof ProjetosProjectIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -87,8 +95,9 @@ export interface FileRoutesById {
   '/contatos': typeof ContatosRoute
   '/financeiro': typeof FinanceiroRoute
   '/ideias': typeof IdeiasRoute
-  '/projetos': typeof ProjetosRoute
+  '/projetos': typeof ProjetosRouteWithChildren
   '/tarefas': typeof TarefasRoute
+  '/projetos/$projectId': typeof ProjetosProjectIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -101,6 +110,7 @@ export interface FileRouteTypes {
     | '/ideias'
     | '/projetos'
     | '/tarefas'
+    | '/projetos/$projectId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -111,6 +121,7 @@ export interface FileRouteTypes {
     | '/ideias'
     | '/projetos'
     | '/tarefas'
+    | '/projetos/$projectId'
   id:
     | '__root__'
     | '/'
@@ -121,6 +132,7 @@ export interface FileRouteTypes {
     | '/ideias'
     | '/projetos'
     | '/tarefas'
+    | '/projetos/$projectId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -130,7 +142,7 @@ export interface RootRouteChildren {
   ContatosRoute: typeof ContatosRoute
   FinanceiroRoute: typeof FinanceiroRoute
   IdeiasRoute: typeof IdeiasRoute
-  ProjetosRoute: typeof ProjetosRoute
+  ProjetosRoute: typeof ProjetosRouteWithChildren
   TarefasRoute: typeof TarefasRoute
 }
 
@@ -192,8 +204,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TarefasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/projetos/$projectId': {
+      id: '/projetos/$projectId'
+      path: '/$projectId'
+      fullPath: '/projetos/$projectId'
+      preLoaderRoute: typeof ProjetosProjectIdRouteImport
+      parentRoute: typeof ProjetosRoute
+    }
   }
 }
+
+interface ProjetosRouteChildren {
+  ProjetosProjectIdRoute: typeof ProjetosProjectIdRoute
+}
+
+const ProjetosRouteChildren: ProjetosRouteChildren = {
+  ProjetosProjectIdRoute: ProjetosProjectIdRoute,
+}
+
+const ProjetosRouteWithChildren = ProjetosRoute._addFileChildren(
+  ProjetosRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -202,7 +233,7 @@ const rootRouteChildren: RootRouteChildren = {
   ContatosRoute: ContatosRoute,
   FinanceiroRoute: FinanceiroRoute,
   IdeiasRoute: IdeiasRoute,
-  ProjetosRoute: ProjetosRoute,
+  ProjetosRoute: ProjetosRouteWithChildren,
   TarefasRoute: TarefasRoute,
 }
 export const routeTree = rootRouteImport
