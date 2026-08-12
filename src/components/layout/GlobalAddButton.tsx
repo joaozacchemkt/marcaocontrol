@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { TaskModal } from "../modals/TaskModal";
 import { ProjectModal } from "../modals/ProjectModal";
 import { ContactModal } from "../modals/ContactModal";
+import { TransactionModal } from "../modals/TransactionModal";
 
 export function GlobalAddButton() {
   const [open, setOpen] = useState(false);
@@ -29,8 +30,8 @@ export function GlobalAddButton() {
     { label: "Novo Compromisso", icon: Calendar, onClick: () => console.log("Event") },
     { label: "Novo Projeto", icon: Briefcase, onClick: () => setActiveModal("project") },
     { label: "Novo Contato", icon: Users, onClick: () => setActiveModal("contact") },
-    { label: "Nova Receita", icon: ArrowUpRight, onClick: () => console.log("Revenue"), className: "text-emerald-500" },
-    { label: "Nova Despesa", icon: ArrowDownLeft, onClick: () => console.log("Expense"), className: "text-destructive" },
+    { label: "Nova Receita", icon: ArrowUpRight, onClick: () => setActiveModal("revenue"), className: "text-emerald-500" },
+    { label: "Nova Despesa", icon: ArrowDownLeft, onClick: () => setActiveModal("expense"), className: "text-destructive" },
     { label: "Nova Ideia", icon: Lightbulb, onClick: () => console.log("Idea") },
   ];
 
@@ -68,6 +69,16 @@ export function GlobalAddButton() {
       <ContactModal
         open={activeModal === "contact"}
         onOpenChange={() => setActiveModal(null)}
+      />
+      <TransactionModal
+        open={activeModal === "revenue"}
+        onOpenChange={() => setActiveModal(null)}
+        type="receita"
+      />
+      <TransactionModal
+        open={activeModal === "expense"}
+        onOpenChange={() => setActiveModal(null)}
+        type="despesa"
       />
     </div>
   );
