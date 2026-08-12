@@ -90,51 +90,51 @@ export function CalendarAgenda() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-4 space-y-8" style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'top left' }}>
           <Card className="border-border/50 bg-card/50 backdrop-blur-sm shadow-2xl overflow-hidden transition-all duration-300">
-          <CardHeader className="pb-2 bg-muted/30">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <CalendarIcon className="w-4 h-4 text-primary" />
-              Navegação
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0 sm:p-4">
-            <Calendar
-              mode="single"
-              selected={date}
-              onSelect={setDate}
-              className="rounded-md border-none mx-auto"
-              locale={ptBR}
-              modifiers={modifiers}
-              modifiersClassNames={{
-                booked: "after:content-[''] after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:bg-primary after:rounded-full relative font-bold text-primary"
-              }}
-            />
-          </CardContent>
-        </Card>
+            <CardHeader className="pb-2 bg-muted/30">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <CalendarIcon className="w-4 h-4 text-primary" />
+                Navegação
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0 sm:p-4">
+              <Calendar
+                mode="single"
+                selected={date}
+                onSelect={setDate}
+                className="rounded-md border-none mx-auto"
+                locale={ptBR}
+                modifiers={modifiers}
+                modifiersClassNames={{
+                  booked: "after:content-[''] after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:bg-primary after:rounded-full relative font-bold text-primary"
+                }}
+              />
+            </CardContent>
+          </Card>
 
-        <Card className="border-border/50 bg-card/50 backdrop-blur-sm shadow-lg">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Visão Geral</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex justify-between items-center p-3 rounded-lg bg-background/50 border border-border/50">
-              <div className="flex items-center gap-2">
-                <Timer className="w-4 h-4 text-primary" />
-                <span className="text-sm text-muted-foreground">Pendências</span>
+          <Card className="border-border/50 bg-card/50 backdrop-blur-sm shadow-lg">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Visão Geral</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex justify-between items-center p-3 rounded-lg bg-background/50 border border-border/50">
+                <div className="flex items-center gap-2">
+                  <Timer className="w-4 h-4 text-primary" />
+                  <span className="text-sm text-muted-foreground">Pendências</span>
+                </div>
+                <span className="text-sm font-bold">{tasks?.length || 0}</span>
               </div>
-              <span className="text-sm font-bold">{tasks?.length || 0}</span>
-            </div>
-            <div className="flex justify-between items-center p-3 rounded-lg bg-background/50 border border-border/50">
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-primary" />
-                <span className="text-sm text-muted-foreground">Eventos</span>
+              <div className="flex justify-between items-center p-3 rounded-lg bg-background/50 border border-border/50">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-primary" />
+                  <span className="text-sm text-muted-foreground">Eventos</span>
+                </div>
+                <span className="text-sm font-bold">{events?.length || 0}</span>
               </div>
-              <span className="text-sm font-bold">{events?.length || 0}</span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </div>
 
-      <div className="lg:col-span-8">
+        <div className="lg:col-span-8" style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'top right' }}>
         <Card className="h-full border-border/50 bg-card/50 backdrop-blur-sm flex flex-col min-h-[600px] shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 left-0 w-1 h-full bg-primary/20" />
           <CardHeader className="flex flex-row items-center justify-between border-b border-border/50 pb-6 bg-muted/10">
