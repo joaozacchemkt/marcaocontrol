@@ -206,7 +206,7 @@ function StatCard({ title, value, icon: Icon, trend, status }: any) {
   };
 
   return (
-    <div className="rounded-xl border bg-card p-6 shadow-sm">
+    <div className="rounded-xl border bg-card p-6 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1">
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm font-medium text-muted-foreground">{title}</p>
         <Icon className="h-5 w-5 text-muted-foreground" />
@@ -221,7 +221,7 @@ function StatCard({ title, value, icon: Icon, trend, status }: any) {
 
 function DashboardSection({ title, icon: Icon, children }: any) {
   return (
-    <div className="rounded-xl border bg-card p-6 shadow-sm">
+    <div className="rounded-xl border bg-card p-6 shadow-sm hover:shadow-md transition-all duration-300">
       <div className="flex items-center mb-6">
         <Icon className="h-5 w-5 mr-2 text-primary" />
         <h4 className="font-semibold">{title}</h4>
@@ -233,7 +233,7 @@ function DashboardSection({ title, icon: Icon, children }: any) {
 
 function PriorityItem({ title, time, project, priority }: any) {
   return (
-    <div className="flex items-center justify-between p-3 rounded-lg bg-accent/30 border border-transparent hover:border-primary/20 transition-all cursor-pointer group">
+    <div className="flex items-center justify-between p-3 rounded-lg bg-accent/30 border border-transparent hover:border-primary/20 transition-all duration-200 cursor-pointer group hover:bg-accent/50 active:scale-[0.98]">
       <div className="flex-1 min-w-0 mr-3">
         <div className="flex items-center gap-2 mb-0.5">
           <p className="text-sm font-bold truncate group-hover:text-primary transition-colors">{title}</p>
