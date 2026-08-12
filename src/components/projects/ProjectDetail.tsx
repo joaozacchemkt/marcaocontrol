@@ -144,11 +144,13 @@ export function ProjectDetail() {
         </div>
         <div className="rounded-xl border bg-card p-6 shadow-sm">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-muted-foreground">Pendências</span>
-            <CheckCircle2 className="h-4 w-4 text-blue-500" />
+            <span className="text-sm font-medium text-muted-foreground text-primary">Resultado</span>
+            <Wallet className="h-4 w-4 text-primary" />
           </div>
-          <div className="text-2xl font-bold">{completedTasks}/{totalTasks}</div>
-          <p className="text-xs text-muted-foreground mt-2">Tarefas concluídas</p>
+          <div className={cn("text-2xl font-black", resultadoFinanceiro < 0 ? "text-destructive" : "text-primary")}>
+            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(resultadoFinanceiro)}
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">Margem atual</p>
         </div>
       </div>
 
