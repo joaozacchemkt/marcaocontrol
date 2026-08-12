@@ -7,10 +7,12 @@ import {
   DollarSign, 
   Lightbulb, 
   Settings,
-  Plus
+  Plus,
+  LayoutDashboard
 } from "lucide-react";
 import { Link, useLocation } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
+import { GlobalAddButton } from "./GlobalAddButton";
 
 const menuItems = [
   { title: "Início", href: "/", icon: Home },
@@ -55,10 +57,7 @@ export function Sidebar() {
         </nav>
 
         <div className="mt-auto pt-4">
-          <button className="flex w-full items-center justify-center rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 transition-all active:scale-95">
-            <Plus className="mr-2 h-4 w-4" />
-            Novo
-          </button>
+          <GlobalAddButton />
         </div>
       </div>
     </aside>
