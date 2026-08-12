@@ -63,7 +63,7 @@ export function TransactionModal({ open, onOpenChange, type }: TransactionModalP
       const { error } = await supabase.from('financial_transactions').insert({
         description: data.description,
         amount: parseFloat(data.amount),
-        date: data.date,
+        date: data.date || undefined,
         due_date: data.due_date || null,
         category: data.category,
         project_id: data.project_id === 'none' ? null : data.project_id,
