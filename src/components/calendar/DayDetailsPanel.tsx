@@ -19,20 +19,22 @@ interface DayDetailsPanelProps {
   date: Date | undefined;
   events: any[];
   tasks: any[];
+  finances: any[];
   onAddEvent: () => void;
   onAddTask: () => void;
-  onCollapse?: () => void;
+  onCollapse?: (() => void) | undefined;
 }
 
 export function DayDetailsPanel({
   date,
   events,
   tasks,
+  finances,
   onAddEvent,
   onAddTask,
   onCollapse,
 }: DayDetailsPanelProps) {
-  const total = events.length + tasks.length;
+  const total = events.length + tasks.length + finances.length;
 
   return (
     <div className="flex h-full min-w-0 flex-col">
@@ -164,6 +166,33 @@ export function DayDetailsPanel({
                           )}
                         </div>
                       </div>
+                    </article>
+                  ))}
+                </section>
+              )}
+              {finances.length > 0 && (
+                <section className="space-y-2">
+                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+                    Vencimentos
+                  </h4>
+                  {finances.map((item) => (
+                    <article
+                      key={item.id}
+                      className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-xl border border-border/50 bg-background/40 p-3"
+                    >
+                      <p className="truncate text-sm font-semibold">{item.description || "Lançamento"}</p>
+                      <span
+                        className={cn(
+                          "shrink-0 text-xs font-black tabular-nums",
+                          item.type === "receita" ? "text-emerald-500" : "text-destructive",
+                        )}
+                      >
+                        {item.type === "receita" ? "+" : "-"}
+                        {Number(item.amount || 0).toLocaleString("pt-BR", {
+                          style: "currency",
+                          currency: "BRL",
+                        })}
+                      </span>
                     </article>
                   ))}
                 </section>
