@@ -5,6 +5,12 @@ export const Route = createFileRoute("/financeiro")({
   component: FinanceiroPage,
 });
 
+import { FinanceiroView } from "@/components/financeiro/FinanceiroView";
+
 function FinanceiroPage() {
-  return <AppLayout>Financeiro</AppLayout>;
+  return (
+    <AppLayout>
+      <FinanceiroView />
+    </AppLayout>
+  );
 }

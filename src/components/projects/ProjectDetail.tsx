@@ -11,7 +11,10 @@ import {
   ChevronLeft,
   ArrowRight,
   MoreVertical,
-  Briefcase
+  Briefcase,
+  TrendingDown,
+  TrendingUp,
+  Wallet
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +33,8 @@ export function ProjectDetail() {
         .from('projects')
         .select(`
           *,
-          tasks (*)
+          tasks (*),
+          financial_transactions (*)
         `)
         .eq('id', projectId)
         .single();
@@ -51,6 +55,17 @@ export function ProjectDetail() {
   const completedTasks = project.tasks?.filter((t: any) => t.status === 'concluido').length || 0;
   const totalTasks = project.tasks?.length || 0;
   const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+
+  // Lógica Financeira Real
+  const receitas = project.financial_transactions
+    ?.filter((t: any) => t.type === 'receita')
+    .reduce((acc: number, t: any) => acc + t.amount, 0) || 0;
+  
+  const despesas = project.financial_transactions
+    ?.filter((t: any) => t.type === 'despesa')
+    .reduce((acc: number, t: any) => acc + t.amount, 0) || 0;
+
+  const resultadoFinanceiro = receitas - despesas;
 
   // Gerar timeline a partir das tarefas ordenadas por data
   const timelineEvents = project.tasks
@@ -99,13 +114,23 @@ export function ProjectDetail() {
         </div>
         <div className="rounded-xl border bg-card p-6 shadow-sm">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-muted-foreground">Budget</span>
-            <Briefcase className="h-4 w-4 text-emerald-500" />
+            <span className="text-sm font-medium text-muted-foreground text-emerald-700">Receitas</span>
+            <TrendingUp className="h-4 w-4 text-emerald-500" />
           </div>
-          <div className="text-2xl font-bold">
-            {project.budget ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(project.budget) : "N/A"}
+          <div className="text-2xl font-black text-emerald-700">
+            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(receitas)}
           </div>
-          <p className="text-xs text-muted-foreground mt-2">Investimento planejado</p>
+          <p className="text-xs text-muted-foreground mt-2">Total recebido</p>
+        </div>
+        <div className="rounded-xl border bg-card p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-muted-foreground text-destructive">Despesas</span>
+            <TrendingDown className="h-4 w-4 text-destructive" />
+          </div>
+          <div className="text-2xl font-black text-destructive">
+            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(despesas)}
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">Custo real total</p>
         </div>
         <div className="rounded-xl border bg-card p-6 shadow-sm">
           <div className="flex items-center justify-between mb-2">
@@ -119,11 +144,13 @@ export function ProjectDetail() {
         </div>
         <div className="rounded-xl border bg-card p-6 shadow-sm">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-muted-foreground">Pendências</span>
-            <CheckCircle2 className="h-4 w-4 text-blue-500" />
+            <span className="text-sm font-medium text-muted-foreground text-primary">Resultado</span>
+            <Wallet className="h-4 w-4 text-primary" />
           </div>
-          <div className="text-2xl font-bold">{completedTasks}/{totalTasks}</div>
-          <p className="text-xs text-muted-foreground mt-2">Tarefas concluídas</p>
+          <div className={cn("text-2xl font-black", resultadoFinanceiro < 0 ? "text-destructive" : "text-primary")}>
+            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(resultadoFinanceiro)}
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">Margem atual</p>
         </div>
       </div>
 

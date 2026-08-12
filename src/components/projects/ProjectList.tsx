@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Link } from "@tanstack/react-router";
+import { ProjectModal } from "../modals/ProjectModal";
 
 type Project = {
   id: string;
@@ -34,6 +35,7 @@ type Project = {
 export function ProjectList() {
   const [filter, setFilter] = useState('todos');
   const [search, setSearch] = useState("");
+  const [showProjectModal, setShowProjectModal] = useState(false);
 
   const { data: projects = [], isLoading } = useQuery({
     queryKey: ['projects'],
@@ -86,7 +88,7 @@ export function ProjectList() {
           <h2 className="text-2xl font-bold tracking-tight">Projetos</h2>
           <p className="text-muted-foreground">Acompanhe seus empreendimentos e metas.</p>
         </div>
-        <Button>
+        <Button onClick={() => setShowProjectModal(true)}>
           <Plus className="h-4 w-4 mr-2" /> Novo Projeto
         </Button>
       </div>
@@ -180,6 +182,7 @@ export function ProjectList() {
           })}
         </div>
       )}
+      <ProjectModal open={showProjectModal} onOpenChange={setShowProjectModal} />
     </div>
   );
 }
