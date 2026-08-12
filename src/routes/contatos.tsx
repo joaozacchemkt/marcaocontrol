@@ -14,6 +14,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ContactModal } from "@/components/modals/ContactModal";
 import { TaskModal } from "@/components/modals/TaskModal";
+import { EventModal } from "@/components/modals/EventModal";
+
 
 
 function ContatosPage() {
