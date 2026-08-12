@@ -13,6 +13,7 @@ import {
 import { Link, useLocation } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 import { GlobalAddButton } from "./GlobalAddButton";
+import { GlobalSearch } from "../search/GlobalSearch";
 
 const menuItems = [
   { title: "Início", href: "/", icon: Home },
@@ -33,6 +34,10 @@ export function Sidebar() {
       <div className="flex h-full flex-col px-3 py-4">
         <div className="mb-10 px-3">
           <h1 className="text-xl font-bold tracking-tight text-primary">Marcão Control</h1>
+        </div>
+
+        <div className="mb-6 px-3">
+          <GlobalSearch />
         </div>
 
         <nav className="flex-1 space-y-1">
