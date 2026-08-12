@@ -20,6 +20,7 @@ import { TaskModal } from "../modals/TaskModal";
 import { ProjectModal } from "../modals/ProjectModal";
 import { ContactModal } from "../modals/ContactModal";
 import { TransactionModal } from "../modals/TransactionModal";
+import { EventModal } from "../modals/EventModal";
 
 export function GlobalAddButton() {
   const [open, setOpen] = useState(false);
@@ -27,7 +28,7 @@ export function GlobalAddButton() {
 
   const actions = [
     { label: "Nova Pendência", icon: CheckSquare, onClick: () => setActiveModal("task") },
-    { label: "Novo Compromisso", icon: Calendar, onClick: () => console.log("Event") },
+    { label: "Novo Compromisso", icon: Calendar, onClick: () => setActiveModal("event") },
     { label: "Novo Projeto", icon: Briefcase, onClick: () => setActiveModal("project") },
     { label: "Novo Contato", icon: Users, onClick: () => setActiveModal("contact") },
     { label: "Nova Receita", icon: ArrowUpRight, onClick: () => setActiveModal("revenue"), className: "text-emerald-500" },
@@ -62,6 +63,10 @@ export function GlobalAddButton() {
         open={activeModal === "task"} 
         onOpenChange={() => setActiveModal(null)} 
       />
+      <EventModal
+        open={activeModal === "event"}
+        onOpenChange={() => setActiveModal(null)}
+      />
       <ProjectModal
         open={activeModal === "project"}
         onOpenChange={() => setActiveModal(null)}
@@ -83,3 +88,4 @@ export function GlobalAddButton() {
     </div>
   );
 }
+
