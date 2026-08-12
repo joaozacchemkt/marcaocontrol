@@ -5,10 +5,12 @@ import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { format, isSameDay, parseISO, startOfMonth, endOfMonth } from "date-fns";
+import { Slider } from "@/components/ui/slider";
+import { format, isSameDay, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Loader2, Calendar as CalendarIcon, Clock, CheckCircle2, AlertCircle, Timer, MapPin, FileText } from "lucide-react";
+import { Loader2, Calendar as CalendarIcon, Clock, CheckCircle2, AlertCircle, Timer, MapPin, Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { motion, AnimatePresence } from "framer-motion";
 
 export function CalendarAgenda() {
   const [date, setDate] = useState<Date | undefined>(new Date());
