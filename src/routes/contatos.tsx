@@ -8,11 +8,13 @@ export const Route = createFileRoute("/contatos")({
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Plus, User, Building2, Phone, Mail, MapPin, MoreVertical } from "lucide-react";
+import { Search, Plus, User, Building2, Phone, Mail, MapPin, CheckSquare, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ContactModal } from "@/components/modals/ContactModal";
+import { TaskModal } from "@/components/modals/TaskModal";
+
 
 function ContatosPage() {
   const [search, setSearch] = useState("");
@@ -125,8 +127,9 @@ function ContactCard({ contact }: { contact: any }) {
 
       <TaskModal 
         open={activeModal === 'task'} 
-        onOpenChange={(open) => !open && setActiveModal(null)}
+        onOpenChange={(open: boolean) => !open && setActiveModal(null)}
       />
+
     </div>
   );
 }
