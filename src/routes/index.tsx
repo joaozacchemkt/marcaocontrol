@@ -91,7 +91,7 @@ function Dashboard() {
     .reduce((acc, t) => acc + t.amount, 0);
 
   // Prioridades do dia (até 5)
-  const priorities = [
+  const priorities = ([
     ...tasks.filter(t => t.status !== 'concluido').map(t => ({ ...t, type: 'task' })),
     ...academicExams.filter(e => e.status !== 'corrigida').map(e => ({ 
       ...e,
@@ -113,7 +113,7 @@ function Dashboard() {
       type: 'assignment',
       status: a.status || 'nao_iniciado'
     }))
-  ] as any[]
+  ] as any[])
     .sort((a, b) => {
       const isOverdueA = a.deadline && isPast(new Date(a.deadline)) && !isToday(new Date(a.deadline)) ? 1 : 0;
       const isOverdueB = b.deadline && isPast(new Date(b.deadline)) && !isToday(new Date(b.deadline)) ? 1 : 0;
