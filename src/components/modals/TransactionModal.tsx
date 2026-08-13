@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { logActivity } from "@/lib/activity";
 
 interface TransactionModalProps {
   open: boolean;
@@ -88,9 +89,19 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId }:
         insertData.date = data.date;
       }
 
-      const { error } = await supabase.from('financial_transactions').insert(insertData);
+      const { data: transaction, error } = await supabase.from('financial_transactions').insert(insertData).select().single();
       
       if (error) throw error;
+      
+      if (transaction && transaction.project_id) {
+        await logActivity({
+          projectId: transaction.project_id,
+          type: 'transaction_created',
+          description: `Nova ${type}: "${transaction.description}" (R$ ${transaction.amount})`,
+          entityType: 'transaction',
+          entityId: transaction.id
+        });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['financial_transactions'] });
