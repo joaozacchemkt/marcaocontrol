@@ -17,7 +17,9 @@ export type ActivityType =
   | 'contact_unlinked'
   | 'transaction_created'
   | 'transaction_paid'
-  | 'idea_converted';
+  | 'idea_converted'
+  | 'file_uploaded'
+  | 'file_deleted';
 
 export async function logActivity(params: {
   projectId: string;
