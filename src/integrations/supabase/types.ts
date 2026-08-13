@@ -14,6 +14,228 @@ export type Database = {
   }
   public: {
     Tables: {
+      academic_classes: {
+        Row: {
+          content: string | null
+          created_at: string | null
+          date: string
+          id: string
+          materials_links: string[] | null
+          observations: string | null
+          subject_id: string
+          summary: string | null
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string | null
+          date?: string
+          id?: string
+          materials_links?: string[] | null
+          observations?: string | null
+          subject_id: string
+          summary?: string | null
+          title: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string | null
+          date?: string
+          id?: string
+          materials_links?: string[] | null
+          observations?: string | null
+          subject_id?: string
+          summary?: string | null
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academic_classes_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "academic_subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      academic_exams: {
+        Row: {
+          content: string | null
+          created_at: string | null
+          date: string
+          grade: number | null
+          id: string
+          notes: string | null
+          status: string | null
+          subject_id: string
+          title: string
+          updated_at: string | null
+          user_id: string
+          weight: number | null
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string | null
+          date: string
+          grade?: number | null
+          id?: string
+          notes?: string | null
+          status?: string | null
+          subject_id: string
+          title: string
+          updated_at?: string | null
+          user_id: string
+          weight?: number | null
+        }
+        Update: {
+          content?: string | null
+          created_at?: string | null
+          date?: string
+          grade?: number | null
+          id?: string
+          notes?: string | null
+          status?: string | null
+          subject_id?: string
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+          weight?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academic_exams_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "academic_subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      academic_resources: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          project_id: string
+          status: string | null
+          subject_id: string | null
+          title: string
+          type: string | null
+          url: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          project_id: string
+          status?: string | null
+          subject_id?: string | null
+          title: string
+          type?: string | null
+          url: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          project_id?: string
+          status?: string | null
+          subject_id?: string | null
+          title?: string
+          type?: string | null
+          url?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academic_resources_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academic_resources_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "academic_subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      academic_subjects: {
+        Row: {
+          absences_limit: number | null
+          created_at: string | null
+          current_absences: number | null
+          description: string | null
+          id: string
+          location: string | null
+          name: string
+          notes: string | null
+          period: string | null
+          professor: string | null
+          project_id: string
+          schedule: string | null
+          status: string | null
+          syllabus: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          absences_limit?: number | null
+          created_at?: string | null
+          current_absences?: number | null
+          description?: string | null
+          id?: string
+          location?: string | null
+          name: string
+          notes?: string | null
+          period?: string | null
+          professor?: string | null
+          project_id: string
+          schedule?: string | null
+          status?: string | null
+          syllabus?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          absences_limit?: number | null
+          created_at?: string | null
+          current_absences?: number | null
+          description?: string | null
+          id?: string
+          location?: string | null
+          name?: string
+          notes?: string | null
+          period?: string | null
+          professor?: string | null
+          project_id?: string
+          schedule?: string | null
+          status?: string | null
+          syllabus?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academic_subjects_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       activity_history: {
         Row: {
           action: string
@@ -299,6 +521,89 @@ export type Database = {
         }
         Relationships: []
       }
+      project_contacts: {
+        Row: {
+          contact_id: string
+          created_at: string | null
+          id: string
+          project_id: string
+          role_in_project: string | null
+          user_id: string
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string | null
+          id?: string
+          project_id: string
+          role_in_project?: string | null
+          user_id: string
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string | null
+          id?: string
+          project_id?: string
+          role_in_project?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_contacts_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_contacts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_notes: {
+        Row: {
+          category: string | null
+          content: string
+          created_at: string | null
+          id: string
+          project_id: string
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          content: string
+          created_at?: string | null
+          id?: string
+          project_id: string
+          title: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          content?: string
+          created_at?: string | null
+          id?: string
+          project_id?: string
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_notes_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           budget: number | null
@@ -313,6 +618,7 @@ export type Database = {
           objective: string | null
           start_date: string | null
           status: Database["public"]["Enums"]["project_status"] | null
+          type: Database["public"]["Enums"]["project_type"] | null
           updated_at: string | null
           user_id: string
         }
@@ -329,6 +635,7 @@ export type Database = {
           objective?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["project_status"] | null
+          type?: Database["public"]["Enums"]["project_type"] | null
           updated_at?: string | null
           user_id: string
         }
@@ -345,6 +652,7 @@ export type Database = {
           objective?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["project_status"] | null
+          type?: Database["public"]["Enums"]["project_type"] | null
           updated_at?: string | null
           user_id?: string
         }
@@ -416,6 +724,57 @@ export type Database = {
           },
         ]
       }
+      useful_links: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          id: string
+          name: string
+          notes: string | null
+          project_id: string | null
+          subject_id: string | null
+          url: string
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          project_id?: string | null
+          subject_id?: string | null
+          url: string
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          project_id?: string | null
+          subject_id?: string | null
+          url?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "useful_links_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "useful_links_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "academic_subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -437,6 +796,14 @@ export type Database = {
         | "em_andamento"
         | "pausado"
         | "concluido"
+      project_type:
+        | "faculdade"
+        | "imovel"
+        | "consultoria"
+        | "perfil_publico"
+        | "novo_negocio"
+        | "pessoal"
+        | "generico"
       task_priority: "baixa" | "media" | "alta"
       task_status:
         | "a_fazer"
@@ -586,6 +953,15 @@ export const Constants = {
         "em_andamento",
         "pausado",
         "concluido",
+      ],
+      project_type: [
+        "faculdade",
+        "imovel",
+        "consultoria",
+        "perfil_publico",
+        "novo_negocio",
+        "pessoal",
+        "generico",
       ],
       task_priority: ["baixa", "media", "alta"],
       task_status: [
