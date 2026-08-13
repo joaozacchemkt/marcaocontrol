@@ -30,7 +30,7 @@ function Dashboard() {
   const { data: projects = [] } = useQuery({
     queryKey: ['dashboard-projects'],
     queryFn: async () => {
-      const { data } = await supabase.from('projects').select('*, tasks(*)');
+      const { data } = await supabase.from('projects').select('*, tasks(*), academic_subjects(*)');
       return data || [];
     }
   });
@@ -47,6 +47,22 @@ function Dashboard() {
     queryKey: ['dashboard-transactions'],
     queryFn: async () => {
       const { data } = await supabase.from('financial_transactions').select('*');
+      return data || [];
+    }
+  });
+
+  const { data: academicExams = [] } = useQuery({
+    queryKey: ['dashboard-exams'],
+    queryFn: async () => {
+      const { data } = await supabase.from('academic_exams').select('*, academic_subjects(name, project_id)');
+      return data || [];
+    }
+  });
+
+  const { data: academicAssignments = [] } = useQuery({
+    queryKey: ['dashboard-assignments'],
+    queryFn: async () => {
+      const { data } = await supabase.from('academic_assignments').select('*, academic_subjects(name, project_id)');
       return data || [];
     }
   });
@@ -75,7 +91,25 @@ function Dashboard() {
     .reduce((acc, t) => acc + t.amount, 0);
 
   // Prioridades do dia (até 5)
-  const priorities = tasks
+  const priorities = [
+    ...tasks.filter(t => t.status !== 'concluido').map(t => ({ ...t, type: 'task' })),
+    ...academicExams.filter(e => e.status !== 'corrigida').map(e => ({ 
+      id: e.id, 
+      title: `PROVA: ${e.title}`, 
+      deadline: e.date, 
+      priority: 'alta', 
+      projects: { name: (e as any).academic_subjects?.name },
+      type: 'exam'
+    })),
+    ...academicAssignments.filter(a => a.status !== 'corrigido').map(a => ({
+      id: a.id,
+      title: `TRABALHO: ${a.title}`,
+      deadline: a.deadline,
+      priority: 'media',
+      projects: { name: (a as any).academic_subjects?.name },
+      type: 'assignment'
+    }))
+  ]
     .filter(t => t.status !== 'concluido')
     .sort((a, b) => {
       const isOverdueA = a.deadline && isPast(new Date(a.deadline)) && !isToday(new Date(a.deadline)) ? 1 : 0;
