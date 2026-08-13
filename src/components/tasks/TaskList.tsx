@@ -63,7 +63,7 @@ const COLUMNS = [
   { id: 'concluido', label: 'Concluído' },
 ] as const;
 
-export function TaskList() {
+export function TaskList({ initialProjectId }: { initialProjectId?: string }) {
   const queryClient = useQueryClient();
   const [view, setView] = useState<'list' | 'kanban'>('kanban');
   const [filter, setFilter] = useState('todas');
