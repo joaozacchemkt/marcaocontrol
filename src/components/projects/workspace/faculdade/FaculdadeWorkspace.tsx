@@ -25,6 +25,7 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
 import { ExamModal, AssignmentModal, SummaryModal } from "./AcademicModals";
+import { EstudarAgora } from "./EstudarAgora";
 
 interface FaculdadeWorkspaceProps {
   project: any;
@@ -117,6 +118,8 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
           </Button>
         </div>
       </div>
+
+      <EstudarAgora projectId={project.id} />
 
       {/* Resumo de Desempenho */}
       <div className="grid gap-4 md:grid-cols-4">
