@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 
 interface ProjectNotesProps {
   project: any;
@@ -130,7 +131,7 @@ export function ProjectNotes({ project }: ProjectNotesProps) {
               <CardContent>
                 <p className="text-sm text-muted-foreground line-clamp-3 whitespace-pre-wrap">{note.content}</p>
                 <div className="mt-4 flex items-center justify-between text-[10px] text-muted-foreground font-medium uppercase">
-                  <span>{new Date(note.created_at).toLocaleDateString()}</span>
+                  <span>{new Date(note.created_at || '').toLocaleDateString()}</span>
                   {note.category && <Badge variant="outline" className="text-[9px] uppercase">{note.category}</Badge>}
                 </div>
               </CardContent>
