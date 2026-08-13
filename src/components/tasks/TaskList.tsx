@@ -41,6 +41,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { toast } from "sonner";
 import { TaskModal } from "../modals/TaskModal";
+import { logActivity } from "@/lib/activity";
 
 // Tipagem baseada no banco
 type Task = {
@@ -91,11 +92,31 @@ export function TaskList({ initialProjectId }: { initialProjectId?: string }) {
 
   const updateTaskStatus = useMutation({
     mutationFn: async ({ taskId, status }: { taskId: string, status: Task['status'] }) => {
-      const { error } = await supabase
+      const { data: task, error } = await supabase
         .from('tasks')
         .update({ status })
-        .eq('id', taskId);
+        .eq('id', taskId)
+        .select()
+        .single();
+
       if (error) throw error;
+
+      if (task && task.project_id) {
+        const statusLabels: Record<string, string> = {
+          'a_fazer': 'A fazer',
+          'em_andamento': 'Em andamento',
+          'aguardando_terceiro': 'Aguardando terceiro',
+          'concluido': 'Concluído'
+        };
+
+        await logActivity({
+          projectId: task.project_id,
+          type: status === 'concluido' ? 'task_completed' : 'task_reopened',
+          description: `Tarefa "${task.title}" movida para ${statusLabels[status]}`,
+          entityType: 'task',
+          entityId: task.id
+        });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });

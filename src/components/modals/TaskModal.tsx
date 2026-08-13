@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { logActivity } from "@/lib/activity";
 
 interface TaskModalProps {
   open: boolean;
@@ -58,13 +59,24 @@ export function TaskModal({ open, onOpenChange, initialProjectId }: TaskModalPro
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) throw new Error("Usuário não autenticado");
 
-      const { error } = await supabase.from('tasks').insert({
+      const { data: task, error } = await supabase.from('tasks').insert({
         ...data,
         user_id: userData.user.id,
         deadline: data.deadline || null,
         project_id: data.project_id || null
-      });
+      }).select().single();
+
       if (error) throw error;
+
+      if (task && task.project_id) {
+        await logActivity({
+          projectId: task.project_id,
+          type: 'task_created',
+          description: `Nova pendência criada: "${task.title}"`,
+          entityType: 'task',
+          entityId: task.id
+        });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
