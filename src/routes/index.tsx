@@ -101,7 +101,7 @@ function Dashboard() {
       priority: 'alta' as const, 
       projects: { name: (e as any).academic_subjects?.name },
       type: 'exam',
-      status: e.status
+      status: e.status || 'a_estudar'
     })),
     ...academicAssignments.filter(a => a.status !== 'corrigido').map(a => ({
       ...a,
@@ -111,9 +111,9 @@ function Dashboard() {
       priority: 'media' as const,
       projects: { name: (a as any).academic_subjects?.name },
       type: 'assignment',
-      status: a.status
+      status: a.status || 'nao_iniciado'
     }))
-  ]
+  ] as any[]
     .sort((a, b) => {
       const isOverdueA = a.deadline && isPast(new Date(a.deadline)) && !isToday(new Date(a.deadline)) ? 1 : 0;
       const isOverdueB = b.deadline && isPast(new Date(b.deadline)) && !isToday(new Date(b.deadline)) ? 1 : 0;
