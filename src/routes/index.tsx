@@ -94,32 +94,36 @@ function Dashboard() {
   const priorities = [
     ...tasks.filter(t => t.status !== 'concluido').map(t => ({ ...t, type: 'task' })),
     ...academicExams.filter(e => e.status !== 'corrigida').map(e => ({ 
+      ...e,
       id: e.id, 
       title: `PROVA: ${e.title}`, 
       deadline: e.date, 
-      priority: 'alta', 
+      priority: 'alta' as const, 
       projects: { name: (e as any).academic_subjects?.name },
-      type: 'exam'
+      type: 'exam',
+      status: e.status
     })),
     ...academicAssignments.filter(a => a.status !== 'corrigido').map(a => ({
+      ...a,
       id: a.id,
       title: `TRABALHO: ${a.title}`,
       deadline: a.deadline,
-      priority: 'media',
+      priority: 'media' as const,
       projects: { name: (a as any).academic_subjects?.name },
-      type: 'assignment'
+      type: 'assignment',
+      status: a.status
     }))
   ]
-    .filter(t => t.status !== 'concluido')
     .sort((a, b) => {
       const isOverdueA = a.deadline && isPast(new Date(a.deadline)) && !isToday(new Date(a.deadline)) ? 1 : 0;
       const isOverdueB = b.deadline && isPast(new Date(b.deadline)) && !isToday(new Date(b.deadline)) ? 1 : 0;
       if (isOverdueA !== isOverdueB) return isOverdueB - isOverdueA;
       
       const priorityWeight = { alta: 3, media: 2, baixa: 1 };
-      if (priorityWeight[a.priority as keyof typeof priorityWeight] !== priorityWeight[b.priority as keyof typeof priorityWeight]) {
-        return priorityWeight[b.priority as keyof typeof priorityWeight] - priorityWeight[a.priority as keyof typeof priorityWeight];
-      }
+      const weightA = priorityWeight[a.priority as keyof typeof priorityWeight] || 0;
+      const weightB = priorityWeight[b.priority as keyof typeof priorityWeight] || 0;
+      
+      if (weightA !== weightB) return weightB - weightA;
       
       if (a.deadline && b.deadline) return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
       if (a.deadline) return -1;
