@@ -5,43 +5,54 @@ import {
   TrendingUp, 
   TrendingDown, 
   Wallet, 
-  Calendar,
+  Calendar as CalendarIcon,
   Filter,
   Plus,
   ArrowUpRight,
   ArrowDownLeft,
   Search,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { format, startOfMonth, endOfMonth, subMonths, addMonths, isSameMonth } from "date-fns";
+import { format, startOfMonth, endOfMonth, subMonths, addMonths, isSameMonth, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { TransactionModal } from "@/components/modals/TransactionModal";
+import { DatePickerWithRange } from "../ui/date-range-picker";
+import { DateRange } from "react-day-picker";
 
 export function FinanceiroView() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<'todos' | 'receita' | 'despesa'>('todos');
   const [activeModal, setActiveModal] = useState<'receita' | 'despesa' | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
 
   const { data: transactions = [], isLoading } = useQuery({
-    queryKey: ['financial_transactions', format(currentDate, 'yyyy-MM')],
+    queryKey: ['financial_transactions', format(currentDate, 'yyyy-MM'), dateRange],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('financial_transactions')
-        .select('*, projects(name), contacts(name)')
-        .gte('date', monthStart.toISOString())
-        .lte('date', monthEnd.toISOString())
-        .order('date', { ascending: false });
+        .select('*, projects(name), contacts(name)');
+      
+      if (dateRange?.from) {
+        query = query.gte('date', startOfDay(dateRange.from).toISOString());
+        query = query.lte('date', dateRange.to ? endOfDay(dateRange.to).toISOString() : endOfDay(dateRange.from).toISOString());
+      } else {
+        query = query.gte('date', monthStart.toISOString())
+                     .lte('date', monthEnd.toISOString());
+      }
+
+      const { data, error } = await query.order('date', { ascending: false });
       
       if (error) throw error;
       return data;
@@ -187,7 +198,15 @@ export function FinanceiroView() {
               </TabsList>
             </Tabs>
           </div>
-          <Button variant="ghost" size="icon"><Filter className="h-4 w-4" /></Button>
+          <div className="flex items-center gap-2">
+            <DatePickerWithRange date={dateRange} setDate={setDateRange} />
+            {dateRange && (
+              <Button variant="ghost" size="icon" onClick={() => setDateRange(undefined)}>
+                <X className="h-4 w-4 text-muted-foreground" />
+              </Button>
+            )}
+            <Button variant="ghost" size="icon"><Filter className="h-4 w-4" /></Button>
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">

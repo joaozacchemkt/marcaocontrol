@@ -9,15 +9,18 @@ import {
   Plus,
   Clock,
   User,
-  AlertCircle
+  AlertCircle,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { format, isPast, isToday, isThisWeek } from "date-fns";
+import { format, isPast, isToday, isThisWeek, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { DatePickerWithRange } from "../ui/date-range-picker";
+import { DateRange } from "react-day-picker";
 import {
   DndContext,
   DragOverlay,
@@ -69,6 +72,7 @@ export function TaskList({ initialProjectId }: { initialProjectId?: string }) {
   const [view, setView] = useState<'list' | 'kanban'>('kanban');
   const [filter, setFilter] = useState('todas');
   const [search, setSearch] = useState("");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [showTaskModal, setShowTaskModal] = useState(false);
 
   const { data: tasks = [], isLoading } = useQuery({
@@ -129,6 +133,15 @@ export function TaskList({ initialProjectId }: { initialProjectId?: string }) {
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(search.toLowerCase());
     
+    // Filtro de Data Personalizado
+    if (dateRange?.from) {
+      if (!task.deadline) return false;
+      const taskDate = new Date(task.deadline);
+      const start = startOfDay(dateRange.from);
+      const end = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
+      if (!isWithinInterval(taskDate, { start, end })) return false;
+    }
+
     if (filter === 'atrasadas') {
       return matchesSearch && task.deadline && isPast(new Date(task.deadline)) && !isToday(new Date(task.deadline)) && task.status !== 'concluido';
     }
@@ -180,6 +193,14 @@ export function TaskList({ initialProjectId }: { initialProjectId?: string }) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+        </div>
+        <div className="flex items-center gap-2">
+          <DatePickerWithRange date={dateRange} setDate={setDateRange} />
+          {dateRange && (
+            <Button variant="ghost" size="icon" onClick={() => setDateRange(undefined)} className="h-9 w-9">
+              <X className="h-4 w-4" />
+            </Button>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
           <FilterButton active={filter === 'todas'} onClick={() => setFilter('todas')}>Todas</FilterButton>
