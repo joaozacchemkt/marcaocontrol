@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activity";
+import { ProjectFiles } from "../common/ProjectFiles";
 
 interface ExamModalProps {
   open: boolean;
@@ -269,9 +270,15 @@ export function SummaryModal({ open, onOpenChange, projectId }: ExamModalProps) 
               <SelectContent>{subjects.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
             </Select>
           </div>
-          <div className="space-y-2">
-            <Label>Conteúdo do Resumo</Label>
-            <Textarea className="min-h-[200px]" value={formData.content} onChange={e => setFormData(prev => ({ ...prev, content: e.target.value }))} />
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Conteúdo do Resumo</Label>
+              <Textarea className="min-h-[200px]" value={formData.content} onChange={e => setFormData(prev => ({ ...prev, content: e.target.value }))} />
+            </div>
+            <div className="pt-4 border-t">
+              <Label className="text-xs font-bold uppercase mb-2 block">Anexos e Referências</Label>
+              <ProjectFiles project={{ id: projectId }} />
+            </div>
           </div>
           <DialogFooter><Button type="submit">Salvar Resumo</Button></DialogFooter>
         </form>
