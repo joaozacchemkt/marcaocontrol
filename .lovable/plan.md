@@ -1,45 +1,34 @@
-# Finalização do Módulo Faculdade e Timeline Automática
+# Plano de Desenvolvimento: Marcão Control - Faculdade e Timeline
 
-Melhorar a experiência acadêmica do Marcão Control e automatizar a linha do tempo dos projetos para refletir ações reais.
+Este plano foca na finalização do módulo acadêmico e na automação da linha do tempo dos projetos, garantindo persistência real e uma experiência executiva fluida.
 
-## Alterações no Banco de Dados
+## 1. Banco de Dados e Infraestrutura
+- Criar tipos `exam_status` e `assignment_status` via migração Supabase.
+- Criar tabelas `academic_summaries` (Resumos) e `academic_assignments` (Trabalhos).
+- Implementar utilitário `logActivity` em `src/lib/activity.ts` para padronizar o registro de eventos na timeline.
 
-- Criado enum  (A estudar, Estudando, Realizada, Corrigida).
-- Criadas tabelas  (Resumos) e  (Trabalhos).
-- Atualizada tabela  com campos de horário e status.
-- Garantido RLS e Grants para todas as novas entidades.
+## 2. Automação da Timeline
+- Integrar `logActivity` nos componentes:
+    - `ProjectModal`: Criação de projeto, mudança de status/prazo.
+    - `TaskModal` & `TaskList`: Criação, conclusão e reabertura de tarefas.
+    - `EventModal`: Agendamento e realização de compromissos.
+    - `TransactionModal`: Registro de fluxos financeiros.
+- Refatorar `ProjectTimeline.tsx` para exibir ícones e descrições baseadas nos dados reais da tabela `activity_history`.
 
-## Módulo 1: Timeline Automática
+## 3. Template Faculdade (Acadêmico)
+- **Módulo de Provas**: Criar interface para gestão de provas com status (Estudando, Realizada, etc) e notas.
+- **Módulo de Trabalhos**: Sistema de prazos e acompanhamento de entrega.
+- **Módulo de Resumos**: Espaço estruturado para material de revisão, separado de anotações rápidas.
+- **Notas e Faltas**: Implementar cálculo automático de médias (simples/ponderada) e alertas de limite de faltas (ex: >80%).
+- **Seção "Estudar Agora"**: Algoritmo simples de priorização (provas próximas > trabalhos > tarefas atrasadas).
+- **Visão Geral**: Dashboard consolidado com resumo do semestre e alertas críticos.
 
-- Implementado helper  em .
-- Integração do helper nos modais de criação e edição:
-  - **ProjectModal**: Log de criação e conversão de ideia.
-  - **TaskModal**: Log de criação de tarefas.
-  - **TaskList**: Log de conclusão/reabertura (movimentação no Kanban).
-  - **TransactionModal**: Log de receitas/despesas.
-  - **EventModal**: Log de compromissos.
-- Refatoração de  para consumir os novos tipos de ação e descrição real.
-
-## Módulo 2: Faculdade - Provas e Trabalhos
-
-- Finalização da aba "Provas & Trabalhos" no .
-- Implementação de sub-componentes para Listagem e Modais de Provas/Trabalhos.
-- Cálculo de notas e médias (ponderadas se houver peso, simples se não).
-
-## Módulo 3: Faculdade - Resumos
-
-- Criação da aba "Resumos" para material de revisão.
-- Interface de busca e filtro por matéria.
-- Distinção visual entre Anotações (rápidas) e Resumos (estruturados).
-
-## Módulo 4: Faculdade - Gestão de Faltas e Dashboard
-
-- Melhoria visual da gestão de faltas com alertas de limite (ex: 80%).
-- Seção "Estudar Agora" priorizando provas e trabalhos próximos.
-- Visão Geral acadêmica consolidada com matérias ativas e próximos prazos.
+## 4. Persistência e UI/UX
+- Garantir que todos os modais novos (`ExamModal`, `SummaryModal`, etc) persistam dados no backend.
+- Manter o design system premium com Shadcn/UI, Dark Mode e animações fluidas.
+- Validação de dados com Zod para evitar erros de integridade.
 
 ## Detalhes Técnicos
-
-- **Persistência**: Todas as ações utilizam Supabase e TanStack Query para atualização instantânea.
-- **Segurança**: RLS aplicado em nível de  em todas as novas tabelas.
-- **UI/UX**: Mantido o design premium com Shadcn/UI e Framer Motion.
+- **Entidades Relacionadas**: Provas, Trabalhos e Resumos vinculados obrigatoriamente a uma Matéria (`academic_subjects`).
+- **Feedback Visual**: Uso de `sonner` para confirmações discretas e alertas de prazos.
+- **Performance**: Uso intensivo de TanStack Query para cache e invalidação inteligente.
