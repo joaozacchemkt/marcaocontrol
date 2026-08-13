@@ -694,6 +694,53 @@ export type Database = {
           },
         ]
       }
+      project_files: {
+        Row: {
+          created_at: string | null
+          entity_id: string | null
+          id: string
+          mime_type: string
+          module: string
+          name: string
+          project_id: string | null
+          size: number
+          storage_path: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          entity_id?: string | null
+          id?: string
+          mime_type: string
+          module: string
+          name: string
+          project_id?: string | null
+          size: number
+          storage_path: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          entity_id?: string | null
+          id?: string
+          mime_type?: string
+          module?: string
+          name?: string
+          project_id?: string | null
+          size?: number
+          storage_path?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_files_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_notes: {
         Row: {
           category: string | null

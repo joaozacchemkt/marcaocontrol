@@ -13,7 +13,8 @@ import {
   TrendingDown,
   Wallet,
   User,
-  ExternalLink
+  ExternalLink,
+  GraduationCap
 } from "lucide-react";
 import { format, isPast, isToday, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -21,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
 import { Progress } from "@/components/ui/progress";
+import { EstudarAgora } from "@/components/projects/workspace/faculdade/EstudarAgora";
 
 export const Route = createFileRoute("/")({
   component: Dashboard,
@@ -184,6 +186,11 @@ function Dashboard() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {/* Estudar Agora - Destaque Acadêmico */}
+        <div className="lg:col-span-3">
+           <EstudarAgora projectId="" /> 
+        </div>
+
         {/* Prioridades do Dia */}
         <DashboardSection title="Prioridades do Dia" icon={AlertCircle}>
           <div className="space-y-3">
