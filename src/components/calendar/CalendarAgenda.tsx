@@ -94,6 +94,33 @@ export function CalendarAgenda() {
     },
   });
 
+  const { data: academicExams } = useQuery({
+    queryKey: ["academic-exams-calendar"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("academic_exams")
+        .select("*, academic_subjects(name)")
+        .order("date", { ascending: true });
+
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+
+  const { data: academicAssignments } = useQuery({
+    queryKey: ["academic-assignments-calendar"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("academic_assignments")
+        .select("*, academic_subjects(name)")
+        .not("deadline", "is", null)
+        .order("deadline", { ascending: true });
+
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+
   const { data: events, isLoading: eventsLoading } = useQuery({
     queryKey: ["events-calendar"],
     queryFn: async () => {
@@ -124,6 +151,13 @@ export function CalendarAgenda() {
 
   const selectedDateTasks =
     tasks?.filter((task) => task.deadline && isSameDay(parseISO(task.deadline), date || new Date())) || [];
+  
+  const selectedDateExams = 
+    academicExams?.filter((exam) => exam.date && isSameDay(parseISO(exam.date), date || new Date())) || [];
+    
+  const selectedDateAssignments = 
+    academicAssignments?.filter((a) => a.deadline && isSameDay(parseISO(a.deadline), date || new Date())) || [];
+
   const selectedDateEvents =
     events?.filter((event) => isSameDay(parseISO(event.start_time), date || new Date())) || [];
   const selectedDateFinances =
@@ -131,7 +165,9 @@ export function CalendarAgenda() {
 
   const getCounts = (day: Date): DayCounts => ({
     events: events?.filter((e) => isSameDay(parseISO(e.start_time), day)).length || 0,
-    tasks: tasks?.filter((t) => t.deadline && isSameDay(parseISO(t.deadline), day)).length || 0,
+    tasks: (tasks?.filter((t) => t.deadline && isSameDay(parseISO(t.deadline), day)).length || 0) +
+           (academicExams?.filter((e) => e.date && isSameDay(parseISO(e.date), day)).length || 0) +
+           (academicAssignments?.filter((a) => a.deadline && isSameDay(parseISO(a.deadline), day)).length || 0),
     finances: finances?.filter((t) => t.due_date && isSameDay(parseISO(t.due_date), day)).length || 0,
   });
 
@@ -201,7 +237,11 @@ export function CalendarAgenda() {
       <DayDetailsPanel
         date={date}
         events={selectedDateEvents}
-        tasks={selectedDateTasks}
+        tasks={[
+          ...selectedDateTasks,
+          ...selectedDateExams.map(e => ({ ...e, title: `PROVA: ${e.title}`, deadline: e.date, priority: 'alta', projects: { name: (e as any).academic_subjects?.name } })),
+          ...selectedDateAssignments.map(a => ({ ...a, title: `TRABALHO: ${a.title}`, projects: { name: (a as any).academic_subjects?.name } }))
+        ]}
         finances={selectedDateFinances}
         onAddEvent={() => setEventModal(true)}
         onAddTask={() => setTaskModal(true)}
