@@ -125,11 +125,11 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
                   <div className="space-y-1">
                     <div className="flex justify-between text-[10px] font-bold uppercase">
                       <span>Presença</span>
-                      <span className={subject.current_absences > (subject.absences_limit * 0.7) ? "text-destructive" : ""}>
-                        {subject.current_absences}/{subject.absences_limit} faltas
+                      <span className={(subject.current_absences ?? 0) > ((subject.absences_limit ?? 0) * 0.7) ? "text-destructive" : ""}>
+                        {subject.current_absences ?? 0}/{subject.absences_limit ?? 0} faltas
                       </span>
                     </div>
-                    <Progress value={(subject.current_absences / (subject.absences_limit || 1)) * 100} className="h-1" />
+                    <Progress value={((subject.current_absences ?? 0) / (subject.absences_limit || 1)) * 100} className="h-1" />
                   </div>
                   
                   <div className="grid grid-cols-2 gap-2">
