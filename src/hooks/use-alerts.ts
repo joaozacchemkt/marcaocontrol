@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { isPast, isToday } from "date-fns";
+import { isPast, isToday, addDays, differenceInDays } from "date-fns";
 
 export function useAlerts() {
   const { data: tasks = [] } = useQuery({
@@ -23,8 +23,27 @@ export function useAlerts() {
     refetchInterval: 1000 * 60 * 5,
   });
 
+  const { data: academicExams = [] } = useQuery({
+    queryKey: ['academic-exams-alerts'],
+    queryFn: async () => {
+      const { data } = await supabase.from('academic_exams').select('*').neq('status', 'corrigida');
+      return data || [];
+    },
+    refetchInterval: 1000 * 60 * 5,
+  });
+
+  const { data: academicAssignments = [] } = useQuery({
+    queryKey: ['academic-assignments-alerts'],
+    queryFn: async () => {
+      const { data } = await supabase.from('academic_assignments').select('*').neq('status', 'corrigido');
+      return data || [];
+    },
+    refetchInterval: 1000 * 60 * 5,
+  });
+
   useEffect(() => {
-    if (tasks.length === 0 && transactions.length === 0) return;
+    // Evitar notificações duplicadas na mesma sessão (simples flag)
+    if ((window as any)._alertsShown) return;
 
     const overdueTasks = tasks.filter(t => t.deadline && isPast(new Date(t.deadline)) && !isToday(new Date(t.deadline)));
     const todayTasks = tasks.filter(t => t.deadline && isToday(new Date(t.deadline)));
@@ -32,32 +51,58 @@ export function useAlerts() {
     
     const overdueTransactions = transactions.filter(t => t.due_date && isPast(new Date(t.due_date)) && !isToday(new Date(t.due_date)));
     const todayTransactions = transactions.filter(t => t.due_date && isToday(new Date(t.due_date)));
-    const todayPayments = todayTransactions.filter(t => t.type === 'despesa');
-    const todayRevenues = todayTransactions.filter(t => t.type === 'receita');
+    
+    // Alertas Acadêmicos
+    const examsSoon = academicExams.filter(e => {
+      if (!e.date) return false;
+      const date = new Date(e.date);
+      const diff = differenceInDays(date, new Date());
+      return diff >= 0 && diff <= 3;
+    });
+
+    const overdueAssignments = academicAssignments.filter(a => {
+      if (!a.deadline) return false;
+      return isPast(new Date(a.deadline)) && !isToday(new Date(a.deadline));
+    });
+
+    const todayExams = academicExams.filter(e => e.date && isToday(new Date(e.date)));
 
     const alerts = [];
 
+    // Prioridade Profissional/Geral
     if (overdueTasks.length > 0) {
       alerts.push(`Você possui ${overdueTasks.length} ${overdueTasks.length === 1 ? 'pendência atrasada' : 'pendências atrasadas'}.`);
     }
 
     if (highPriorityToday.length > 0) {
-      alerts.push(`${highPriorityToday.length} ${highPriorityToday.length === 1 ? 'tarefa de alta prioridade vence' : 'tarefas de alta prioridade vencem'} hoje.`);
+      alerts.push(`${highPriorityToday.length} ${highPriorityToday.length === 1 ? 'tarefa crítica vence' : 'tarefas críticas vencem'} hoje.`);
     }
 
-    if (todayPayments.length > 0) {
-      alerts.push(`Há ${todayPayments.length} ${todayPayments.length === 1 ? 'pagamento previsto' : 'pagamentos previstos'} para hoje.`);
+    if (overdueTransactions.length > 0) {
+      alerts.push(`${overdueTransactions.length} ${overdueTransactions.length === 1 ? 'pagamento está' : 'pagamentos estão'} em atraso.`);
+    }
+
+    // Alertas Acadêmicos Agrupados
+    if (todayExams.length > 0) {
+      alerts.push(`Há ${todayExams.length} ${todayExams.length === 1 ? 'prova marcada para' : 'provas marcadas para'} hoje!`);
+    } else if (examsSoon.length > 0) {
+      alerts.push(`Você possui ${examsSoon.length} ${examsSoon.length === 1 ? 'prova nos próximos 3 dias' : 'provas nos próximos 3 dias'}.`);
+    }
+
+    if (overdueAssignments.length > 0) {
+      alerts.push(`${overdueAssignments.length} ${overdueAssignments.length === 1 ? 'trabalho acadêmico está atrasado' : 'trabalhos acadêmicos estão atrasados'}.`);
     }
 
     if (alerts.length > 0) {
-      // Agrupar em uma única notificação ou mostrar em sequência curta
+      (window as any)._alertsShown = true;
       alerts.forEach((msg, index) => {
         setTimeout(() => {
           toast.info(msg, {
-            duration: 5000,
+            duration: 6000,
           });
-        }, index * 1000);
+        }, index * 1500);
       });
     }
-  }, [tasks, transactions]);
+  }, [tasks, transactions, academicExams, academicAssignments]);
 }
+
