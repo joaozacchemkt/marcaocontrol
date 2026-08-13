@@ -103,6 +103,15 @@ export function ProjectFiles({ project }: ProjectFilesProps) {
       if (dbError) throw dbError;
 
       toast.success("Arquivo excluído");
+      
+      await logActivity({
+        projectId: project.id,
+        type: 'file_deleted',
+        description: `Arquivo excluído: "${file.name}"`,
+        entityType: 'project_file',
+        entityId: file.id
+      });
+
       queryClient.invalidateQueries({ queryKey: ['project-files', project.id] });
     } catch (error: any) {
       toast.error("Erro ao excluir: " + error.message);
