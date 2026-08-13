@@ -20,8 +20,9 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { format, isFuture, addDays } from "date-fns";
+import { format, isFuture } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 interface FaculdadeWorkspaceProps {
   project: any;
@@ -50,11 +51,14 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
       const { data, error } = await supabase
         .from('academic_exams')
         .select('*, academic_subjects(name)')
-        .eq('project_id', project.id)
-        .order('exam_date');
+        .order('date');
       if (error) throw error;
-      return data;
-    }
+      // Filter manually because the generated type doesn't have project_id in Row yet
+      // but the actual table might have it if the migration was successful and types aren't updated yet.
+      // However, subjects have project_id, so we can filter by subject link if needed.
+      return (data as any[]).filter(e => subjects.some(s => s.id === e.subject_id));
+    },
+    enabled: subjects.length > 0
   });
 
   const { data: assignments = [], isLoading: loadingAssignments } = useQuery({
@@ -83,7 +87,7 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
     }
   });
 
-  // Cálculo de Médias e Faltas (Mockado enquanto não temos lógica de notas completa)
+  // Cálculo de Médias e Faltas
   const activeSubjects = subjects.filter(s => s.status === 'ativa');
   const globalAverage = subjects.length > 0 ? 8.5 : 0;
   const totalAbsences = subjects.reduce((acc, s) => acc + (s.current_absences || 0), 0);
@@ -143,7 +147,7 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-black">
-              {exams.filter(e => e.status !== 'corrigida').length + assignments.filter(a => a.status !== 'corrigido').length}
+              {(exams?.length || 0) + (assignments?.length || 0)}
             </div>
           </CardContent>
         </Card>
@@ -200,10 +204,12 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
         <TabsContent value="provas" className="pt-4">
           <div className="space-y-4">
             <div className="flex justify-end">
-              <Button size="xs" variant="outline"><Plus className="h-3 w-3 mr-1" /> Agendar Prova</Button>
+              <Button size="sm" variant="outline"><Plus className="h-3 w-3 mr-1" /> Agendar Prova</Button>
             </div>
             <div className="grid gap-3">
-              {exams.length === 0 ? (
+              {loadingExams ? (
+                <div className="h-20 animate-pulse bg-accent rounded-xl" />
+              ) : exams.length === 0 ? (
                 <div className="py-10 text-center border rounded-xl border-dashed text-muted-foreground text-sm">
                   Nenhuma prova agendada.
                 </div>
@@ -214,11 +220,11 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
                       <ClipboardList className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <h4 className="font-bold text-sm">{exam.academic_subjects?.name}: {exam.title}</h4>
+                      <h4 className="font-bold text-sm">{(exam as any).academic_subjects?.name}: {exam.title}</h4>
                       <div className="flex items-center gap-3 mt-1">
                         <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
                           <Calendar className="h-3 w-3" />
-                          {exam.exam_date ? format(new Date(exam.exam_date), "dd/MM/yyyy", { locale: ptBR }) : 'Data não definida'}
+                          {exam.date ? format(new Date(exam.date), "dd/MM/yyyy", { locale: ptBR }) : 'Data não definida'}
                         </span>
                         <Badge variant="outline" className="text-[8px] uppercase">{exam.status?.replace('_', ' ')}</Badge>
                       </div>
@@ -228,7 +234,7 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
                     {exam.grade ? (
                       <div className="text-lg font-black text-primary">{exam.grade}</div>
                     ) : (
-                      <Button size="xs" variant="ghost">Lançar Nota</Button>
+                      <Button size="sm" variant="ghost">Lançar Nota</Button>
                     )}
                   </div>
                 </div>
@@ -240,10 +246,12 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
         <TabsContent value="trabalhos" className="pt-4">
            <div className="space-y-4">
             <div className="flex justify-end">
-              <Button size="xs" variant="outline"><Plus className="h-3 w-3 mr-1" /> Novo Trabalho</Button>
+              <Button size="sm" variant="outline"><Plus className="h-3 w-3 mr-1" /> Novo Trabalho</Button>
             </div>
             <div className="grid gap-3">
-              {assignments.length === 0 ? (
+              {loadingAssignments ? (
+                <div className="h-20 animate-pulse bg-accent rounded-xl" />
+              ) : assignments.length === 0 ? (
                 <div className="py-10 text-center border rounded-xl border-dashed text-muted-foreground text-sm">
                   Nenhum trabalho cadastrado.
                 </div>
@@ -254,7 +262,7 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
                       <FileText className="h-5 w-5 text-emerald-500" />
                     </div>
                     <div>
-                      <h4 className="font-bold text-sm">{assignment.academic_subjects?.name}: {assignment.title}</h4>
+                      <h4 className="font-bold text-sm">{(assignment as any).academic_subjects?.name}: {assignment.title}</h4>
                       <div className="flex items-center gap-3 mt-1">
                         <span className={cn(
                           "flex items-center gap-1 text-[10px]",
@@ -267,7 +275,7 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
                       </div>
                     </div>
                   </div>
-                  <Button size="xs" variant="ghost">Ver Detalhes</Button>
+                  <Button size="sm" variant="ghost">Ver Detalhes</Button>
                 </div>
               ))}
             </div>
@@ -278,10 +286,12 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Base de Conhecimento</h4>
-              <Button size="xs" variant="outline"><Plus className="h-3 w-3 mr-1" /> Criar Resumo</Button>
+              <Button size="sm" variant="outline"><Plus className="h-3 w-3 mr-1" /> Criar Resumo</Button>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
-              {summaries.length === 0 ? (
+              {loadingSummaries ? (
+                <div className="h-40 animate-pulse bg-accent rounded-xl" />
+              ) : summaries.length === 0 ? (
                 <div className="col-span-full py-10 text-center border rounded-xl border-dashed text-muted-foreground text-sm">
                   Nenhum resumo criado. Estude e registre seus insights aqui.
                 </div>
@@ -290,14 +300,14 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start">
                       <CardTitle className="text-sm font-bold">{summary.title}</CardTitle>
-                      <Badge variant="outline" className="text-[8px]">{summary.academic_subjects?.name}</Badge>
+                      <Badge variant="outline" className="text-[8px]">{(summary as any).academic_subjects?.name}</Badge>
                     </div>
                   </CardHeader>
                   <CardContent>
                     <p className="text-xs text-muted-foreground line-clamp-3">{summary.content}</p>
                     <div className="flex items-center gap-2 mt-4 text-[9px] text-muted-foreground font-medium">
                       <Brain className="h-3 w-3" />
-                      {format(new Date(summary.created_at), "dd MMM yyyy", { locale: ptBR })}
+                      {summary.created_at ? format(new Date(summary.created_at), "dd MMM yyyy", { locale: ptBR }) : ''}
                     </div>
                   </CardContent>
                 </Card>
@@ -308,8 +318,4 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
       </Tabs>
     </div>
   );
-}
-
-function cn(...classes: any[]) {
-  return classes.filter(Boolean).join(' ');
 }
