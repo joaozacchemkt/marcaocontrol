@@ -63,7 +63,7 @@ const COLUMNS = [
   { id: 'concluido', label: 'Concluído' },
 ] as const;
 
-export function TaskList() {
+export function TaskList({ initialProjectId }: { initialProjectId?: string }) {
   const queryClient = useQueryClient();
   const [view, setView] = useState<'list' | 'kanban'>('kanban');
   const [filter, setFilter] = useState('todas');
@@ -71,12 +71,18 @@ export function TaskList() {
   const [showTaskModal, setShowTaskModal] = useState(false);
 
   const { data: tasks = [], isLoading } = useQuery({
-    queryKey: ['tasks'],
+    queryKey: ['tasks', initialProjectId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('tasks')
         .select('*, projects(name)')
         .order('created_at', { ascending: false });
+      
+      if (initialProjectId) {
+        query = query.eq('project_id', initialProjectId);
+      }
+      
+      const { data, error } = await query;
       
       if (error) throw error;
       return data as unknown as Task[];
