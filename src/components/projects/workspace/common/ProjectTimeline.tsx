@@ -38,7 +38,10 @@ export function ProjectTimeline({ project }: ProjectTimelineProps) {
     switch (type) {
       case 'task_completed': return <CheckCircle2 className="h-4 w-4 text-emerald-500" />;
       case 'task_created': return <PlusCircle className="h-4 w-4 text-blue-500" />;
+      case 'project_created': return <PlusCircle className="h-4 w-4 text-primary font-bold" />;
+      case 'task_reopened': return <AlertCircle className="h-4 w-4 text-amber-500" />;
       case 'financial_transaction': return <TrendingUp className="h-4 w-4 text-emerald-500" />;
+      case 'transaction_created': return <TrendingUp className="h-4 w-4 text-blue-500" />;
       case 'note_created': return <FileText className="h-4 w-4 text-amber-500" />;
       default: return <Circle className="h-4 w-4 text-muted-foreground" />;
     }
@@ -63,7 +66,7 @@ export function ProjectTimeline({ project }: ProjectTimelineProps) {
           ) : history.map((item: any, idx: number) => (
             <div key={item.id} className="relative pl-8">
               <div className="absolute left-0 top-1 z-10 flex h-4 w-4 items-center justify-center bg-background">
-                {getIcon(item.type)}
+                {getIcon(item.action)}
               </div>
               <div className="flex flex-col gap-1">
                 <div className="flex items-center justify-between gap-2">
