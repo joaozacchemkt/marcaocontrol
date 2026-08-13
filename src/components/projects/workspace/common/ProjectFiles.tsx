@@ -29,7 +29,7 @@ export function ProjectFiles({ project }: ProjectFilesProps) {
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data || [];
+      return (data || []) as any[];
     }
   });
 
@@ -52,24 +52,31 @@ export function ProjectFiles({ project }: ProjectFilesProps) {
 
       if (uploadError) throw uploadError;
 
-      const { error: dbError } = await supabase
+      const { data: dbFile, error: dbError } = await supabase
         .from('project_files')
         .insert({
           project_id: project.id,
           name: file.name,
-          file_path: filePath,
-          file_type: file.type,
-          file_size: file.size,
-          user_id: userData.user.id
-        });
+          storage_path: filePath,
+          mime_type: file.type,
+          size: file.size,
+          user_id: userData.user.id,
+          module: 'general'
+        })
+        .select()
+        .single();
 
       if (dbError) throw dbError;
 
-      await logActivity({
-        projectId: project.id,
-        type: 'file_uploaded' as any,
-        description: `Upload do arquivo: "${file.name}"`,
-      });
+      if (dbFile) {
+        await logActivity({
+          projectId: project.id,
+          type: 'file_uploaded',
+          description: `Upload do arquivo: "${file.name}"`,
+          entityType: 'project_file',
+          entityId: dbFile.id
+        });
+      }
 
       queryClient.invalidateQueries({ queryKey: ['project-files', project.id] });
       toast.success("Arquivo enviado com sucesso!");
@@ -84,7 +91,7 @@ export function ProjectFiles({ project }: ProjectFilesProps) {
     try {
       const { error: storageError } = await supabase.storage
         .from('project-files')
-        .remove([file.file_path]);
+        .remove([file.storage_path]);
 
       if (storageError) throw storageError;
 
@@ -106,7 +113,7 @@ export function ProjectFiles({ project }: ProjectFilesProps) {
     try {
       const { data, error } = await supabase.storage
         .from('project-files')
-        .download(file.file_path);
+        .download(file.storage_path);
 
       if (error) throw error;
 
@@ -125,8 +132,8 @@ export function ProjectFiles({ project }: ProjectFilesProps) {
   );
 
   const getIcon = (type: string) => {
-    if (type.includes('image')) return <Image className="h-5 w-5 text-blue-500" />;
-    if (type.includes('pdf')) return <FileText className="h-5 w-5 text-red-500" />;
+    if (type?.includes('image')) return <Image className="h-5 w-5 text-blue-500" />;
+    if (type?.includes('pdf')) return <FileText className="h-5 w-5 text-red-500" />;
     return <File className="h-5 w-5 text-muted-foreground" />;
   };
 
@@ -179,12 +186,12 @@ export function ProjectFiles({ project }: ProjectFilesProps) {
               <CardContent className="p-4 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="p-2 bg-background rounded-lg border">
-                    {getIcon(file.file_type || '')}
+                    {getIcon(file.mime_type || '')}
                   </div>
                   <div>
                     <p className="text-sm font-medium">{file.name}</p>
                     <p className="text-[10px] text-muted-foreground uppercase">
-                      {formatSize(file.file_size || 0)} • {format(new Date(file.created_at), "dd/MM/yyyy")}
+                      {formatSize(file.size || 0)} • {file.created_at ? format(new Date(file.created_at), "dd/MM/yyyy") : 'S/D'}
                     </p>
                   </div>
                 </div>
@@ -204,4 +211,5 @@ export function ProjectFiles({ project }: ProjectFilesProps) {
     </div>
   );
 }
+
 
