@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Database } from "@/integrations/supabase/types";
+import { logActivity } from "@/lib/activity";
 
 type ProjectCategory = Database["public"]["Enums"]["project_status"] | string;
 
@@ -78,18 +79,26 @@ export function ProjectModal({ open, onOpenChange, initialData }: ProjectModalPr
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) throw new Error("Usuário não autenticado");
 
-      const { error } = await supabase.from('projects').insert({
+      const { data: project, error } = await supabase.from('projects').insert({
         ...data,
         user_id: userData.user.id,
         budget: data.budget ? parseFloat(data.budget) : null,
         start_date: data.start_date || null,
         deadline: data.deadline || null,
-      });
+      }).select().single();
       
       if (error) throw error;
       
-      // Simular registro na timeline (pode ser uma tabela real se existir, ou apenas log)
-      console.log("Projeto criado e registrado na timeline");
+      if (project) {
+        await logActivity({
+          projectId: project.id,
+          type: 'project_created',
+          description: `Projeto "${project.name}" foi criado.`,
+          entityType: 'project',
+          entityId: project.id
+        });
+      }
+      
       if (initialData?.ideaId) {
         await supabase
           .from('ideas')

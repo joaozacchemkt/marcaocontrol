@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { logActivity } from "@/lib/activity";
 
 interface EventModalProps {
   open: boolean;
@@ -57,14 +58,25 @@ export function EventModal({ open, onOpenChange, initialContactId, initialProjec
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) throw new Error("Usuário não autenticado");
 
-      const { error } = await supabase.from('events').insert({
+      const { data: event, error } = await supabase.from('events').insert({
         ...data,
         user_id: userData.user.id,
         project_id: data.project_id || null,
         contact_id: data.contact_id || null,
         end_time: data.end_time || null
-      });
+      }).select().single();
+      
       if (error) throw error;
+      
+      if (event && event.project_id) {
+        await logActivity({
+          projectId: event.project_id,
+          type: 'event_created',
+          description: `Novo compromisso agendado: "${event.title}"`,
+          entityType: 'event',
+          entityId: event.id
+        });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events-calendar'] });

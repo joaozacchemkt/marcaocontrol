@@ -14,6 +14,69 @@ export type Database = {
   }
   public: {
     Tables: {
+      academic_assignments: {
+        Row: {
+          created_at: string | null
+          deadline: string | null
+          description: string | null
+          grade: number | null
+          id: string
+          observations: string | null
+          project_id: string
+          status: string
+          subject_id: string
+          title: string
+          updated_at: string | null
+          user_id: string
+          weight: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          deadline?: string | null
+          description?: string | null
+          grade?: number | null
+          id?: string
+          observations?: string | null
+          project_id: string
+          status?: string
+          subject_id: string
+          title: string
+          updated_at?: string | null
+          user_id: string
+          weight?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          deadline?: string | null
+          description?: string | null
+          grade?: number | null
+          id?: string
+          observations?: string | null
+          project_id?: string
+          status?: string
+          subject_id?: string
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+          weight?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academic_assignments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academic_assignments_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "academic_subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       academic_classes: {
         Row: {
           content: string | null
@@ -69,10 +132,11 @@ export type Database = {
           content: string | null
           created_at: string | null
           date: string
+          exam_time: string | null
           grade: number | null
           id: string
           notes: string | null
-          status: string | null
+          status: Database["public"]["Enums"]["exam_status"] | null
           subject_id: string
           title: string
           updated_at: string | null
@@ -83,10 +147,11 @@ export type Database = {
           content?: string | null
           created_at?: string | null
           date: string
+          exam_time?: string | null
           grade?: number | null
           id?: string
           notes?: string | null
-          status?: string | null
+          status?: Database["public"]["Enums"]["exam_status"] | null
           subject_id: string
           title: string
           updated_at?: string | null
@@ -97,10 +162,11 @@ export type Database = {
           content?: string | null
           created_at?: string | null
           date?: string
+          exam_time?: string | null
           grade?: number | null
           id?: string
           notes?: string | null
-          status?: string | null
+          status?: Database["public"]["Enums"]["exam_status"] | null
           subject_id?: string
           title?: string
           updated_at?: string | null
@@ -236,10 +302,62 @@ export type Database = {
           },
         ]
       }
+      academic_summaries: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          project_id: string
+          subject_id: string
+          tags: string[] | null
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          project_id: string
+          subject_id: string
+          tags?: string[] | null
+          title: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          project_id?: string
+          subject_id?: string
+          tags?: string[] | null
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academic_summaries_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academic_summaries_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "academic_subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       activity_history: {
         Row: {
           action: string
           created_at: string | null
+          description: string | null
           details: Json | null
           entity_id: string
           entity_type: string
@@ -250,6 +368,7 @@ export type Database = {
         Insert: {
           action: string
           created_at?: string | null
+          description?: string | null
           details?: Json | null
           entity_id: string
           entity_type: string
@@ -260,6 +379,7 @@ export type Database = {
         Update: {
           action?: string
           created_at?: string | null
+          description?: string | null
           details?: Json | null
           entity_id?: string
           entity_type?: string
@@ -794,6 +914,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      exam_status: "a_estudar" | "estudando" | "realizada" | "corrigida"
       idea_status:
         | "ideia"
         | "estudar"
@@ -950,6 +1071,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      exam_status: ["a_estudar", "estudando", "realizada", "corrigida"],
       idea_status: [
         "ideia",
         "estudar",
