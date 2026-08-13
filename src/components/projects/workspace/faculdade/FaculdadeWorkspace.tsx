@@ -24,6 +24,8 @@ import { format, isFuture } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
+import { ExamModal, AssignmentModal, SummaryModal } from "./AcademicModals";
+
 interface FaculdadeWorkspaceProps {
   project: any;
 }
@@ -31,6 +33,9 @@ interface FaculdadeWorkspaceProps {
 export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("materias");
+  const [showExamModal, setShowExamModal] = useState(false);
+  const [showAssignmentModal, setShowAssignmentModal] = useState(false);
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
 
   const { data: subjects = [], isLoading: loadingSubjects } = useQuery({
     queryKey: ['academic-subjects', project.id],
@@ -204,7 +209,7 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
         <TabsContent value="provas" className="pt-4">
           <div className="space-y-4">
             <div className="flex justify-end">
-              <Button size="sm" variant="outline"><Plus className="h-3 w-3 mr-1" /> Agendar Prova</Button>
+              <Button size="sm" variant="outline" onClick={() => setShowExamModal(true)}><Plus className="h-3 w-3 mr-1" /> Agendar Prova</Button>
             </div>
             <div className="grid gap-3">
               {loadingExams ? (
@@ -246,7 +251,7 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
         <TabsContent value="trabalhos" className="pt-4">
            <div className="space-y-4">
             <div className="flex justify-end">
-              <Button size="sm" variant="outline"><Plus className="h-3 w-3 mr-1" /> Novo Trabalho</Button>
+              <Button size="sm" variant="outline" onClick={() => setShowAssignmentModal(true)}><Plus className="h-3 w-3 mr-1" /> Novo Trabalho</Button>
             </div>
             <div className="grid gap-3">
               {loadingAssignments ? (
@@ -316,6 +321,10 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
           </div>
         </TabsContent>
       </Tabs>
+
+      <ExamModal open={showExamModal} onOpenChange={setShowExamModal} projectId={project.id} />
+      <AssignmentModal open={showAssignmentModal} onOpenChange={setShowAssignmentModal} projectId={project.id} />
+      <SummaryModal open={showSummaryModal} onOpenChange={setShowSummaryModal} projectId={project.id} />
     </div>
   );
 }
