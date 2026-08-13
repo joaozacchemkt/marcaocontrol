@@ -291,7 +291,7 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Base de Conhecimento</h4>
-              <Button size="sm" variant="outline"><Plus className="h-3 w-3 mr-1" /> Criar Resumo</Button>
+              <Button size="sm" variant="outline" onClick={() => setShowSummaryModal(true)}><Plus className="h-3 w-3 mr-1" /> Criar Resumo</Button>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               {loadingSummaries ? (
