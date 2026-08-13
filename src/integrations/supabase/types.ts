@@ -244,6 +244,7 @@ export type Database = {
           entity_id: string
           entity_type: string
           id: string
+          project_id: string | null
           user_id: string
         }
         Insert: {
@@ -253,6 +254,7 @@ export type Database = {
           entity_id: string
           entity_type: string
           id?: string
+          project_id?: string | null
           user_id: string
         }
         Update: {
@@ -262,9 +264,18 @@ export type Database = {
           entity_id?: string
           entity_type?: string
           id?: string
+          project_id?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "activity_history_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       contacts: {
         Row: {

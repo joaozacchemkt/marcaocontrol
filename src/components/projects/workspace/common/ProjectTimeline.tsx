@@ -27,7 +27,7 @@ export function ProjectTimeline({ project }: ProjectTimelineProps) {
       const { data, error } = await supabase
         .from('activity_history')
         .select('*')
-        .eq('project_id', project.id)
+        .eq('project_id' as any, project.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data;
