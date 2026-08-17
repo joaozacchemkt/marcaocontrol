@@ -233,6 +233,31 @@ export function TaskModal({ open, onOpenChange, initialProjectId }: TaskModalPro
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="estimated">Tempo estimado (min)</Label>
+              <Input
+                id="estimated"
+                type="number"
+                min={0}
+                placeholder="Ex.: 60"
+                value={formData.estimated_minutes}
+                onChange={e => setFormData(prev => ({ ...prev, estimated_minutes: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="actual">Tempo realizado (min)</Label>
+              <Input
+                id="actual"
+                type="number"
+                min={0}
+                placeholder="Ex.: 45"
+                value={formData.actual_minutes}
+                onChange={e => setFormData(prev => ({ ...prev, actual_minutes: e.target.value }))}
+              />
+            </div>
+          </div>
+
           <DialogFooter className="pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button type="submit" disabled={createTask.isPending}>
