@@ -37,7 +37,7 @@ import { ProjectTimeline } from "./workspace/common/ProjectTimeline";
 import { FaculdadeWorkspace } from "./workspace/faculdade/FaculdadeWorkspace";
 
 export function ProjectDetail() {
-  const { projectId } = useParams({ from: '/projetos/$projectId' });
+  const { projectId } = useParams({ from: '/_authenticated/projetos/$projectId' });
   const [activeTab, setActiveTab] = useState("overview");
 
   const { data: project, isLoading } = useQuery({
