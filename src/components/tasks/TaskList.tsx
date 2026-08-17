@@ -45,6 +45,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { toast } from "sonner";
 import { TaskModal } from "../modals/TaskModal";
 import { logActivity } from "@/lib/activity";
+import { advanceRecurrence } from "@/lib/recurrence";
 
 // Tipagem baseada no banco
 type Task = {
