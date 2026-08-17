@@ -82,8 +82,8 @@ interface SummaryCardProps {
   icon: React.ReactNode;
   label: string;
   value: string;
-  hint?: string;
-  tone?: "danger" | "warning";
+  hint?: string | undefined;
+  tone?: "danger" | "warning" | undefined;
 }
 
 function SummaryCard({ icon, label, value, hint, tone }: SummaryCardProps) {

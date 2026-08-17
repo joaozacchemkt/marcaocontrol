@@ -63,7 +63,9 @@ export function ConfigurarAmbiente({
     const index = order.indexOf(key);
     const target = index + direction;
     if (index < 0 || target < 0 || target >= order.length) return;
-    [order[index], order[target]] = [order[target], order[index]];
+    const current = order[index]!;
+    order[index] = order[target]!;
+    order[target] = current;
     // Mantém as abas indisponíveis no fim, preservando a ordem original.
     const rest = draft.order.filter((k) => !available.includes(k));
     apply({ ...draft, order: [...order, ...rest] });
