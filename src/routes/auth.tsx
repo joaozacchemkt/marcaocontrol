@@ -1,59 +1,59 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
+import { Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { unlockSite } from "@/lib/gate.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Entrar | Marcão Control" },
-      { name: "description", content: "Acesse seu painel executivo de projetos, tarefas e finanças." },
-      { property: "og:title", content: "Entrar no Marcão Control" },
-      { property: "og:description", content: "Acesse seu painel executivo de projetos, tarefas e finanças." },
+      { title: "Acesso | Marcão Control" },
+      { name: "description", content: "Informe a senha de acesso ao painel executivo Marcão Control." },
+      { property: "og:title", content: "Acesso ao Marcão Control" },
+      { property: "og:description", content: "Informe a senha de acesso ao painel executivo Marcão Control." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: AuthPage,
+  component: AccessPage,
 });
 
-function AuthPage() {
+function AccessPage() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
-  const [email, setEmail] = useState("");
+  const unlock = useServerFn(unlockSite);
   const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) navigate({ to: "/" });
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
-      if (session) navigate({ to: "/" });
-    });
-    return () => sub.subscription.unsubscribe();
   }, [navigate]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
+    setError(null);
     try {
-      if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { emailRedirectTo: window.location.origin },
-        });
-        if (error) throw error;
-        toast.success("Conta criada. Verifique seu e-mail se necessário.");
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+      const result = await unlock({ data: { password } });
+      if (!result.ok || !result.tokenHash || !result.email) {
+        setError("Senha incorreta.");
+        return;
       }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Falha na autenticação");
+      const { error: otpError } = await supabase.auth.verifyOtp({
+        type: "magiclink",
+        token_hash: result.tokenHash,
+      });
+      if (otpError) throw otpError;
+      setPassword("");
+      navigate({ to: "/" });
+    } catch {
+      setError("Não foi possível entrar. Tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -61,48 +61,33 @@ function AuthPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-2xl">Marcão Control</CardTitle>
-          <CardDescription>
-            {mode === "signin" ? "Entre para acessar seu painel." : "Crie sua conta executiva."}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">E-mail</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete={mode === "signin" ? "current-password" : "new-password"}
-              />
-            </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Aguarde..." : mode === "signin" ? "Entrar" : "Criar conta"}
-            </Button>
-          </form>
-          <button
-            type="button"
-            className="w-full text-sm text-muted-foreground hover:text-foreground"
-            onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-          >
-            {mode === "signin" ? "Não tem conta? Cadastre-se" : "Já tem conta? Entrar"}
-          </button>
-        </CardContent>
-      </Card>
+      <div className="w-full max-w-sm">
+        <div className="mb-10 text-center">
+          <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-xl border bg-card">
+            <Lock className="h-5 w-5 text-primary" />
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Marcão Control</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Acesso restrito</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="password">Senha</Label>
+            <Input
+              id="password"
+              type="password"
+              value={password}
+              autoFocus
+              autoComplete="current-password"
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? "Verificando..." : "Entrar"}
+          </Button>
+          {error && <p className="text-center text-sm text-destructive">{error}</p>}
+        </form>
+      </div>
     </main>
   );
 }
