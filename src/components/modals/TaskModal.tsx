@@ -61,11 +61,18 @@ export function TaskModal({ open, onOpenChange, initialProjectId }: TaskModalPro
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) throw new Error("Usuário não autenticado");
 
+      const toMinutes = (value: string) => {
+        const parsed = Number.parseInt(value, 10);
+        return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+      };
+
       const { data: task, error } = await supabase.from('tasks').insert({
         ...data,
         user_id: userData.user.id,
         deadline: data.deadline || null,
-        project_id: data.project_id || null
+        project_id: data.project_id && data.project_id !== 'none' ? data.project_id : null,
+        estimated_minutes: toMinutes(data.estimated_minutes),
+        actual_minutes: toMinutes(data.actual_minutes)
       }).select().single();
 
       if (error) throw error;
