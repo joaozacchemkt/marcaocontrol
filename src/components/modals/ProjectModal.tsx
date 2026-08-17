@@ -80,9 +80,15 @@ export function ProjectModal({ open, onOpenChange, initialData }: ProjectModalPr
       if (!userData.user) throw new Error("Usuário não autenticado");
 
       const { data: project, error } = await supabase.from('projects').insert({
-        ...data,
         user_id: userData.user.id,
-        budget: data.budget ? parseFloat(data.budget) : null,
+        name: data.name.trim() || "Projeto sem título",
+        category: data.category || null,
+        description: data.description || null,
+        objective: data.objective || null,
+        status: data.status || "ideia",
+        next_action: data.next_action || null,
+        notes: data.notes || null,
+        budget: data.budget !== "" && !isNaN(parseFloat(data.budget)) ? parseFloat(data.budget) : null,
         start_date: data.start_date || null,
         deadline: data.deadline || null,
       }).select().single();
@@ -133,10 +139,6 @@ export function ProjectModal({ open, onOpenChange, initialData }: ProjectModalPr
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name) {
-      toast.error("Nome do projeto é obrigatório");
-      return;
-    }
     createProject.mutate(formData);
   };
 
