@@ -35,7 +35,9 @@ export function TaskModal({ open, onOpenChange, initialProjectId }: TaskModalPro
     priority: "media" as "baixa" | "media" | "alta",
     status: "a_fazer" as any,
     waiting_for: "",
-    notes: ""
+    notes: "",
+    estimated_minutes: "",
+    actual_minutes: ""
   });
 
   const { data: projects = [] } = useQuery({
@@ -59,11 +61,18 @@ export function TaskModal({ open, onOpenChange, initialProjectId }: TaskModalPro
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) throw new Error("Usuário não autenticado");
 
+      const toMinutes = (value: string) => {
+        const parsed = Number.parseInt(value, 10);
+        return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+      };
+
       const { data: task, error } = await supabase.from('tasks').insert({
         ...data,
         user_id: userData.user.id,
         deadline: data.deadline || null,
-        project_id: data.project_id || null
+        project_id: data.project_id && data.project_id !== 'none' ? data.project_id : null,
+        estimated_minutes: toMinutes(data.estimated_minutes),
+        actual_minutes: toMinutes(data.actual_minutes)
       }).select().single();
 
       if (error) throw error;
@@ -91,7 +100,9 @@ export function TaskModal({ open, onOpenChange, initialProjectId }: TaskModalPro
         priority: "media",
         status: "a_fazer",
         waiting_for: "",
-        notes: ""
+        notes: "",
+        estimated_minutes: "",
+        actual_minutes: ""
       });
     },
     onError: (error) => {
@@ -218,6 +229,31 @@ export function TaskModal({ open, onOpenChange, initialProjectId }: TaskModalPro
                 placeholder="Nome da pessoa/empresa" 
                 value={formData.waiting_for}
                 onChange={e => setFormData(prev => ({ ...prev, waiting_for: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="estimated">Tempo estimado (min)</Label>
+              <Input
+                id="estimated"
+                type="number"
+                min={0}
+                placeholder="Ex.: 60"
+                value={formData.estimated_minutes}
+                onChange={e => setFormData(prev => ({ ...prev, estimated_minutes: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="actual">Tempo realizado (min)</Label>
+              <Input
+                id="actual"
+                type="number"
+                min={0}
+                placeholder="Ex.: 45"
+                value={formData.actual_minutes}
+                onChange={e => setFormData(prev => ({ ...prev, actual_minutes: e.target.value }))}
               />
             </div>
           </div>

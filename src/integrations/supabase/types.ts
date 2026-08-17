@@ -782,6 +782,54 @@ export type Database = {
           },
         ]
       }
+      project_relations: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          project_id: string
+          related_project_id: string
+          relation_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          project_id: string
+          related_project_id: string
+          relation_type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          project_id?: string
+          related_project_id?: string
+          relation_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_relations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_relations_related_project_id_fkey"
+            columns: ["related_project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           budget: number | null
@@ -796,6 +844,7 @@ export type Database = {
           objective: string | null
           start_date: string | null
           status: Database["public"]["Enums"]["project_status"] | null
+          tab_config: Json | null
           type: Database["public"]["Enums"]["project_type"] | null
           updated_at: string | null
           user_id: string
@@ -813,6 +862,7 @@ export type Database = {
           objective?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["project_status"] | null
+          tab_config?: Json | null
           type?: Database["public"]["Enums"]["project_type"] | null
           updated_at?: string | null
           user_id: string
@@ -830,22 +880,142 @@ export type Database = {
           objective?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["project_status"] | null
+          tab_config?: Json | null
           type?: Database["public"]["Enums"]["project_type"] | null
           updated_at?: string | null
           user_id?: string
         }
         Relationships: []
       }
+      reminders: {
+        Row: {
+          channel: string
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          notes: string | null
+          project_id: string | null
+          recurrence: string | null
+          remind_at: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          channel?: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          notes?: string | null
+          project_id?: string | null
+          recurrence?: string | null
+          remind_at: string
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          notes?: string | null
+          project_id?: string | null
+          recurrence?: string | null
+          remind_at?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reminders_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_recurrences: {
+        Row: {
+          active: boolean
+          category: string | null
+          created_at: string
+          description: string | null
+          end_date: string | null
+          frequency: string
+          id: string
+          interval_count: number
+          next_run: string
+          project_id: string | null
+          start_date: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          frequency?: string
+          id?: string
+          interval_count?: number
+          next_run?: string
+          project_id?: string | null
+          start_date?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          frequency?: string
+          id?: string
+          interval_count?: number
+          next_run?: string
+          project_id?: string | null
+          start_date?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_recurrences_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
+          actual_minutes: number | null
           contact_id: string | null
           created_at: string | null
           deadline: string | null
           description: string | null
+          estimated_minutes: number | null
           id: string
           notes: string | null
+          parent_task_id: string | null
           priority: Database["public"]["Enums"]["task_priority"] | null
           project_id: string | null
+          recurrence_id: string | null
           responsible: string | null
           status: Database["public"]["Enums"]["task_status"] | null
           title: string
@@ -854,14 +1024,18 @@ export type Database = {
           waiting_for: string | null
         }
         Insert: {
+          actual_minutes?: number | null
           contact_id?: string | null
           created_at?: string | null
           deadline?: string | null
           description?: string | null
+          estimated_minutes?: number | null
           id?: string
           notes?: string | null
+          parent_task_id?: string | null
           priority?: Database["public"]["Enums"]["task_priority"] | null
           project_id?: string | null
+          recurrence_id?: string | null
           responsible?: string | null
           status?: Database["public"]["Enums"]["task_status"] | null
           title: string
@@ -870,14 +1044,18 @@ export type Database = {
           waiting_for?: string | null
         }
         Update: {
+          actual_minutes?: number | null
           contact_id?: string | null
           created_at?: string | null
           deadline?: string | null
           description?: string | null
+          estimated_minutes?: number | null
           id?: string
           notes?: string | null
+          parent_task_id?: string | null
           priority?: Database["public"]["Enums"]["task_priority"] | null
           project_id?: string | null
+          recurrence_id?: string | null
           responsible?: string | null
           status?: Database["public"]["Enums"]["task_status"] | null
           title?: string
@@ -894,10 +1072,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "tasks_parent_task_id_fkey"
+            columns: ["parent_task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "tasks_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_recurrence_id_fkey"
+            columns: ["recurrence_id"]
+            isOneToOne: false
+            referencedRelation: "task_recurrences"
             referencedColumns: ["id"]
           },
         ]
@@ -983,6 +1175,14 @@ export type Database = {
         | "novo_negocio"
         | "pessoal"
         | "generico"
+        | "perfil_imobiliario"
+        | "reformas"
+        | "oab"
+        | "obra"
+        | "produto_digital"
+        | "domestico"
+        | "financeiro_pessoal"
+        | "investimento_imovel"
       task_priority: "baixa" | "media" | "alta"
       task_status:
         | "a_fazer"
@@ -1142,6 +1342,14 @@ export const Constants = {
         "novo_negocio",
         "pessoal",
         "generico",
+        "perfil_imobiliario",
+        "reformas",
+        "oab",
+        "obra",
+        "produto_digital",
+        "domestico",
+        "financeiro_pessoal",
+        "investimento_imovel",
       ],
       task_priority: ["baixa", "media", "alta"],
       task_status: [
