@@ -35,7 +35,9 @@ export function TaskModal({ open, onOpenChange, initialProjectId }: TaskModalPro
     priority: "media" as "baixa" | "media" | "alta",
     status: "a_fazer" as any,
     waiting_for: "",
-    notes: ""
+    notes: "",
+    estimated_minutes: "",
+    actual_minutes: ""
   });
 
   const { data: projects = [] } = useQuery({
