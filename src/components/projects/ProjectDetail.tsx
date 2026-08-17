@@ -49,10 +49,13 @@ import { isModuleKey } from "@/lib/workspace-modules";
 
 // Template Faculdade
 import { FaculdadeWorkspace } from "./workspace/faculdade/FaculdadeWorkspace";
+// Template OAB
+import { PainelOab } from "./workspace/oab/PainelOab";
 
 const TAB_ICONS: Partial<Record<TabKey, React.ComponentType<{ className?: string }>>> = {
   overview: LayoutDashboard,
   faculdade: GraduationCap,
+  painel_oab: Scale,
   tasks: CheckSquare,
   calendar: CalendarIcon,
   notes: FileText,
@@ -120,9 +123,13 @@ export function ProjectDetail() {
       "timeline",
     ];
     const modules = MODULE_TABS_BY_TYPE[projectType] ?? [];
-    const withFaculdade: TabKey[] =
-      projectType === "faculdade" ? [...base, "faculdade"] : base;
-    return [...withFaculdade, ...modules];
+    const withTemplate: TabKey[] =
+      projectType === "faculdade"
+        ? [...base, "faculdade"]
+        : projectType === "oab"
+          ? [...base, "painel_oab"]
+          : base;
+    return [...withTemplate, ...modules];
   }, [projectType]);
 
   const tabConfig = useMemo(
@@ -266,6 +273,12 @@ export function ProjectDetail() {
               <ModuleBoard projectId={projectId} moduleKey={tab.key} />
             </TabsContent>
           ))}
+
+        {projectType === "oab" && (
+          <TabsContent value="painel_oab" className="mt-0 focus-visible:outline-none">
+            <PainelOab projectId={projectId} />
+          </TabsContent>
+        )}
 
         {projectType === "faculdade" && (
           <TabsContent value="faculdade" className="mt-0 focus-visible:outline-none">

@@ -35,7 +35,22 @@ export type TabKey =
   | "pagamentos"
   | "aquisicao"
   | "legalizacao"
-  | "venda";
+  | "venda"
+  // Fase 3 — estudos
+  | "painel_oab"
+  | "biblioteca"
+  | "ferramentas_ia"
+  | "plano_estudos"
+  | "disciplinas"
+  | "questoes"
+  | "caderno_erros"
+  | "simulados"
+  | "revisoes"
+  | "lei_seca"
+  | "tecnicas"
+  | "caligrafia"
+  | "rotina"
+  | "desempenho";
 
 export interface TabDefinition {
   key: TabKey;
@@ -47,6 +62,7 @@ export interface TabDefinition {
 export const ALL_TABS: TabDefinition[] = [
   { key: "overview", label: "Visão Geral", locked: true },
   { key: "faculdade", label: "Faculdade" },
+  { key: "painel_oab", label: "Painel OAB" },
   { key: "tasks", label: "Pendências" },
   { key: "calendar", label: "Agenda" },
   { key: "notes", label: "Anotações" },
@@ -67,8 +83,16 @@ export interface TabConfig {
 
 /** Abas padrão por tipo de projeto. */
 const DEFAULT_BY_TYPE: Record<string, TabKey[]> = {
-  faculdade: ["overview", "faculdade", "tasks", "calendar", "notes", "files", "timeline"],
-  oab: ["overview", "tasks", "calendar", "notes", "files", "timeline"],
+  faculdade: [
+    "overview", "faculdade", "biblioteca", "ferramentas_ia", "tasks",
+    "calendar", "notes", "files", "timeline",
+  ],
+  oab: [
+    "overview", "painel_oab", "plano_estudos", "disciplinas", "questoes",
+    "caderno_erros", "simulados", "revisoes", "lei_seca", "tecnicas",
+    "caligrafia", "rotina", "desempenho", "tasks", "calendar", "notes",
+    "files", "timeline",
+  ],
   domestico: ["overview", "tasks", "calendar", "finance", "files", "team", "timeline"],
   financeiro_pessoal: ["overview", "finance", "tasks", "notes", "files", "timeline"],
   perfil_imobiliario: [
@@ -105,6 +129,11 @@ export const MODULE_TABS_BY_TYPE: Record<string, TabKey[]> = {
   investimento_imovel: ["aquisicao", "legalizacao", "venda", "cases"],
   produto_digital: ["conteudo", "temas"],
   consultoria: ["pipeline"],
+  faculdade: ["biblioteca", "ferramentas_ia"],
+  oab: [
+    "plano_estudos", "disciplinas", "questoes", "caderno_erros", "simulados",
+    "revisoes", "lei_seca", "tecnicas", "caligrafia", "rotina", "desempenho",
+  ],
 };
 
 const GENERIC_TABS: TabKey[] = [
