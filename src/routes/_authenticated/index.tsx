@@ -24,7 +24,7 @@ import { Link } from "@tanstack/react-router";
 import { Progress } from "@/components/ui/progress";
 import { EstudarAgora } from "@/components/projects/workspace/faculdade/EstudarAgora";
 
-export const Route = createFileRoute("/_authenticated/_authenticated/")({
+export const Route = createFileRoute("/_authenticated/")({
   component: Dashboard,
 });
 

@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { CalendarAgenda } from "@/components/calendar/CalendarAgenda";
 
-export const Route = createFileRoute("/_authenticated/_authenticated/agenda")({
+export const Route = createFileRoute("/_authenticated/agenda")({
   component: AgendaPage,
 });
 

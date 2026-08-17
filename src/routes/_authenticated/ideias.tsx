@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppLayout } from "@/components/layout/AppLayout";
 
-export const Route = createFileRoute("/_authenticated/_authenticated/ideias")({
+export const Route = createFileRoute("/_authenticated/ideias")({
   component: IdeiasPage,
 });
 
