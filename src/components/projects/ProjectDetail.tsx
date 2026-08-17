@@ -23,6 +23,7 @@ import {
   Hammer,
   Scale,
   MonitorSmartphone,
+  LayoutGrid,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,7 +38,14 @@ import { ProjectTimeline } from "./workspace/common/ProjectTimeline";
 import { ConfigurarAmbiente } from "./workspace/common/ConfigurarAmbiente";
 import { ProjectRelations } from "./workspace/common/ProjectRelations";
 import { ExecutiveSummary } from "./workspace/common/ExecutiveSummary";
-import { resolveTabConfig, visibleTabs, type TabKey } from "@/lib/workspace-tabs";
+import {
+  MODULE_TABS_BY_TYPE,
+  resolveTabConfig,
+  visibleTabs,
+  type TabKey,
+} from "@/lib/workspace-tabs";
+import { ModuleBoard } from "./workspace/common/ModuleBoard";
+import { isModuleKey } from "@/lib/workspace-modules";
 
 // Template Faculdade
 import { FaculdadeWorkspace } from "./workspace/faculdade/FaculdadeWorkspace";
@@ -52,7 +60,7 @@ const TAB_ICONS: Record<TabKey, React.ComponentType<{ className?: string }>> = {
   team: Users,
   finance: DollarSign,
   timeline: Clock,
-};
+} as Record<TabKey, React.ComponentType<{ className?: string }>>;
 
 const TYPE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   faculdade: GraduationCap,
@@ -111,7 +119,10 @@ export function ProjectDetail() {
       "finance",
       "timeline",
     ];
-    return projectType === "faculdade" ? [...base, "faculdade"] : base;
+    const modules = MODULE_TABS_BY_TYPE[projectType] ?? [];
+    const withFaculdade: TabKey[] =
+      projectType === "faculdade" ? [...base, "faculdade"] : base;
+    return [...withFaculdade, ...modules];
   }, [projectType]);
 
   const tabConfig = useMemo(
@@ -198,7 +209,7 @@ export function ProjectDetail() {
         <div className="overflow-x-auto pb-2 scrollbar-hide">
           <TabsList className="bg-muted/50 p-1 inline-flex w-auto min-w-full md:min-w-0">
             {tabs.map((tab) => {
-              const Icon = TAB_ICONS[tab.key];
+              const Icon = TAB_ICONS[tab.key] ?? LayoutGrid;
               return (
                 <TabsTrigger key={tab.key} value={tab.key} className="gap-2">
                   <Icon className="h-4 w-4" /> {tab.label}
@@ -243,6 +254,18 @@ export function ProjectDetail() {
         <TabsContent value="timeline" className="mt-0 focus-visible:outline-none">
           <ProjectTimeline project={project} />
         </TabsContent>
+
+        {tabs
+          .filter((tab) => isModuleKey(tab.key))
+          .map((tab) => (
+            <TabsContent
+              key={tab.key}
+              value={tab.key}
+              className="mt-0 focus-visible:outline-none"
+            >
+              <ModuleBoard projectId={projectId} moduleKey={tab.key} />
+            </TabsContent>
+          ))}
 
         {projectType === "faculdade" && (
           <TabsContent value="faculdade" className="mt-0 focus-visible:outline-none">
