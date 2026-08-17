@@ -100,7 +100,9 @@ export function TaskModal({ open, onOpenChange, initialProjectId }: TaskModalPro
         priority: "media",
         status: "a_fazer",
         waiting_for: "",
-        notes: ""
+        notes: "",
+        estimated_minutes: "",
+        actual_minutes: ""
       });
     },
     onError: (error) => {
