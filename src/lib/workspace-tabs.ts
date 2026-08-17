@@ -6,6 +6,8 @@
  *   { order: string[]; hidden: string[] }
  */
 
+import { MODULES } from "./workspace-modules";
+
 export type TabKey =
   | "overview"
   | "faculdade"
@@ -15,7 +17,25 @@ export type TabKey =
   | "files"
   | "team"
   | "finance"
-  | "timeline";
+  | "timeline"
+  // Módulos específicos (Fase 2) — ver src/lib/workspace-modules.ts
+  | "mercado"
+  | "personas"
+  | "referencias"
+  | "conteudo"
+  | "temas"
+  | "jornada"
+  | "cases"
+  | "obras"
+  | "pipeline"
+  | "orcamentos"
+  | "etapas"
+  | "materiais"
+  | "medicoes"
+  | "pagamentos"
+  | "aquisicao"
+  | "legalizacao"
+  | "venda";
 
 export interface TabDefinition {
   key: TabKey;
@@ -34,6 +54,10 @@ export const ALL_TABS: TabDefinition[] = [
   { key: "team", label: "Pessoas" },
   { key: "finance", label: "Financeiro" },
   { key: "timeline", label: "Timeline" },
+  ...Object.values(MODULES).map((module) => ({
+    key: module.key as TabKey,
+    label: module.label,
+  })),
 ];
 
 export interface TabConfig {
@@ -47,6 +71,40 @@ const DEFAULT_BY_TYPE: Record<string, TabKey[]> = {
   oab: ["overview", "tasks", "calendar", "notes", "files", "timeline"],
   domestico: ["overview", "tasks", "calendar", "finance", "files", "team", "timeline"],
   financeiro_pessoal: ["overview", "finance", "tasks", "notes", "files", "timeline"],
+  perfil_imobiliario: [
+    "overview", "conteudo", "temas", "personas", "referencias", "mercado",
+    "jornada", "cases", "tasks", "calendar", "team", "notes", "files", "timeline",
+  ],
+  reformas: [
+    "overview", "pipeline", "obras", "orcamentos", "tasks", "team",
+    "finance", "calendar", "files", "notes", "timeline",
+  ],
+  obra: [
+    "overview", "etapas", "materiais", "medicoes", "pagamentos", "tasks",
+    "team", "finance", "calendar", "files", "timeline",
+  ],
+  investimento_imovel: [
+    "overview", "aquisicao", "legalizacao", "venda", "cases", "finance",
+    "tasks", "files", "timeline",
+  ],
+  produto_digital: [
+    "overview", "conteudo", "temas", "tasks", "calendar", "finance",
+    "notes", "files", "team", "timeline",
+  ],
+  consultoria: [
+    "overview", "pipeline", "tasks", "calendar", "team", "finance",
+    "notes", "files", "timeline",
+  ],
+};
+
+/** Módulos específicos habilitados por tipo de projeto. */
+export const MODULE_TABS_BY_TYPE: Record<string, TabKey[]> = {
+  perfil_imobiliario: ["mercado", "personas", "referencias", "conteudo", "temas", "jornada", "cases"],
+  reformas: ["pipeline", "obras", "orcamentos"],
+  obra: ["etapas", "materiais", "medicoes", "pagamentos"],
+  investimento_imovel: ["aquisicao", "legalizacao", "venda", "cases"],
+  produto_digital: ["conteudo", "temas"],
+  consultoria: ["pipeline"],
 };
 
 const GENERIC_TABS: TabKey[] = [
