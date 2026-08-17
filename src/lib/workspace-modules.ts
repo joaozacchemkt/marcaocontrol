@@ -241,3 +241,154 @@ export type ModuleKey = keyof typeof MODULES;
 
 export const isModuleKey = (key: string): boolean =>
   Object.prototype.hasOwnProperty.call(MODULES, key);
+
+/* --------------------------------------------------------------------------
+ * Fase 3 — Estudos (Faculdade de Direito + Preparação OAB)
+ * ------------------------------------------------------------------------ */
+
+const ESTUDOS_MODULES: Record<string, ModuleDefinition> = {
+  // --- Faculdade de Direito ---
+  biblioteca: {
+    key: "biblioteca",
+    label: "Biblioteca Jurídica",
+    description: "Doutrina, códigos, jurisprudência e materiais de referência.",
+    itemLabel: "Material",
+    stages: [
+      stage("a_ler", "A ler"),
+      stage("lendo", "Lendo"),
+      stage("lido", "Lido"),
+      stage("referencia", "Referência"),
+    ],
+  },
+  ferramentas_ia: {
+    key: "ferramentas_ia",
+    label: "IA & Ferramentas",
+    description: "Ferramentas, prompts e fluxos que aceleram o estudo.",
+    itemLabel: "Ferramenta",
+    stages: [
+      stage("testar", "Testar"),
+      stage("em_uso", "Em uso"),
+      stage("descartada", "Descartada"),
+    ],
+  },
+
+  // --- Preparação OAB ---
+  plano_estudos: {
+    key: "plano_estudos",
+    label: "Plano de Estudos",
+    description: "Blocos de estudo planejados até a prova.",
+    itemLabel: "Bloco",
+    stages: [
+      stage("planejado", "Planejado"),
+      stage("andamento", "Em andamento"),
+      stage("concluido", "Concluído"),
+    ],
+    date: true,
+  },
+  disciplinas: {
+    key: "disciplinas",
+    label: "Disciplinas",
+    description: "Disciplinas com peso na prova e domínio atual.",
+    itemLabel: "Disciplina",
+    stages: [
+      stage("nao_iniciada", "Não iniciada"),
+      stage("estudando", "Estudando"),
+      stage("revisao", "Revisão"),
+      stage("dominada", "Dominada"),
+    ],
+  },
+  questoes: {
+    key: "questoes",
+    label: "Banco de Questões",
+    description: "Blocos de questões resolvidas e pendentes.",
+    itemLabel: "Bloco",
+    stages: [
+      stage("pendente", "Pendente"),
+      stage("resolvido", "Resolvido"),
+      stage("revisado", "Revisado"),
+    ],
+    date: true,
+  },
+  caderno_erros: {
+    key: "caderno_erros",
+    label: "Caderno de Erros",
+    description: "Erros registrados para revisão dirigida.",
+    itemLabel: "Erro",
+    stages: [
+      stage("aberto", "Aberto"),
+      stage("revisado", "Revisado"),
+      stage("superado", "Superado"),
+    ],
+  },
+  simulados: {
+    key: "simulados",
+    label: "Simulados",
+    description: "Simulados aplicados e resultados.",
+    itemLabel: "Simulado",
+    stages: [
+      stage("agendado", "Agendado"),
+      stage("realizado", "Realizado"),
+      stage("corrigido", "Corrigido"),
+    ],
+    date: true,
+  },
+  revisoes: {
+    key: "revisoes",
+    label: "Revisões",
+    description: "Ciclos de revisão espaçada.",
+    itemLabel: "Revisão",
+    stages: [
+      stage("prevista", "Prevista"),
+      stage("feita", "Feita"),
+    ],
+    date: true,
+  },
+  lei_seca: {
+    key: "lei_seca",
+    label: "Lei Seca",
+    description: "Leitura dirigida de dispositivos legais.",
+    itemLabel: "Leitura",
+    stages: [
+      stage("pendente", "Pendente"),
+      stage("lida", "Lida"),
+      stage("revisada", "Revisada"),
+    ],
+    date: true,
+  },
+  tecnicas: {
+    key: "tecnicas",
+    label: "Técnicas",
+    description: "Técnicas de prova, redação e resolução.",
+    itemLabel: "Técnica",
+    stages: [
+      stage("estudar", "Estudar"),
+      stage("praticando", "Praticando"),
+      stage("dominada", "Dominada"),
+    ],
+  },
+  caligrafia: {
+    key: "caligrafia",
+    label: "Caligrafia",
+    description: "Treinos de escrita para a 2ª fase.",
+    itemLabel: "Treino",
+    stages: [stage("previsto", "Previsto"), stage("feito", "Feito")],
+    date: true,
+  },
+  rotina: {
+    key: "rotina",
+    label: "Rotina",
+    description: "Rotina semanal de estudo e hábitos.",
+    itemLabel: "Item",
+    stages: [stage("ativo", "Ativo"), stage("pausado", "Pausado")],
+  },
+  desempenho: {
+    key: "desempenho",
+    label: "Desempenho",
+    description: "Registros de acertos e evolução por período.",
+    itemLabel: "Registro",
+    stages: [stage("registrado", "Registrado")],
+    date: true,
+  },
+};
+
+Object.assign(MODULES, ESTUDOS_MODULES);
