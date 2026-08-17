@@ -50,7 +50,7 @@ import { isModuleKey } from "@/lib/workspace-modules";
 // Template Faculdade
 import { FaculdadeWorkspace } from "./workspace/faculdade/FaculdadeWorkspace";
 
-const TAB_ICONS: Record<TabKey, React.ComponentType<{ className?: string }>> = {
+const TAB_ICONS: Partial<Record<TabKey, React.ComponentType<{ className?: string }>>> = {
   overview: LayoutDashboard,
   faculdade: GraduationCap,
   tasks: CheckSquare,
@@ -60,7 +60,7 @@ const TAB_ICONS: Record<TabKey, React.ComponentType<{ className?: string }>> = {
   team: Users,
   finance: DollarSign,
   timeline: Clock,
-} as Record<TabKey, React.ComponentType<{ className?: string }>>;
+};
 
 const TYPE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   faculdade: GraduationCap,
