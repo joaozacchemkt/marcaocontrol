@@ -151,13 +151,12 @@ export function ProjectModal({ open, onOpenChange, initialData }: ProjectModalPr
         <form onSubmit={handleSubmit} className="space-y-6 py-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2 space-y-2">
-              <Label htmlFor="name">Nome do Projeto *</Label>
+              <Label htmlFor="name">Nome do Projeto</Label>
               <Input 
                 id="name" 
                 placeholder="Ex: Reforma Apartamento Jardins" 
                 value={formData.name}
                 onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                required
               />
             </div>
             
