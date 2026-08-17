@@ -9,6 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/auth")({
+  // A tela de acesso depende da sessão guardada no navegador; sem SSR não há
+  // divergência entre o HTML do servidor e o da hidratação.
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Acesso | Marcão Control" },
