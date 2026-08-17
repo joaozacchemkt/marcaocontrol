@@ -1,26 +1,28 @@
-
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useParams, Link } from "@tanstack/react-router";
-import { 
-  LayoutDashboard, 
-  CheckSquare, 
-  Calendar as CalendarIcon, 
-  FileText, 
-  Users, 
-  DollarSign, 
-  Clock, 
+import {
+  LayoutDashboard,
+  CheckSquare,
+  Calendar as CalendarIcon,
+  FileText,
+  Users,
+  DollarSign,
+  Clock,
   FileUp,
-  ChevronLeft,
-  Settings2,
   GraduationCap,
   Building2,
   Users2,
   Target,
   Rocket,
-  User
+  User,
+  Home,
+  Wallet,
+  Hammer,
+  Scale,
+  MonitorSmartphone,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,61 +34,122 @@ import { ProjectNotes } from "./workspace/common/ProjectNotes";
 import { ProjectFiles } from "./workspace/common/ProjectFiles";
 import { ProjectTeam } from "./workspace/common/ProjectTeam";
 import { ProjectTimeline } from "./workspace/common/ProjectTimeline";
+import { ConfigurarAmbiente } from "./workspace/common/ConfigurarAmbiente";
+import { ProjectRelations } from "./workspace/common/ProjectRelations";
+import { ExecutiveSummary } from "./workspace/common/ExecutiveSummary";
+import { resolveTabConfig, visibleTabs, type TabKey } from "@/lib/workspace-tabs";
 
 // Template Faculdade
 import { FaculdadeWorkspace } from "./workspace/faculdade/FaculdadeWorkspace";
 
+const TAB_ICONS: Record<TabKey, React.ComponentType<{ className?: string }>> = {
+  overview: LayoutDashboard,
+  faculdade: GraduationCap,
+  tasks: CheckSquare,
+  calendar: CalendarIcon,
+  notes: FileText,
+  files: FileUp,
+  team: Users,
+  finance: DollarSign,
+  timeline: Clock,
+};
+
+const TYPE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  faculdade: GraduationCap,
+  imovel: Building2,
+  consultoria: Users2,
+  perfil_publico: Target,
+  perfil_imobiliario: Target,
+  novo_negocio: Rocket,
+  pessoal: User,
+  reformas: Hammer,
+  obra: Hammer,
+  oab: Scale,
+  produto_digital: MonitorSmartphone,
+  domestico: Home,
+  financeiro_pessoal: Wallet,
+  investimento_imovel: Building2,
+  generico: LayoutDashboard,
+};
+
 export function ProjectDetail() {
-  const { projectId } = useParams({ from: '/_authenticated/projetos/$projectId' });
-  const [activeTab, setActiveTab] = useState("overview");
+  const { projectId } = useParams({ from: "/_authenticated/projetos/$projectId" });
+  const [activeTab, setActiveTab] = useState<string>("overview");
 
   const { data: project, isLoading } = useQuery({
-    queryKey: ['project', projectId],
+    queryKey: ["project", projectId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('projects')
-        .select(`
+        .from("projects")
+        .select(
+          `
           *,
           tasks (*),
           financial_transactions (*),
           project_contacts (*, contact:contacts(*))
-        `)
-        .eq('id', projectId)
+        `,
+        )
+        .eq("id", projectId)
         .single();
-      
+
       if (error) throw error;
       return data;
-    }
+    },
   });
 
-  if (isLoading) return (
-    <div className="flex items-center justify-center h-96">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-    </div>
+  const projectType = (project as { type?: string } | undefined)?.type || "generico";
+
+  // Abas disponíveis para este workspace (a de Faculdade só existe no template).
+  const availableTabs = useMemo<TabKey[]>(() => {
+    const base: TabKey[] = [
+      "overview",
+      "tasks",
+      "calendar",
+      "notes",
+      "files",
+      "team",
+      "finance",
+      "timeline",
+    ];
+    return projectType === "faculdade" ? [...base, "faculdade"] : base;
+  }, [projectType]);
+
+  const tabConfig = useMemo(
+    () =>
+      resolveTabConfig(
+        projectType,
+        (project as { tab_config?: unknown } | undefined)?.tab_config,
+      ),
+    [projectType, project],
   );
+
+  const tabs = useMemo(
+    () => visibleTabs(tabConfig, availableTabs),
+    [tabConfig, availableTabs],
+  );
+
+  if (isLoading)
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
 
   if (!project) return <div>Projeto não encontrado.</div>;
 
-  const projectType = project.type || 'generico';
-
-  const typeIcons: Record<string, any> = {
-    faculdade: GraduationCap,
-    imovel: Building2,
-    consultoria: Users2,
-    perfil_publico: Target,
-    novo_negocio: Rocket,
-    pessoal: User,
-    generico: LayoutDashboard,
-  };
-
-  const TypeIcon = typeIcons[projectType] || LayoutDashboard;
+  const TypeIcon = TYPE_ICONS[projectType] || LayoutDashboard;
+  const currentTab = tabs.some((tab) => tab.key === activeTab)
+    ? activeTab
+    : (tabs[0]?.key ?? "overview");
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Breadcrumb & Header */}
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Link to="/projetos" className="hover:text-foreground transition-colors">Projetos</Link>
+          <Link to="/projetos" className="hover:text-foreground transition-colors">
+            Projetos
+          </Link>
           <span>/</span>
           <span className="text-foreground font-medium">{project.name}</span>
         </div>
@@ -98,72 +161,59 @@ export function ProjectDetail() {
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <Badge variant="outline" className="capitalize text-[10px] font-bold tracking-wider">
+                <Badge
+                  variant="outline"
+                  className="capitalize text-[10px] font-bold tracking-wider"
+                >
                   {project.category || "Sem categoria"}
                 </Badge>
-                <Badge variant="secondary" className="capitalize text-[10px] font-bold tracking-wider">
-                  {projectType.replace(/_/g, ' ')}
+                <Badge
+                  variant="secondary"
+                  className="capitalize text-[10px] font-bold tracking-wider"
+                >
+                  {projectType.replace(/_/g, " ")}
                 </Badge>
               </div>
               <h2 className="text-3xl font-bold tracking-tight">{project.name}</h2>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-2">
-             <Button variant="outline" size="sm">
-                <Settings2 className="h-4 w-4 mr-2" /> Configurações
-             </Button>
-             <Button size="sm">Editar Projeto</Button>
+            <ConfigurarAmbiente
+              projectId={projectId}
+              config={tabConfig}
+              available={availableTabs}
+            />
+            <Button size="sm">Editar Projeto</Button>
           </div>
         </div>
       </div>
 
       {/* Tabs System */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
+      <Tabs
+        value={currentTab}
+        onValueChange={setActiveTab}
+        className="w-full space-y-6"
+      >
         <div className="overflow-x-auto pb-2 scrollbar-hide">
           <TabsList className="bg-muted/50 p-1 inline-flex w-auto min-w-full md:min-w-0">
-            <TabsTrigger value="overview" className="gap-2">
-              <LayoutDashboard className="h-4 w-4" /> Visão Geral
-            </TabsTrigger>
-            
-            {/* Faculdade Specific Tabs */}
-            {projectType === 'faculdade' && (
-              <TabsTrigger value="faculdade" className="gap-2 text-primary font-bold">
-                <GraduationCap className="h-4 w-4" /> Faculdade
-              </TabsTrigger>
-            )}
-
-            <TabsTrigger value="tasks" className="gap-2">
-              <CheckSquare className="h-4 w-4" /> Pendências
-            </TabsTrigger>
-            <TabsTrigger value="calendar" className="gap-2">
-              <CalendarIcon className="h-4 w-4" /> Agenda
-            </TabsTrigger>
-            <TabsTrigger value="notes" className="gap-2">
-              <FileText className="h-4 w-4" /> Anotações
-            </TabsTrigger>
-            <TabsTrigger value="files" className="gap-2">
-              <FileUp className="h-4 w-4" /> Arquivos
-            </TabsTrigger>
-            <TabsTrigger value="team" className="gap-2">
-              <Users className="h-4 w-4" /> Pessoas
-            </TabsTrigger>
-            
-            {/* Conditional Finance Tab */}
-            {(project.budget || project.financial_transactions?.length > 0) && (
-              <TabsTrigger value="finance" className="gap-2">
-                <DollarSign className="h-4 w-4" /> Financeiro
-              </TabsTrigger>
-            )}
-
-            <TabsTrigger value="timeline" className="gap-2">
-              <Clock className="h-4 w-4" /> Timeline
-            </TabsTrigger>
+            {tabs.map((tab) => {
+              const Icon = TAB_ICONS[tab.key];
+              return (
+                <TabsTrigger key={tab.key} value={tab.key} className="gap-2">
+                  <Icon className="h-4 w-4" /> {tab.label}
+                </TabsTrigger>
+              );
+            })}
           </TabsList>
         </div>
 
         <TabsContent value="overview" className="mt-0 focus-visible:outline-none">
-          <ProjectOverview project={project} />
+          <div className="space-y-6">
+            <ExecutiveSummary project={project as never} />
+            <ProjectOverview project={project} />
+            <ProjectRelations projectId={projectId} />
+          </div>
         </TabsContent>
 
         <TabsContent value="tasks" className="mt-0 focus-visible:outline-none">
@@ -194,8 +244,7 @@ export function ProjectDetail() {
           <ProjectTimeline project={project} />
         </TabsContent>
 
-        {/* Templates Específicos */}
-        {projectType === 'faculdade' && (
+        {projectType === "faculdade" && (
           <TabsContent value="faculdade" className="mt-0 focus-visible:outline-none">
             <FaculdadeWorkspace project={project} />
           </TabsContent>
