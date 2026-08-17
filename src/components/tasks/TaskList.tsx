@@ -105,6 +105,13 @@ export function TaskList({ initialProjectId }: { initialProjectId?: string }) {
 
       if (error) throw error;
 
+      // Tarefa recorrente concluída => gera a próxima ocorrência.
+      const recurrenceId = (task as { recurrence_id?: string | null } | null)
+        ?.recurrence_id;
+      if (status === 'concluido' && recurrenceId) {
+        await advanceRecurrence(recurrenceId);
+      }
+
       if (task && task.project_id) {
         const statusLabels: Record<string, string> = {
           'a_fazer': 'A fazer',
