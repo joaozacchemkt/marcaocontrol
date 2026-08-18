@@ -21,14 +21,17 @@ interface TransactionModalProps {
   onOpenChange: (open: boolean) => void;
   type: 'receita' | 'despesa';
   initialProjectId?: string;
+  /** Quando informado, o modal opera em modo de edição. */
+  transaction?: any | null;
 }
 
 
 const REVENUE_CATEGORIES = ["Venda", "Consultoria", "Honorário", "Dividendos", "Aporte", "Outros"];
 const EXPENSE_CATEGORIES = ["Obra", "Manutenção", "Imposto", "Marketing", "Administrativo", "Pessoal", "Viagem", "Outros"];
 
-export function TransactionModal({ open, onOpenChange, type, initialProjectId }: TransactionModalProps) {
+export function TransactionModal({ open, onOpenChange, type, initialProjectId, transaction }: TransactionModalProps) {
   const queryClient = useQueryClient();
+  const isEditing = Boolean(transaction?.id);
   
   const [formData, setFormData] = useState({
     description: "",
@@ -43,13 +46,26 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId }:
   });
 
   useEffect(() => {
-    if (open) {
-      setFormData(prev => ({
-        ...prev,
-        project_id: initialProjectId || "none"
-      }));
+    if (!open) return;
+    if (transaction?.id) {
+      setFormData({
+        description: transaction.description ?? "",
+        amount: transaction.amount != null ? String(transaction.amount) : "",
+        date: transaction.date ? String(transaction.date).split('T')[0]! : new Date().toISOString().split('T')[0]!,
+        due_date: transaction.due_date ? String(transaction.due_date).split('T')[0]! : "",
+        category: transaction.category ?? "Outros",
+        project_id: transaction.project_id ?? "none",
+        contact_id: transaction.contact_id ?? "none",
+        status: (transaction.status ?? "pendente") as 'pendente' | 'pago',
+        notes: transaction.notes ?? "",
+      });
+      return;
     }
-  }, [open, initialProjectId]);
+    setFormData(prev => ({
+      ...prev,
+      project_id: initialProjectId || "none"
+    }));
+  }, [open, initialProjectId, transaction]);
 
 
   const { data: projects = [] } = useQuery({
@@ -81,6 +97,7 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId }:
         project_id: data.project_id === 'none' ? null : data.project_id,
         contact_id: data.contact_id === 'none' ? null : data.contact_id,
         status: data.status,
+        notes: data.notes ? data.notes : null,
         type: type,
         user_id: userData.user.id
       };
@@ -89,24 +106,38 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId }:
         insertData.date = data.date;
       }
 
-      const { data: transaction, error } = await supabase.from('financial_transactions').insert(insertData).select().single();
-      
+      if (isEditing) {
+        const { error: updateError } = await supabase
+          .from('financial_transactions')
+          .update({ ...insertData, user_id: undefined })
+          .eq('id', transaction.id);
+        if (updateError) throw updateError;
+        return;
+      }
+
+      const { data: created, error } = await supabase.from('financial_transactions').insert(insertData).select().single();
+
       if (error) throw error;
-      
-      if (transaction && transaction.project_id) {
+
+      if (created && created.project_id) {
         await logActivity({
-          projectId: transaction.project_id,
+          projectId: created.project_id,
           type: 'transaction_created',
-          description: `Nova ${type}: "${transaction.description}" (R$ ${transaction.amount})`,
+          description: `Nova ${type}: "${created.description}" (R$ ${created.amount})`,
           entityType: 'transaction',
-          entityId: transaction.id
+          entityId: created.id
         });
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['financial_transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['financial_totals'] });
       queryClient.invalidateQueries({ queryKey: ['project'] }); // Para atualizar o financeiro do projeto
-      toast.success(`${type === 'receita' ? 'Receita' : 'Despesa'} registrada com sucesso!`);
+      toast.success(
+        isEditing
+          ? "Lançamento atualizado!"
+          : `${type === 'receita' ? 'Receita' : 'Despesa'} registrada com sucesso!`,
+      );
       onOpenChange(false);
       setFormData({
         description: "",
@@ -141,7 +172,7 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId }:
       <DialogContent className="sm:max-w-[550px]">
         <DialogHeader>
           <DialogTitle className="text-2xl flex items-center gap-2">
-            Novo Lançamento: <span className={type === 'receita' ? "text-emerald-500" : "text-destructive"}>{type === 'receita' ? 'Receita' : 'Despesa'}</span>
+            {isEditing ? "Editar Lançamento" : "Novo Lançamento"}: <span className={type === 'receita' ? "text-emerald-500" : "text-destructive"}>{type === 'receita' ? 'Receita' : 'Despesa'}</span>
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-4">

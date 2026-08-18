@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type ActivityType = 
   | 'project_created' 
+  | 'project_updated'
+  | 'project_deleted'
   | 'project_status_changed' 
   | 'project_deadline_changed'
   | 'project_next_action_changed'

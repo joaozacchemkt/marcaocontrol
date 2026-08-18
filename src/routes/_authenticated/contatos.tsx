@@ -6,9 +6,22 @@ export const Route = createFileRoute("/_authenticated/contatos")({
 });
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Plus, User, Building2, Phone, Mail, MapPin, CheckSquare, Calendar } from "lucide-react";
+import { Search, Plus, Building2, Phone, Mail, CheckSquare, Calendar, Pencil, Trash2, MessageCircle } from "lucide-react";
+import { toast } from "sonner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +34,8 @@ import { EventModal } from "@/components/modals/EventModal";
 function ContatosPage() {
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const [editingContact, setEditingContact] = useState<any | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState("todas");
 
   const { data: contacts = [], isLoading } = useQuery({
     queryKey: ['contacts'],
@@ -31,10 +46,20 @@ function ContatosPage() {
     }
   });
 
-  const filteredContacts = contacts.filter(c => 
-    c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.company?.toLowerCase().includes(search.toLowerCase())
-  );
+  const categories = Array.from(
+    new Set(contacts.map(c => c.category).filter(Boolean) as string[]),
+  ).sort();
+
+  const filteredContacts = contacts.filter(c => {
+    const term = search.toLowerCase();
+    const matchesSearch =
+      c.name.toLowerCase().includes(term) ||
+      Boolean(c.company?.toLowerCase().includes(term)) ||
+      Boolean(c.email?.toLowerCase().includes(term)) ||
+      Boolean(c.phone?.toLowerCase().includes(term));
+    const matchesCategory = categoryFilter === "todas" || c.category === categoryFilter;
+    return matchesSearch && matchesCategory;
+  });
 
   return (
     <AppLayout>
@@ -49,14 +74,27 @@ function ContatosPage() {
           </Button>
         </div>
 
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input 
-            placeholder="Buscar contatos por nome ou empresa..." 
-            className="pl-9 bg-card" 
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome, empresa, e-mail ou telefone..."
+              className="pl-9 bg-card"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-full sm:w-[220px] bg-card">
+              <SelectValue placeholder="Categoria" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Todas as categorias</SelectItem>
+              {categories.map(cat => (
+                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {isLoading ? (
@@ -70,18 +108,41 @@ function ContatosPage() {
                 Nenhum contato encontrado.
               </div>
             ) : filteredContacts.map(contact => (
-              <ContactCard key={contact.id} contact={contact} />
+              <ContactCard
+                key={contact.id}
+                contact={contact}
+                onEdit={() => setEditingContact(contact)}
+              />
             ))}
           </div>
         )}
       </div>
       <ContactModal open={showModal} onOpenChange={setShowModal} />
+      <ContactModal
+        open={editingContact !== null}
+        onOpenChange={(open) => !open && setEditingContact(null)}
+        contact={editingContact}
+      />
     </AppLayout>
   );
 }
 
-function ContactCard({ contact }: { contact: any }) {
+function ContactCard({ contact, onEdit }: { contact: any; onEdit: () => void }) {
   const [activeModal, setActiveModal] = useState<'task' | 'event' | null>(null);
+  const queryClient = useQueryClient();
+
+  const deleteContact = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from('contacts').delete().eq('id', contact.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['contacts-select'] });
+      toast.success("Contato excluído.");
+    },
+    onError: (error: Error) => toast.error("Erro ao excluir contato: " + error.message),
+  });
 
   return (
     <div className="group rounded-xl border bg-card p-5 shadow-sm hover:shadow-md hover:border-primary/50 transition-all">
@@ -99,7 +160,31 @@ function ContactCard({ contact }: { contact: any }) {
           </div>
         </div>
         <div className="flex flex-col items-end gap-2">
-          <Badge variant="secondary" className="text-[10px] font-bold px-2 uppercase">{contact.category}</Badge>
+          <Badge variant="secondary" className="text-[10px] font-bold px-2 uppercase">{contact.category || "Sem categoria"}</Badge>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Editar contato" onClick={onEdit}>
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" aria-label="Excluir contato">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Excluir contato?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    "{contact.name}" será removido permanentemente da sua base.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => deleteContact.mutate()}>Excluir</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
       </div>
       
@@ -111,10 +196,21 @@ function ContactCard({ contact }: { contact: any }) {
           </div>
         )}
         {contact.email && (
-          <div className="flex items-center gap-2">
+          <a href={`mailto:${contact.email}`} className="flex items-center gap-2 hover:text-primary transition-colors">
             <Mail className="h-3 w-3" />
             <span className="truncate">{contact.email}</span>
-          </div>
+          </a>
+        )}
+        {contact.whatsapp && (
+          <a
+            href={`https://wa.me/${String(contact.whatsapp).replace(/\D/g, '')}`}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-2 hover:text-primary transition-colors"
+          >
+            <MessageCircle className="h-3 w-3" />
+            <span className="truncate">WhatsApp</span>
+          </a>
         )}
       </div>
 
@@ -127,9 +223,10 @@ function ContactCard({ contact }: { contact: any }) {
         </Button>
       </div>
 
-      <TaskModal 
-        open={activeModal === 'task'} 
+      <TaskModal
+        open={activeModal === 'task'}
         onOpenChange={(open: boolean) => !open && setActiveModal(null)}
+        initialContactId={contact.id}
       />
       
       <EventModal

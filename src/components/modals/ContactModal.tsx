@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { 
@@ -18,6 +18,8 @@ import { toast } from "sonner";
 interface ContactModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Quando informado, o modal opera em modo de edição. */
+  contact?: any | null;
 }
 
 const CATEGORIES = [
@@ -26,8 +28,9 @@ const CATEGORIES = [
   "Fornecedor", "Lead", "Institucional", "Outros"
 ];
 
-export function ContactModal({ open, onOpenChange }: ContactModalProps) {
+export function ContactModal({ open, onOpenChange, contact }: ContactModalProps) {
   const queryClient = useQueryClient();
+  const isEditing = Boolean(contact?.id);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -41,21 +44,46 @@ export function ContactModal({ open, onOpenChange }: ContactModalProps) {
     notes: ""
   });
 
+  useEffect(() => {
+    if (!open) return;
+    setFormData({
+      name: contact?.name ?? "",
+      company: contact?.company ?? "",
+      role: contact?.role ?? "",
+      phone: contact?.phone ?? "",
+      whatsapp: contact?.whatsapp ?? "",
+      email: contact?.email ?? "",
+      city: contact?.city ?? "",
+      category: contact?.category ?? "Outros",
+      notes: contact?.notes ?? "",
+    });
+  }, [open, contact]);
+
   const createContact = useMutation({
     mutationFn: async (data: typeof formData) => {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) throw new Error("Usuário não autenticado");
 
+      if (isEditing) {
+        const { error } = await supabase
+          .from('contacts')
+          .update({ ...data })
+          .eq('id', contact.id);
+        if (error) throw error;
+        return;
+      }
+
       const { error } = await supabase.from('contacts').insert({
         ...data,
         user_id: userData.user.id
       });
-      
+
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
-      toast.success("Contato adicionado com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ['contacts-select'] });
+      toast.success(isEditing ? "Contato atualizado!" : "Contato adicionado com sucesso!");
       onOpenChange(false);
       setFormData({
         name: "",
@@ -70,7 +98,7 @@ export function ContactModal({ open, onOpenChange }: ContactModalProps) {
       });
     },
     onError: (error) => {
-      toast.error("Erro ao adicionar contato: " + error.message);
+      toast.error("Erro ao salvar contato: " + error.message);
     }
   });
 
@@ -87,7 +115,7 @@ export function ContactModal({ open, onOpenChange }: ContactModalProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle className="text-2xl">Novo Contato</DialogTitle>
+          <DialogTitle className="text-2xl">{isEditing ? "Editar Contato" : "Novo Contato"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="space-y-2">
@@ -189,7 +217,7 @@ export function ContactModal({ open, onOpenChange }: ContactModalProps) {
           <DialogFooter className="pt-4">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button type="submit" disabled={createContact.isPending}>
-              {createContact.isPending ? "Salvando..." : "Salvar Contato"}
+              {createContact.isPending ? "Salvando..." : isEditing ? "Salvar alterações" : "Salvar Contato"}
             </Button>
           </DialogFooter>
         </form>
