@@ -302,6 +302,38 @@ export function TaskList({ initialProjectId }: { initialProjectId?: string }) {
                       {task.status.replace(/_/g, ' ')}
                     </Badge>
                   </td>
+                  <td className="p-4">
+                    <div
+                      className="flex items-center justify-end gap-1"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        title={task.status === 'concluido' ? "Reabrir" : "Concluir"}
+                        onClick={() =>
+                          updateTaskStatus.mutate({
+                            taskId: task.id,
+                            status: task.status === 'concluido' ? 'a_fazer' : 'concluido',
+                          })
+                        }
+                      >
+                        <Check className={cn("h-4 w-4", task.status === 'concluido' && "text-emerald-500")} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive"
+                        title="Excluir"
+                        onClick={() => {
+                          if (confirm(`Excluir "${task.title}"?`)) deleteTask.mutate(task.id);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
