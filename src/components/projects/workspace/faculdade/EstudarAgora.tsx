@@ -6,6 +6,7 @@ import { Target, GraduationCap } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Link } from "@tanstack/react-router";
 
 interface EstudarAgoraProps {
   projectId?: string;
@@ -54,6 +55,7 @@ export function EstudarAgora({ projectId }: EstudarAgoraProps) {
         id: e.id,
         title: e.title,
         subject: e.academic_subjects?.name || 'Geral',
+        projectId: e.academic_subjects?.project_id ?? projectId ?? null,
         type: 'Prova',
         deadline: e.date,
         urgency: isOverdue ? 'Atrasada' : (isSoon ? 'Urgente' : 'Próxima'),
@@ -72,6 +74,7 @@ export function EstudarAgora({ projectId }: EstudarAgoraProps) {
         id: a.id,
         title: a.title,
         subject: a.academic_subjects?.name || 'Geral',
+        projectId: a.project_id ?? a.academic_subjects?.project_id ?? projectId ?? null,
         type: 'Trabalho',
         deadline: a.deadline,
         urgency: isOverdue ? 'Atrasado' : (isSoon ? 'Urgente' : 'Próximo'),
@@ -118,7 +121,11 @@ export function EstudarAgora({ projectId }: EstudarAgoraProps) {
                   <p className="text-[10px] font-black uppercase tracking-tighter text-muted-foreground">Prazo</p>
                   <p className="text-xs font-bold">{format(new Date(item.deadline), "dd/MM")}</p>
                </div>
-               <Button size="sm" variant="outline" className="h-8 text-xs px-3">Abrir</Button>
+               {item.projectId ? (
+                 <Button asChild size="sm" variant="outline" className="h-8 text-xs px-3">
+                   <Link to="/projetos/$projectId" params={{ projectId: item.projectId }}>Abrir</Link>
+                 </Button>
+               ) : null}
             </div>
           </div>
         ))}

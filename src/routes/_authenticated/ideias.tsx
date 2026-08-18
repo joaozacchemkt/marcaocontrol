@@ -2,6 +2,16 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppLayout } from "@/components/layout/AppLayout";
 
 export const Route = createFileRoute("/_authenticated/ideias")({
+  head: () => ({
+    meta: [
+      { title: "Ideias — Marcão Control" },
+      { name: "description", content: "Incubadora de insights e conversão de ideias em projetos." },
+      { property: "og:title", content: "Ideias — Marcão Control" },
+      { property: "og:description", content: "Incubadora de insights e conversão de ideias em projetos." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: IdeiasPage,
 });
 

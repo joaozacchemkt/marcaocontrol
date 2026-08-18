@@ -22,9 +22,20 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
 import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 import { EstudarAgora } from "@/components/projects/workspace/faculdade/EstudarAgora";
 
 export const Route = createFileRoute("/_authenticated/")({
+  head: () => ({
+    meta: [
+      { title: "Dashboard — Marcão Control" },
+      { name: "description", content: "Resumo executivo com projetos ativos, pendências do dia e saúde financeira." },
+      { property: "og:title", content: "Dashboard — Marcão Control" },
+      { property: "og:description", content: "Resumo executivo com projetos ativos, pendências do dia e saúde financeira." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: Dashboard,
 });
 
@@ -299,12 +310,12 @@ function AttentionItem({ name, reason, project, days }: any) {
   return (
     <div className="p-3 rounded-lg border border-dashed border-amber-500/20 bg-amber-500/5 hover:border-amber-500/40 transition-all">
       <div className="flex justify-between items-start mb-1">
-        <p className="text-sm font-black text-amber-900">{name}</p>
-        <span className="text-[9px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded uppercase">
+        <p className="text-sm font-black text-amber-600 dark:text-amber-400">{name}</p>
+        <span className="text-[9px] font-bold text-amber-700 dark:text-amber-300 bg-amber-500/15 px-1.5 py-0.5 rounded uppercase">
           {days} {days === 1 ? 'dia' : 'dias'}
         </span>
       </div>
-      <p className="text-xs text-amber-800 line-clamp-1 mb-1">{reason}</p>
+      <p className="text-xs text-foreground/80 line-clamp-1 mb-1">{reason}</p>
       <p className="text-[9px] text-muted-foreground uppercase font-bold">{project}</p>
     </div>
   );
@@ -334,6 +345,3 @@ function ProjectRiskItem({ project }: any) {
   );
 }
 
-function cn(...inputs: any[]) {
-  return inputs.filter(Boolean).join(" ");
-}
