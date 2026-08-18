@@ -252,6 +252,7 @@ export function TaskList({ initialProjectId }: { initialProjectId?: string }) {
                 <th className="text-left p-4 font-medium text-muted-foreground">Prazo</th>
                 <th className="text-left p-4 font-medium text-muted-foreground">Prioridade</th>
                 <th className="text-left p-4 font-medium text-muted-foreground">Status</th>
+                <th className="text-right p-4 font-medium text-muted-foreground">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y">
