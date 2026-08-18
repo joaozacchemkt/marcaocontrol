@@ -11,6 +11,7 @@ import {
   LayoutDashboard
 } from "lucide-react";
 import { Link, useLocation } from "@tanstack/react-router";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { GlobalAddButton } from "./GlobalAddButton";
 import { GlobalSearch } from "../search/GlobalSearch";
@@ -50,14 +51,21 @@ export function Sidebar() {
                 key={item.href}
                 to={item.href}
                 className={cn(
-                  "flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 active:scale-95 hover:pl-4",
-                  isActive 
-                    ? "bg-primary text-primary-foreground shadow-sm" 
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                  "group relative flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-fluid active:scale-[0.98]",
+                  isActive
+                    ? "text-primary-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:pl-4 hover:text-accent-foreground",
                 )}
               >
-                <item.icon className="mr-3 h-5 w-5" />
-                {item.title}
+                {isActive && (
+                  <motion.span
+                    layoutId="sidebar-active"
+                    className="absolute inset-0 rounded-lg bg-primary shadow-sm"
+                    transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                  />
+                )}
+                <item.icon className="relative z-10 mr-3 h-5 w-5 transition-transform duration-200 group-hover:scale-105" />
+                <span className="relative z-10">{item.title}</span>
               </Link>
             );
           })}
