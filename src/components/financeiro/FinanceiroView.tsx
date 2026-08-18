@@ -1,20 +1,35 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   TrendingUp, 
   TrendingDown, 
   Wallet, 
   Calendar as CalendarIcon,
-  Filter,
   Plus,
   ArrowUpRight,
   ArrowDownLeft,
   Search,
   ChevronLeft,
   ChevronRight,
-  X
+  X,
+  Pencil,
+  Trash2,
+  CheckCircle2,
+  RotateCcw
 } from "lucide-react";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -33,6 +48,43 @@ export function FinanceiroView() {
   const [filterType, setFilterType] = useState<'todos' | 'receita' | 'despesa'>('todos');
   const [activeModal, setActiveModal] = useState<'receita' | 'despesa' | null>(null);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [editingTransaction, setEditingTransaction] = useState<any | null>(null);
+  const queryClient = useQueryClient();
+
+  const invalidateFinance = () => {
+    queryClient.invalidateQueries({ queryKey: ['financial_transactions'] });
+    queryClient.invalidateQueries({ queryKey: ['financial_totals'] });
+    queryClient.invalidateQueries({ queryKey: ['project'] });
+  };
+
+  const toggleStatus = useMutation({
+    mutationFn: async (transaction: any) => {
+      const nextStatus = transaction.status === 'pago' ? 'pendente' : 'pago';
+      const { error } = await supabase
+        .from('financial_transactions')
+        .update({ status: nextStatus })
+        .eq('id', transaction.id);
+      if (error) throw error;
+      return nextStatus;
+    },
+    onSuccess: (nextStatus) => {
+      invalidateFinance();
+      toast.success(nextStatus === 'pago' ? "Marcado como quitado." : "Reaberto como pendente.");
+    },
+    onError: (error: Error) => toast.error("Erro ao atualizar status: " + error.message),
+  });
+
+  const deleteTransaction = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('financial_transactions').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      invalidateFinance();
+      toast.success("Lançamento excluído.");
+    },
+    onError: (error: Error) => toast.error("Erro ao excluir: " + error.message),
+  });
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
@@ -205,7 +257,6 @@ export function FinanceiroView() {
                 <X className="h-4 w-4 text-muted-foreground" />
               </Button>
             )}
-            <Button variant="ghost" size="icon"><Filter className="h-4 w-4" /></Button>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -219,16 +270,17 @@ export function FinanceiroView() {
                   <th className="text-left p-4 font-bold text-muted-foreground uppercase text-[10px] tracking-widest">Data</th>
                   <th className="text-left p-4 font-bold text-muted-foreground uppercase text-[10px] tracking-widest text-right">Valor</th>
                   <th className="text-center p-4 font-bold text-muted-foreground uppercase text-[10px] tracking-widest">Status</th>
+                  <th className="p-4 text-right font-bold text-muted-foreground uppercase text-[10px] tracking-widest">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/50">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-muted-foreground animate-pulse">Carregando transações...</td>
+                    <td colSpan={7} className="p-8 text-center text-muted-foreground animate-pulse">Carregando transações...</td>
                   </tr>
                 ) : filteredTransactions.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="p-12 text-center text-muted-foreground italic">Nenhuma movimentação encontrada no período.</td>
+                    <td colSpan={7} className="p-12 text-center text-muted-foreground italic">Nenhuma movimentação encontrada no período.</td>
                   </tr>
                 ) : filteredTransactions.map(transaction => (
                   <tr key={transaction.id} className="hover:bg-accent/20 transition-colors group">
@@ -276,6 +328,52 @@ export function FinanceiroView() {
                         {transaction.status === 'pago' ? (transaction.type === 'receita' ? 'Recebido' : 'Pago') : 'Pendente'}
                       </Badge>
                     </td>
+                    <td className="p-4">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          aria-label={transaction.status === 'pago' ? "Reabrir lançamento" : "Marcar como quitado"}
+                          title={transaction.status === 'pago' ? "Reabrir como pendente" : "Marcar como quitado"}
+                          onClick={() => toggleStatus.mutate(transaction)}
+                        >
+                          {transaction.status === 'pago'
+                            ? <RotateCcw className="h-4 w-4 text-muted-foreground" />
+                            : <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          aria-label="Editar lançamento"
+                          onClick={() => setEditingTransaction(transaction)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" aria-label="Excluir lançamento">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir lançamento?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                "{transaction.description}" será removido do fluxo de caixa permanentemente.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => deleteTransaction.mutate(transaction.id)}>
+                                Excluir
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -284,10 +382,17 @@ export function FinanceiroView() {
         </CardContent>
       </Card>
 
-      <TransactionModal 
-        open={activeModal !== null} 
+      <TransactionModal
+        open={activeModal !== null}
         onOpenChange={(open) => !open && setActiveModal(null)}
         type={activeModal || 'receita'}
+      />
+
+      <TransactionModal
+        open={editingTransaction !== null}
+        onOpenChange={(open) => !open && setEditingTransaction(null)}
+        type={(editingTransaction?.type as 'receita' | 'despesa') || 'receita'}
+        transaction={editingTransaction}
       />
     </div>
   );

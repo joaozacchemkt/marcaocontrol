@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   Filter, 
@@ -10,8 +10,22 @@ import {
   CheckCircle2,
   AlertCircle,
   PauseCircle,
-  TrendingUp
+  TrendingUp,
+  Pencil,
+  Trash2
 } from "lucide-react";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -29,13 +43,33 @@ type Project = {
   budget: number | null;
   deadline: string | null;
   next_action: string | null;
+  description?: string | null;
+  objective?: string | null;
+  notes?: string | null;
+  start_date?: string | null;
   open_tasks_count?: number;
+  total_tasks_count?: number;
+  progress?: number;
 };
 
 export function ProjectList() {
   const [filter, setFilter] = useState('todos');
   const [search, setSearch] = useState("");
   const [showProjectModal, setShowProjectModal] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const queryClient = useQueryClient();
+
+  const deleteProject = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('projects').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      toast.success("Projeto excluído.");
+    },
+    onError: (error: Error) => toast.error("Erro ao excluir projeto: " + error.message),
+  });
 
   const { data: projects = [], isLoading } = useQuery({
     queryKey: ['projects'],
@@ -44,16 +78,23 @@ export function ProjectList() {
         .from('projects')
         .select(`
           *,
-          tasks(count)
-        `);
-      
+          tasks(id, status)
+        `)
+        .order('created_at', { ascending: false });
+
       if (error) throw error;
-      
-      // Mapear contagem de tarefas abertas (simplificado para o MVP)
-      return data.map((p: any) => ({
-        ...p,
-        open_tasks_count: p.tasks ? p.tasks.length : 0 // Idealmente seria um subselect de count
-      })) as Project[];
+
+      return data.map((p: any) => {
+        const tasks: any[] = Array.isArray(p.tasks) ? p.tasks : [];
+        const total = tasks.length;
+        const done = tasks.filter(t => t.status === 'concluido').length;
+        return {
+          ...p,
+          open_tasks_count: total - done,
+          total_tasks_count: total,
+          progress: total > 0 ? Math.round((done / total) * 100) : 0,
+        };
+      }) as Project[];
     }
   });
 
@@ -127,11 +168,41 @@ export function ProjectList() {
           ) : filteredProjects.map(project => {
             const StatusIcon = statusIcons[project.status] || Briefcase;
             return (
-              <Link 
-                key={project.id} 
+              <div key={project.id} className="relative">
+                <div className="absolute right-3 top-3 z-10 flex items-center gap-1 opacity-0 transition-opacity group-hover/card:opacity-100 focus-within:opacity-100">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 bg-background/80"
+                    aria-label="Editar projeto"
+                    onClick={() => setEditingProject(project)}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 bg-background/80 text-destructive" aria-label="Excluir projeto">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Excluir projeto?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          "{project.name}" e seus vínculos serão removidos permanentemente.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => deleteProject.mutate(project.id)}>Excluir</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              <Link
                 to="/projetos/$projectId"
                 params={{ projectId: project.id }}
-                className="group block rounded-xl border bg-card p-6 shadow-sm hover:shadow-md hover:border-primary/50 transition-all"
+                className="group/card group block rounded-xl border bg-card p-6 shadow-sm hover:shadow-md hover:border-primary/50 transition-all"
               >
                 <div className="flex items-start justify-between mb-4">
                   <div>
@@ -173,16 +244,25 @@ export function ProjectList() {
                     <CheckCircle2 className="h-3 w-3 mr-1 text-primary" />
                     {project.open_tasks_count} pendências abertas
                   </div>
-                  <div className="h-1.5 w-24 bg-accent rounded-full overflow-hidden">
-                    <div className="h-full bg-primary" style={{ width: '30%' }} />
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-muted-foreground tabular-nums">{project.progress ?? 0}%</span>
+                    <div className="h-1.5 w-24 bg-accent rounded-full overflow-hidden">
+                      <div className="h-full bg-primary transition-all" style={{ width: `${project.progress ?? 0}%` }} />
+                    </div>
                   </div>
                 </div>
               </Link>
+              </div>
             );
           })}
         </div>
       )}
       <ProjectModal open={showProjectModal} onOpenChange={setShowProjectModal} />
+      <ProjectModal
+        open={editingProject !== null}
+        onOpenChange={(open) => !open && setEditingProject(null)}
+        project={editingProject}
+      />
     </div>
   );
 }

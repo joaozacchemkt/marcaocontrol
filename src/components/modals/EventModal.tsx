@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { 
@@ -21,10 +21,21 @@ interface EventModalProps {
   onOpenChange: (open: boolean) => void;
   initialContactId?: string;
   initialProjectId?: string;
+  /** Quando informado, o modal opera em modo de edição. */
+  event?: any | null;
 }
 
-export function EventModal({ open, onOpenChange, initialContactId, initialProjectId }: EventModalProps) {
+export function EventModal({ open, onOpenChange, initialContactId, initialProjectId, event }: EventModalProps) {
   const queryClient = useQueryClient();
+  const isEditing = Boolean(event?.id);
+
+  const toLocalInput = (value?: string | null) => {
+    if (!value) return "";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "";
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -36,6 +47,21 @@ export function EventModal({ open, onOpenChange, initialContactId, initialProjec
     contact_id: initialContactId || "",
     pre_meeting_notes: ""
   });
+
+  useEffect(() => {
+    if (!open) return;
+    setFormData({
+      title: event?.title ?? "",
+      description: event?.description ?? "",
+      start_time: toLocalInput(event?.start_time),
+      end_time: toLocalInput(event?.end_time),
+      location: event?.location ?? "",
+      objective: event?.objective ?? "",
+      project_id: event?.project_id ?? initialProjectId ?? "",
+      contact_id: event?.contact_id ?? initialContactId ?? "",
+      pre_meeting_notes: event?.pre_meeting_notes ?? "",
+    });
+  }, [open, event, initialProjectId, initialContactId]);
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects-select'],
@@ -58,7 +84,21 @@ export function EventModal({ open, onOpenChange, initialContactId, initialProjec
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) throw new Error("Usuário não autenticado");
 
-      const { data: event, error } = await supabase.from('events').insert({
+      if (isEditing) {
+        const { error: updateError } = await supabase
+          .from('events')
+          .update({
+            ...data,
+            project_id: data.project_id || null,
+            contact_id: data.contact_id || null,
+            end_time: data.end_time || null,
+          })
+          .eq('id', event.id);
+        if (updateError) throw updateError;
+        return;
+      }
+
+      const { data: created, error } = await supabase.from('events').insert({
         ...data,
         user_id: userData.user.id,
         project_id: data.project_id || null,
@@ -68,19 +108,20 @@ export function EventModal({ open, onOpenChange, initialContactId, initialProjec
       
       if (error) throw error;
       
-      if (event && event.project_id) {
+      if (created && created.project_id) {
         await logActivity({
-          projectId: event.project_id,
+          projectId: created.project_id,
           type: 'event_created',
-          description: `Novo compromisso agendado: "${event.title}"`,
+          description: `Novo compromisso agendado: "${created.title}"`,
           entityType: 'event',
-          entityId: event.id
+          entityId: created.id
         });
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events-calendar'] });
-      toast.success("Compromisso agendado com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      toast.success(isEditing ? "Compromisso atualizado!" : "Compromisso agendado com sucesso!");
       onOpenChange(false);
       setFormData({
         title: "",
@@ -95,7 +136,7 @@ export function EventModal({ open, onOpenChange, initialContactId, initialProjec
       });
     },
     onError: (error) => {
-      toast.error("Erro ao agendar compromisso: " + error.message);
+      toast.error("Erro ao salvar compromisso: " + error.message);
     }
   });
 
@@ -112,7 +153,7 @@ export function EventModal({ open, onOpenChange, initialContactId, initialProjec
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[550px]">
         <DialogHeader>
-          <DialogTitle>Novo Compromisso</DialogTitle>
+          <DialogTitle>{isEditing ? "Editar Compromisso" : "Novo Compromisso"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="space-y-2">
@@ -218,7 +259,7 @@ export function EventModal({ open, onOpenChange, initialContactId, initialProjec
           <DialogFooter className="pt-4">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button type="submit" disabled={createEvent.isPending}>
-              {createEvent.isPending ? "Agendando..." : "Agendar Compromisso"}
+              {createEvent.isPending ? "Salvando..." : isEditing ? "Salvar alterações" : "Agendar Compromisso"}
             </Button>
           </DialogFooter>
         </form>

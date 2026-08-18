@@ -39,6 +39,7 @@ import { ProjectTimeline } from "./workspace/common/ProjectTimeline";
 import { ConfigurarAmbiente } from "./workspace/common/ConfigurarAmbiente";
 import { ProjectRelations } from "./workspace/common/ProjectRelations";
 import { ExecutiveSummary } from "./workspace/common/ExecutiveSummary";
+import { ProjectModal } from "@/components/modals/ProjectModal";
 import {
   MODULE_TABS_BY_TYPE,
   resolveTabConfig,
@@ -89,6 +90,7 @@ const TYPE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = 
 export function ProjectDetail() {
   const { projectId } = useParams({ from: "/_authenticated/projetos/$projectId" });
   const [activeTab, setActiveTab] = useState<string>("overview");
+  const [editOpen, setEditOpen] = useState(false);
 
   const { data: project, isLoading } = useQuery({
     queryKey: ["project", projectId],
@@ -206,7 +208,7 @@ export function ProjectDetail() {
               config={tabConfig}
               available={availableTabs}
             />
-            <Button size="sm">Editar Projeto</Button>
+            <Button size="sm" onClick={() => setEditOpen(true)}>Editar Projeto</Button>
           </div>
         </div>
       </div>
@@ -294,6 +296,12 @@ export function ProjectDetail() {
           </TabsContent>
         )}
       </Tabs>
+
+      <ProjectModal
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        project={project as any}
+      />
     </div>
   );
 }

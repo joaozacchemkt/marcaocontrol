@@ -12,7 +12,21 @@ import {
   AlertCircle,
   CalendarX2,
   PanelRightClose,
+  Pencil,
+  Trash2,
+  CheckCircle,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 
 interface DayDetailsPanelProps {
@@ -23,6 +37,9 @@ interface DayDetailsPanelProps {
   onAddEvent: () => void;
   onAddTask: () => void;
   onCollapse?: (() => void) | undefined;
+  onEditEvent?: ((event: any) => void) | undefined;
+  onDeleteEvent?: ((event: any) => void) | undefined;
+  onToggleTask?: ((task: any) => void) | undefined;
 }
 
 export function DayDetailsPanel({
@@ -33,6 +50,9 @@ export function DayDetailsPanel({
   onAddEvent,
   onAddTask,
   onCollapse,
+  onEditEvent,
+  onDeleteEvent,
+  onToggleTask,
 }: DayDetailsPanelProps) {
   const total = events.length + tasks.length + finances.length;
 
@@ -107,6 +127,42 @@ export function DayDetailsPanel({
                               {event.description}
                             </p>
                           )}
+                          {(onEditEvent || onDeleteEvent) && (
+                            <div className="flex items-center gap-1 pt-1">
+                              {onEditEvent && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  aria-label="Editar compromisso"
+                                  onClick={() => onEditEvent(event)}
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                </Button>
+                              )}
+                              {onDeleteEvent && (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" aria-label="Excluir compromisso">
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Excluir compromisso?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        "{event.title}" será removido da agenda.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => onDeleteEvent(event)}>Excluir</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </article>
@@ -163,6 +219,17 @@ export function DayDetailsPanel({
                             <p className="flex items-center gap-1 text-[10px] italic text-muted-foreground">
                               <Clock className="h-3 w-3" /> Aguardando: {task.waiting_for}
                             </p>
+                          )}
+                          {onToggleTask && task.status !== undefined && !task.date && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-2 text-[10px] font-bold uppercase"
+                              onClick={() => onToggleTask(task)}
+                            >
+                              <CheckCircle className="mr-1 h-3 w-3" />
+                              {task.status === "concluido" ? "Reabrir" : "Concluir"}
+                            </Button>
                           )}
                         </div>
                       </div>

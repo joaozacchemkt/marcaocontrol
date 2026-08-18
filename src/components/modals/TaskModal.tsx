@@ -20,16 +20,19 @@ interface TaskModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialProjectId?: string;
+  initialContactId?: string;
+  task?: any | null;
 }
 
-export function TaskModal({ open, onOpenChange, initialProjectId }: TaskModalProps) {
+export function TaskModal({ open, onOpenChange, initialProjectId, initialContactId, task }: TaskModalProps) {
   const queryClient = useQueryClient();
-  const [loading, setLoading] = useState(false);
+  const isEditing = Boolean(task?.id);
   
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     project_id: initialProjectId || "",
+    contact_id: initialContactId || "",
     responsible: "",
     deadline: "",
     priority: "media" as "baixa" | "media" | "alta",
@@ -39,6 +42,32 @@ export function TaskModal({ open, onOpenChange, initialProjectId }: TaskModalPro
     estimated_minutes: "",
     actual_minutes: ""
   });
+
+  useEffect(() => {
+    if (!open) return;
+    if (task?.id) {
+      setFormData({
+        title: task.title ?? "",
+        description: task.description ?? "",
+        project_id: task.project_id ?? "",
+        contact_id: task.contact_id ?? "",
+        responsible: task.responsible ?? "",
+        deadline: task.deadline ? String(task.deadline).slice(0, 10) : "",
+        priority: (task.priority ?? "media") as "baixa" | "media" | "alta",
+        status: task.status ?? "a_fazer",
+        waiting_for: task.waiting_for ?? "",
+        notes: task.notes ?? "",
+        estimated_minutes: task.estimated_minutes != null ? String(task.estimated_minutes) : "",
+        actual_minutes: task.actual_minutes != null ? String(task.actual_minutes) : "",
+      });
+      return;
+    }
+    setFormData(prev => ({
+      ...prev,
+      project_id: initialProjectId || prev.project_id,
+      contact_id: initialContactId || prev.contact_id,
+    }));
+  }, [open, initialProjectId, initialContactId, task]);
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects-select'],
@@ -66,35 +95,52 @@ export function TaskModal({ open, onOpenChange, initialProjectId }: TaskModalPro
         return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
       };
 
-      const { data: task, error } = await supabase.from('tasks').insert({
+      const payload = {
         ...data,
-        user_id: userData.user.id,
         deadline: data.deadline || null,
         project_id: data.project_id && data.project_id !== 'none' ? data.project_id : null,
+        contact_id: data.contact_id && data.contact_id !== 'none' ? data.contact_id : null,
         estimated_minutes: toMinutes(data.estimated_minutes),
-        actual_minutes: toMinutes(data.actual_minutes)
+        actual_minutes: toMinutes(data.actual_minutes),
+      };
+
+      if (isEditing) {
+        const { error: updateError } = await supabase
+          .from('tasks')
+          .update(payload)
+          .eq('id', task.id);
+        if (updateError) throw updateError;
+        return;
+      }
+
+      const { data: created, error } = await supabase.from('tasks').insert({
+        ...payload,
+        user_id: userData.user.id,
       }).select().single();
 
       if (error) throw error;
 
-      if (task && task.project_id) {
+      if (created && created.project_id) {
         await logActivity({
-          projectId: task.project_id,
+          projectId: created.project_id,
           type: 'task_created',
-          description: `Nova pendência criada: "${task.title}"`,
+          description: `Nova pendência criada: "${created.title}"`,
           entityType: 'task',
-          entityId: task.id
+          entityId: created.id
         });
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      toast.success("Pendência criada com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ['board-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['tasks-calendar'] });
+      toast.success(isEditing ? "Pendência atualizada!" : "Pendência criada com sucesso!");
       onOpenChange(false);
       setFormData({
         title: "",
         description: "",
         project_id: initialProjectId || "",
+        contact_id: initialContactId || "",
         responsible: "",
         deadline: "",
         priority: "media",
@@ -106,7 +152,7 @@ export function TaskModal({ open, onOpenChange, initialProjectId }: TaskModalPro
       });
     },
     onError: (error) => {
-      toast.error("Erro ao criar pendência: " + error.message);
+      toast.error((isEditing ? "Erro ao atualizar pendência: " : "Erro ao criar pendência: ") + error.message);
     }
   });
 
@@ -123,7 +169,7 @@ export function TaskModal({ open, onOpenChange, initialProjectId }: TaskModalPro
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Nova Pendência</DialogTitle>
+          <DialogTitle>{isEditing ? "Editar Pendência" : "Nova Pendência"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="space-y-2">
@@ -151,6 +197,23 @@ export function TaskModal({ open, onOpenChange, initialProjectId }: TaskModalPro
                   <SelectItem value="none">Nenhum</SelectItem>
                   {projects.map(p => (
                     <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="task-contact">Contato vinculado</Label>
+              <Select
+                value={formData.contact_id || 'none'}
+                onValueChange={v => setFormData(prev => ({ ...prev, contact_id: v === 'none' ? '' : v }))}
+              >
+                <SelectTrigger id="task-contact">
+                  <SelectValue placeholder="Nenhum" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhum</SelectItem>
+                  {contacts.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -261,7 +324,7 @@ export function TaskModal({ open, onOpenChange, initialProjectId }: TaskModalPro
           <DialogFooter className="pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button type="submit" disabled={createTask.isPending}>
-              {createTask.isPending ? "Salvando..." : "Criar Pendência"}
+              {createTask.isPending ? "Salvando..." : isEditing ? "Salvar Alterações" : "Criar Pendência"}
             </Button>
           </DialogFooter>
         </form>

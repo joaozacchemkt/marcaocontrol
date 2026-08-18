@@ -75,6 +75,7 @@ export function TaskList({ initialProjectId }: { initialProjectId?: string }) {
   const [search, setSearch] = useState("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [showTaskModal, setShowTaskModal] = useState(false);
+  const [editingTask, setEditingTask] = useState<any | null>(null);
 
   const { data: tasks = [], isLoading } = useQuery({
     queryKey: ['tasks', initialProjectId],
@@ -244,7 +245,12 @@ export function TaskList({ initialProjectId }: { initialProjectId?: string }) {
                   <td colSpan={6} className="p-8 text-center text-muted-foreground">Nenhuma tarefa encontrada.</td>
                 </tr>
               ) : filteredTasks.map(task => (
-                <tr key={task.id} className="hover:bg-accent/30 transition-colors cursor-pointer group">
+                <tr
+                  key={task.id}
+                  className="hover:bg-accent/30 transition-colors cursor-pointer group"
+                  onClick={() => setEditingTask(task)}
+                  title="Clique para editar"
+                >
                   <td className="p-4">
                     <div className="flex items-center">
                       <div className={cn(
@@ -292,6 +298,11 @@ export function TaskList({ initialProjectId }: { initialProjectId?: string }) {
         />
       )}
 
+      <TaskModal
+        open={editingTask !== null}
+        onOpenChange={(open) => !open && setEditingTask(null)}
+        task={editingTask}
+      />
       <TaskModal 
         open={showTaskModal} 
         onOpenChange={setShowTaskModal}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ type Density = "compact" | "comfortable" | "spacious";
 
 export function CalendarAgenda() {
   const isMobile = useIsMobile();
+  const queryClient = useQueryClient();
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [month, setMonth] = useState<Date>(startOfMonth(new Date()));
   const [density, setDensity] = useState<Density>("comfortable");
@@ -31,6 +33,7 @@ export function CalendarAgenda() {
   const [hydrated, setHydrated] = useState(false);
   const [eventModal, setEventModal] = useState(false);
   const [taskModal, setTaskModal] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<any | null>(null);
 
   // Preferências locais (persistência via localStorage)
   useEffect(() => {
@@ -245,6 +248,27 @@ export function CalendarAgenda() {
         finances={selectedDateFinances}
         onAddEvent={() => setEventModal(true)}
         onAddTask={() => setTaskModal(true)}
+        onEditEvent={(event) => setEditingEvent(event)}
+        onDeleteEvent={async (event) => {
+          const { error } = await supabase.from("events").delete().eq("id", event.id);
+          if (error) {
+            toast.error("Erro ao excluir compromisso: " + error.message);
+            return;
+          }
+          queryClient.invalidateQueries({ queryKey: ["events-calendar"] });
+          toast.success("Compromisso excluído.");
+        }}
+        onToggleTask={async (task) => {
+          const nextStatus = task.status === "concluido" ? "a_fazer" : "concluido";
+          const { error } = await supabase.from("tasks").update({ status: nextStatus }).eq("id", task.id);
+          if (error) {
+            toast.error("Erro ao atualizar pendência: " + error.message);
+            return;
+          }
+          queryClient.invalidateQueries({ queryKey: ["tasks-calendar"] });
+          queryClient.invalidateQueries({ queryKey: ["tasks"] });
+          toast.success(nextStatus === "concluido" ? "Pendência concluída." : "Pendência reaberta.");
+        }}
         onCollapse={isMobile ? undefined : () => updateCollapsed(true)}
       />
     </Card>
@@ -296,6 +320,11 @@ export function CalendarAgenda() {
       )}
 
       <EventModal open={eventModal} onOpenChange={setEventModal} />
+      <EventModal
+        open={editingEvent !== null}
+        onOpenChange={(open) => !open && setEditingEvent(null)}
+        event={editingEvent}
+      />
       <TaskModal open={taskModal} onOpenChange={setTaskModal} />
     </div>
   );

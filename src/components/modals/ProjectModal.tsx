@@ -29,6 +29,8 @@ interface ProjectModalProps {
     notes?: string;
     ideaId?: string;
   } | null;
+  /** Quando informado, o modal opera em modo de edição. */
+  project?: any | null;
 }
 
 const CATEGORIES = [
@@ -45,8 +47,9 @@ const STATUS_OPTIONS = [
   { value: "concluido", label: "Concluído" },
 ];
 
-export function ProjectModal({ open, onOpenChange, initialData }: ProjectModalProps) {
+export function ProjectModal({ open, onOpenChange, initialData, project }: ProjectModalProps) {
   const queryClient = useQueryClient();
+  const isEditing = Boolean(project?.id);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -62,6 +65,21 @@ export function ProjectModal({ open, onOpenChange, initialData }: ProjectModalPr
   });
   
   useEffect(() => {
+    if (open && project?.id) {
+      setFormData({
+        name: project.name ?? "",
+        category: project.category ?? "Outros",
+        description: project.description ?? "",
+        objective: project.objective ?? "",
+        status: (project.status ?? "ideia"),
+        start_date: project.start_date ?? "",
+        deadline: project.deadline ?? "",
+        budget: project.budget != null ? String(project.budget) : "",
+        next_action: project.next_action ?? "",
+        notes: project.notes ?? "",
+      });
+      return;
+    }
     if (open && initialData) {
       setFormData(prev => ({
         ...prev,
@@ -72,14 +90,43 @@ export function ProjectModal({ open, onOpenChange, initialData }: ProjectModalPr
         status: "em_analise"
       }));
     }
-  }, [open, initialData]);
+  }, [open, initialData, project]);
 
   const createProject = useMutation({
     mutationFn: async (data: typeof formData) => {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) throw new Error("Usuário não autenticado");
 
-      const { data: project, error } = await supabase.from('projects').insert({
+      const payload = {
+        name: data.name.trim() || "Projeto sem título",
+        category: data.category || null,
+        description: data.description || null,
+        objective: data.objective || null,
+        status: data.status || "ideia",
+        next_action: data.next_action || null,
+        notes: data.notes || null,
+        budget: data.budget !== "" && !isNaN(parseFloat(data.budget)) ? parseFloat(data.budget) : null,
+        start_date: data.start_date || null,
+        deadline: data.deadline || null,
+      };
+
+      if (isEditing) {
+        const { error: updateError } = await supabase
+          .from('projects')
+          .update(payload)
+          .eq('id', project.id);
+        if (updateError) throw updateError;
+        await logActivity({
+          projectId: project.id,
+          type: 'project_updated',
+          description: `Projeto "${payload.name}" foi atualizado.`,
+          entityType: 'project',
+          entityId: project.id,
+        });
+        return;
+      }
+
+      const { data: created, error } = await supabase.from('projects').insert({
         user_id: userData.user.id,
         name: data.name.trim() || "Projeto sem título",
         category: data.category || null,
@@ -95,13 +142,13 @@ export function ProjectModal({ open, onOpenChange, initialData }: ProjectModalPr
       
       if (error) throw error;
       
-      if (project) {
+      if (created) {
         await logActivity({
-          projectId: project.id,
+          projectId: created.id,
           type: 'project_created',
-          description: `Projeto "${project.name}" foi criado.`,
+          description: `Projeto "${created.name}" foi criado.`,
           entityType: 'project',
-          entityId: project.id
+          entityId: created.id
         });
       }
       
@@ -117,7 +164,9 @@ export function ProjectModal({ open, onOpenChange, initialData }: ProjectModalPr
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
-      toast.success("Projeto criado com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ['project'] });
+      queryClient.invalidateQueries({ queryKey: ['projects-select'] });
+      toast.success(isEditing ? "Projeto atualizado!" : "Projeto criado com sucesso!");
       onOpenChange(false);
       setFormData({
         name: "",
@@ -133,7 +182,7 @@ export function ProjectModal({ open, onOpenChange, initialData }: ProjectModalPr
       });
     },
     onError: (error) => {
-      toast.error("Erro ao criar projeto: " + error.message);
+      toast.error("Erro ao salvar projeto: " + error.message);
     }
   });
 
@@ -146,7 +195,7 @@ export function ProjectModal({ open, onOpenChange, initialData }: ProjectModalPr
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[650px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl">Novo Projeto</DialogTitle>
+          <DialogTitle className="text-2xl">{isEditing ? "Editar Projeto" : "Novo Projeto"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-6 py-4">
           <div className="grid grid-cols-2 gap-4">
