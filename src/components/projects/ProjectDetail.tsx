@@ -55,6 +55,7 @@ import { PainelOab } from "./workspace/oab/PainelOab";
 
 const TAB_ICONS: Partial<Record<TabKey, React.ComponentType<{ className?: string }>>> = {
   overview: LayoutDashboard,
+  board: Kanban,
   faculdade: GraduationCap,
   painel_oab: Scale,
   tasks: CheckSquare,
