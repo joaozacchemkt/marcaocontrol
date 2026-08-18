@@ -24,6 +24,7 @@ import {
   Scale,
   MonitorSmartphone,
   LayoutGrid,
+  Kanban,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -46,6 +47,7 @@ import {
 } from "@/lib/workspace-tabs";
 import { ModuleBoard } from "./workspace/common/ModuleBoard";
 import { isModuleKey } from "@/lib/workspace-modules";
+import { ProjectBoard } from "./workspace/board/ProjectBoard";
 
 // Template Faculdade
 import { FaculdadeWorkspace } from "./workspace/faculdade/FaculdadeWorkspace";
@@ -54,6 +56,7 @@ import { PainelOab } from "./workspace/oab/PainelOab";
 
 const TAB_ICONS: Partial<Record<TabKey, React.ComponentType<{ className?: string }>>> = {
   overview: LayoutDashboard,
+  board: Kanban,
   faculdade: GraduationCap,
   painel_oab: Scale,
   tasks: CheckSquare,
@@ -114,6 +117,7 @@ export function ProjectDetail() {
   const availableTabs = useMemo<TabKey[]>(() => {
     const base: TabKey[] = [
       "overview",
+      "board",
       "tasks",
       "calendar",
       "notes",
@@ -232,6 +236,10 @@ export function ProjectDetail() {
             <ProjectOverview project={project} />
             <ProjectRelations projectId={projectId} />
           </div>
+        </TabsContent>
+
+        <TabsContent value="board" className="mt-0 focus-visible:outline-none">
+          <ProjectBoard projectId={projectId} />
         </TabsContent>
 
         <TabsContent value="tasks" className="mt-0 focus-visible:outline-none">

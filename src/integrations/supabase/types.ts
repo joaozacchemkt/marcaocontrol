@@ -1005,6 +1005,7 @@ export type Database = {
       tasks: {
         Row: {
           actual_minutes: number | null
+          category: string | null
           contact_id: string | null
           created_at: string | null
           deadline: string | null
@@ -1025,6 +1026,7 @@ export type Database = {
         }
         Insert: {
           actual_minutes?: number | null
+          category?: string | null
           contact_id?: string | null
           created_at?: string | null
           deadline?: string | null
@@ -1045,6 +1047,7 @@ export type Database = {
         }
         Update: {
           actual_minutes?: number | null
+          category?: string | null
           contact_id?: string | null
           created_at?: string | null
           deadline?: string | null
@@ -1247,6 +1250,7 @@ export type Database = {
         | "investimento_imovel"
       task_priority: "baixa" | "media" | "alta"
       task_status:
+        | "nao_esquecer"
         | "a_fazer"
         | "em_andamento"
         | "aguardando_terceiro"
@@ -1415,6 +1419,7 @@ export const Constants = {
       ],
       task_priority: ["baixa", "media", "alta"],
       task_status: [
+        "nao_esquecer",
         "a_fazer",
         "em_andamento",
         "aguardando_terceiro",

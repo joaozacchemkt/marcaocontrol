@@ -10,6 +10,7 @@ import { MODULES } from "./workspace-modules";
 
 export type TabKey =
   | "overview"
+  | "board"
   | "faculdade"
   | "tasks"
   | "calendar"
@@ -75,6 +76,7 @@ export interface TabDefinition {
 
 export const ALL_TABS: TabDefinition[] = [
   { key: "overview", label: "Visão Geral", locked: true },
+  { key: "board", label: "Quadro" },
   { key: "faculdade", label: "Faculdade" },
   { key: "painel_oab", label: "Painel OAB" },
   { key: "tasks", label: "Pendências" },
@@ -98,50 +100,50 @@ export interface TabConfig {
 /** Abas padrão por tipo de projeto. */
 const DEFAULT_BY_TYPE: Record<string, TabKey[]> = {
   faculdade: [
-    "overview", "faculdade", "biblioteca", "ferramentas_ia", "tasks",
+    "overview", "board", "faculdade", "biblioteca", "ferramentas_ia", "tasks",
     "calendar", "notes", "files", "timeline",
   ],
   oab: [
-    "overview", "painel_oab", "plano_estudos", "disciplinas", "questoes",
+    "overview", "board", "painel_oab", "plano_estudos", "disciplinas", "questoes",
     "caderno_erros", "simulados", "revisoes", "lei_seca", "tecnicas",
     "caligrafia", "rotina", "desempenho", "tasks", "calendar", "notes",
     "files", "timeline",
   ],
   domestico: [
-    "overview", "casa_rotinas", "casa_manutencao", "casa_compras", "tasks",
+    "overview", "board", "casa_rotinas", "casa_manutencao", "casa_compras", "tasks",
     "calendar", "finance", "files", "team", "timeline",
   ],
   financeiro_pessoal: [
-    "overview", "orcamento_pessoal", "metas_financeiras", "assinaturas",
+    "overview", "board", "orcamento_pessoal", "metas_financeiras", "assinaturas",
     "finance", "tasks", "notes", "files", "timeline",
   ],
   perfil_imobiliario: [
-    "overview", "conteudo", "temas", "personas", "referencias", "mercado",
+    "overview", "board", "conteudo", "temas", "personas", "referencias", "mercado",
     "jornada", "cases", "tasks", "calendar", "team", "notes", "files", "timeline",
   ],
   reformas: [
-    "overview", "pipeline", "obras", "orcamentos", "tasks", "team",
+    "overview", "board", "pipeline", "obras", "orcamentos", "tasks", "team",
     "finance", "calendar", "files", "notes", "timeline",
   ],
   obra: [
-    "overview", "etapas", "materiais", "medicoes", "pagamentos", "tasks",
+    "overview", "board", "etapas", "materiais", "medicoes", "pagamentos", "tasks",
     "team", "finance", "calendar", "files", "timeline",
   ],
   investimento_imovel: [
-    "overview", "aquisicao", "legalizacao", "venda", "cases", "finance",
+    "overview", "board", "aquisicao", "legalizacao", "venda", "cases", "finance",
     "tasks", "files", "timeline",
   ],
   produto_digital: [
-    "overview", "conteudo", "temas", "tasks", "calendar", "finance",
+    "overview", "board", "conteudo", "temas", "tasks", "calendar", "finance",
     "notes", "files", "team", "timeline",
   ],
   consultoria: [
-    "overview", "frentes", "plano_acao", "reunioes", "decisoes",
+    "overview", "board", "frentes", "plano_acao", "reunioes", "decisoes",
     "indicadores", "crm_externo", "integracoes", "pipeline", "tasks",
     "calendar", "team", "finance", "notes", "files", "timeline",
   ],
   novo_negocio: [
-    "overview", "frentes", "plano_acao", "reunioes", "decisoes", "indicadores",
+    "overview", "board", "frentes", "plano_acao", "reunioes", "decisoes", "indicadores",
     "pipeline", "tasks", "calendar", "team", "finance", "notes", "files", "timeline",
   ],
 };
@@ -172,6 +174,7 @@ export const MODULE_TABS_BY_TYPE: Record<string, TabKey[]> = {
 
 const GENERIC_TABS: TabKey[] = [
   "overview",
+  "board",
   "tasks",
   "calendar",
   "notes",
