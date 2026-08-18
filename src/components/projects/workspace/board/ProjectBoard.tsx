@@ -171,6 +171,17 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
 
   const overdueCount = useMemo(() => parents.filter(isOverdue).length, [parents]);
 
+  /** Produção do dia: tudo que foi concluído hoje (inclui subtarefas). */
+  const doneToday = useMemo(
+    () =>
+      allTasks.filter((task) => {
+        if (task.status !== "concluido" || !task.updated_at) return false;
+        const when = new Date(task.updated_at);
+        return !Number.isNaN(when.getTime()) && isToday(when);
+      }),
+    [allTasks],
+  );
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
