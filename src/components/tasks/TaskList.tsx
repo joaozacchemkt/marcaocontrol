@@ -10,7 +10,9 @@ import {
   Clock,
   User,
   AlertCircle,
-  X
+  X,
+  Check,
+  Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -139,6 +141,19 @@ export function TaskList({ initialProjectId }: { initialProjectId?: string }) {
     }
   });
 
+  /** Exclusão definitiva de uma pendência (sem campo soft-delete na tabela). */
+  const deleteTask = useMutation({
+    mutationFn: async (taskId: string) => {
+      const { error } = await supabase.from('tasks').delete().eq('id', taskId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Pendência excluída.");
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    },
+    onError: (error: Error) => toast.error("Erro ao excluir: " + error.message),
+  });
+
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(search.toLowerCase());
     
@@ -237,12 +252,13 @@ export function TaskList({ initialProjectId }: { initialProjectId?: string }) {
                 <th className="text-left p-4 font-medium text-muted-foreground">Prazo</th>
                 <th className="text-left p-4 font-medium text-muted-foreground">Prioridade</th>
                 <th className="text-left p-4 font-medium text-muted-foreground">Status</th>
+                <th className="text-right p-4 font-medium text-muted-foreground">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {filteredTasks.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-muted-foreground">Nenhuma tarefa encontrada.</td>
+                  <td colSpan={7} className="p-8 text-center text-muted-foreground">Nenhuma tarefa encontrada.</td>
                 </tr>
               ) : filteredTasks.map(task => (
                 <tr
@@ -285,6 +301,38 @@ export function TaskList({ initialProjectId }: { initialProjectId?: string }) {
                      <Badge variant="outline" className="capitalize">
                       {task.status.replace(/_/g, ' ')}
                     </Badge>
+                  </td>
+                  <td className="p-4">
+                    <div
+                      className="flex items-center justify-end gap-1"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        title={task.status === 'concluido' ? "Reabrir" : "Concluir"}
+                        onClick={() =>
+                          updateTaskStatus.mutate({
+                            taskId: task.id,
+                            status: task.status === 'concluido' ? 'a_fazer' : 'concluido',
+                          })
+                        }
+                      >
+                        <Check className={cn("h-4 w-4", task.status === 'concluido' && "text-emerald-500")} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive"
+                        title="Excluir"
+                        onClick={() => {
+                          if (confirm(`Excluir "${task.title}"?`)) deleteTask.mutate(task.id);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}
