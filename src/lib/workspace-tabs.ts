@@ -75,7 +75,7 @@ export interface TabDefinition {
 }
 
 export const ALL_TABS: TabDefinition[] = [
-  { key: "overview", "board", label: "Visão Geral", locked: true },
+  { key: "overview", label: "Visão Geral", locked: true },
   { key: "board", label: "Quadro" },
   { key: "faculdade", label: "Faculdade" },
   { key: "painel_oab", label: "Painel OAB" },
