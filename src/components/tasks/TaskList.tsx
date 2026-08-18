@@ -141,6 +141,19 @@ export function TaskList({ initialProjectId }: { initialProjectId?: string }) {
     }
   });
 
+  /** Exclusão definitiva de uma pendência (sem campo soft-delete na tabela). */
+  const deleteTask = useMutation({
+    mutationFn: async (taskId: string) => {
+      const { error } = await supabase.from('tasks').delete().eq('id', taskId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Pendência excluída.");
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    },
+    onError: (error: Error) => toast.error("Erro ao excluir: " + error.message),
+  });
+
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(search.toLowerCase());
     
