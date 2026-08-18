@@ -567,3 +567,231 @@ const FASE4_MODULES: Record<string, ModuleDefinition> = {
 };
 
 Object.assign(MODULES, FASE4_MODULES);
+
+/* --------------------------------------------------------------------------
+ * Fase 5 — Workspaces reais do Marcus (módulos complementares)
+ * ------------------------------------------------------------------------ */
+
+const simples = (
+  key: string,
+  label: string,
+  description: string,
+  itemLabel: string,
+  stages: ModuleStage[],
+  extra: { amount?: boolean; date?: boolean } = {},
+): ModuleDefinition => ({ key, label, description, itemLabel, stages, ...extra });
+
+const FASE5_MODULES: Record<string, ModuleDefinition> = {
+  // --- Perfil imobiliário ---
+  posicionamento: simples(
+    "posicionamento",
+    "Posicionamento",
+    "Pilares de marca, mensagens e diferenciais (legalização e leilões).",
+    "Pilar",
+    [stage("rascunho", "Rascunho"), stage("validado", "Validado")],
+  ),
+  calendario_editorial: simples(
+    "calendario_editorial",
+    "Calendário Editorial",
+    "Programação de publicações por data.",
+    "Publicação",
+    [
+      stage("planejado", "Planejado"),
+      stage("produzindo", "Produzindo"),
+      stage("agendado", "Agendado"),
+      stage("publicado", "Publicado"),
+    ],
+    { date: true },
+  ),
+  parceiros: simples(
+    "parceiros",
+    "Parceiros",
+    "Parcerias estratégicas e status de cada relação.",
+    "Parceiro",
+    [stage("prospect", "Prospect"), stage("ativo", "Ativo"), stage("pausado", "Pausado")],
+  ),
+
+  // --- JPA Reformas ---
+  leads: simples(
+    "leads",
+    "Leads",
+    "Interessados que ainda não viraram cliente.",
+    "Lead",
+    [stage("novo", "Novo"), stage("contato", "Em contato"), stage("qualificado", "Qualificado"), stage("descartado", "Descartado")],
+    { date: true },
+  ),
+  clientes: simples(
+    "clientes",
+    "Clientes",
+    "Clientes ativos e histórico de relacionamento.",
+    "Cliente",
+    [stage("ativo", "Ativo"), stage("concluido", "Concluído"), stage("inativo", "Inativo")],
+    { amount: true },
+  ),
+  profissionais: simples(
+    "profissionais",
+    "Profissionais",
+    "Equipe, empreiteiros e prestadores.",
+    "Profissional",
+    [stage("disponivel", "Disponível"), stage("alocado", "Alocado"), stage("inativo", "Inativo")],
+    { amount: true },
+  ),
+  fornecedores: simples(
+    "fornecedores",
+    "Fornecedores",
+    "Fornecedores de material e serviços.",
+    "Fornecedor",
+    [stage("cotando", "Cotando"), stage("homologado", "Homologado"), stage("descartado", "Descartado")],
+  ),
+  antes_depois: simples(
+    "antes_depois",
+    "Antes e Depois",
+    "Registros comparativos para portfólio.",
+    "Registro",
+    [stage("pendente", "Pendente"), stage("registrado", "Registrado"), stage("publicado", "Publicado")],
+    { date: true },
+  ),
+
+  // --- Obra ---
+  cronograma: simples(
+    "cronograma",
+    "Cronograma",
+    "Linha do tempo macro da obra.",
+    "Marco",
+    [stage("previsto", "Previsto"), stage("andamento", "Em andamento"), stage("concluido", "Concluído"), stage("atrasado", "Atrasado")],
+    { date: true },
+  ),
+  compras: simples(
+    "compras",
+    "Compras",
+    "Pedidos de compra e entregas.",
+    "Compra",
+    [stage("solicitada", "Solicitada"), stage("cotada", "Cotada"), stage("comprada", "Comprada"), stage("entregue", "Entregue")],
+    { amount: true, date: true },
+  ),
+  fotos: simples(
+    "fotos",
+    "Fotos",
+    "Registros fotográficos por etapa (links e anexos).",
+    "Registro",
+    [stage("pendente", "Pendente"), stage("registrado", "Registrado")],
+    { date: true },
+  ),
+
+  // --- Investimento imobiliário ---
+  leilao: simples(
+    "leilao",
+    "Leilão",
+    "Lotes, praças, lances e prazos do leilão.",
+    "Item",
+    [stage("prospect", "Prospecção"), stage("analise", "Análise"), stage("arrematado", "Arrematado"), stage("descartado", "Descartado")],
+    { amount: true, date: true },
+  ),
+  roi: simples(
+    "roi",
+    "ROI",
+    "Premissas de retorno do investimento (sem duplicar custos da obra).",
+    "Cenário",
+    [stage("estimado", "Estimado"), stage("realizado", "Realizado")],
+    { amount: true },
+  ),
+  videos: simples(
+    "videos",
+    "Vídeos",
+    "Vídeos do processo e material final.",
+    "Vídeo",
+    [stage("ideia", "Ideia"), stage("gravado", "Gravado"), stage("editado", "Editado"), stage("publicado", "Publicado")],
+    { date: true },
+  ),
+  planilhas: simples(
+    "planilhas",
+    "Planilhas",
+    "Planilhas de apoio e links.",
+    "Planilha",
+    [stage("ativa", "Ativa"), stage("arquivada", "Arquivada")],
+  ),
+
+  // --- Produto digital ---
+  objetivos: simples(
+    "objetivos",
+    "Objetivos",
+    "Objetivos do produto e resultados esperados.",
+    "Objetivo",
+    [stage("proposto", "Proposto"), stage("ativo", "Ativo"), stage("atingido", "Atingido")],
+    { date: true },
+  ),
+  roadmap: simples(
+    "roadmap",
+    "Roadmap",
+    "Entregas planejadas por horizonte.",
+    "Entrega",
+    [stage("agora", "Agora"), stage("proximo", "Próximo"), stage("depois", "Depois"), stage("entregue", "Entregue")],
+    { date: true },
+  ),
+  backlog: simples(
+    "backlog",
+    "Backlog",
+    "Itens candidatos ainda não priorizados.",
+    "Item",
+    [stage("novo", "Novo"), stage("priorizado", "Priorizado"), stage("descartado", "Descartado")],
+  ),
+  requisitos: simples(
+    "requisitos",
+    "Requisitos",
+    "Regras e requisitos funcionais.",
+    "Requisito",
+    [stage("rascunho", "Rascunho"), stage("validado", "Validado"), stage("implementado", "Implementado")],
+  ),
+  telas: simples(
+    "telas",
+    "Telas",
+    "Telas e fluxos do produto.",
+    "Tela",
+    [stage("prevista", "Prevista"), stage("desenho", "Em desenho"), stage("pronta", "Pronta")],
+  ),
+  apis: simples(
+    "apis",
+    "APIs",
+    "Endpoints e contratos de integração.",
+    "API",
+    [stage("mapeada", "Mapeada"), stage("desenvolvimento", "Em desenvolvimento"), stage("ativa", "Ativa")],
+  ),
+  bugs: simples(
+    "bugs",
+    "Bugs",
+    "Defeitos reportados e correções.",
+    "Bug",
+    [stage("aberto", "Aberto"), stage("investigando", "Investigando"), stage("corrigido", "Corrigido")],
+    { date: true },
+  ),
+
+  // --- OAB / consultoria ---
+  coach: simples(
+    "coach",
+    "Coach",
+    "Acompanhamento de rotina, motivação e ajustes de plano.",
+    "Registro",
+    [stage("pendente", "Pendente"), stage("feito", "Feito")],
+    { date: true },
+  ),
+  projetos_pontual: simples(
+    "projetos_pontual",
+    "Projetos Pontual",
+    "Projetos acompanhados dentro da consultoria.",
+    "Projeto",
+    [stage("previsto", "Previsto"), stage("andamento", "Em andamento"), stage("concluido", "Concluído")],
+    { date: true },
+  ),
+
+  // --- Financeiro pessoal / doméstico ---
+  historico_financeiro: simples(
+    "historico_financeiro",
+    "Histórico",
+    "Registros e marcos financeiros relevantes.",
+    "Registro",
+    [stage("registrado", "Registrado")],
+    { amount: true, date: true },
+  ),
+};
+
+Object.assign(MODULES, FASE5_MODULES);
