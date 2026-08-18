@@ -114,6 +114,7 @@ export function ProjectDetail() {
   const availableTabs = useMemo<TabKey[]>(() => {
     const base: TabKey[] = [
       "overview",
+      "board",
       "tasks",
       "calendar",
       "notes",
