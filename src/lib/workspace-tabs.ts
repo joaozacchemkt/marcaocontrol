@@ -65,7 +65,33 @@ export type TabKey =
   | "casa_compras"
   | "orcamento_pessoal"
   | "metas_financeiras"
-  | "assinaturas";
+  | "assinaturas"
+  // Fase 5 — workspaces reais
+  | "posicionamento"
+  | "calendario_editorial"
+  | "parceiros"
+  | "leads"
+  | "clientes"
+  | "profissionais"
+  | "fornecedores"
+  | "antes_depois"
+  | "cronograma"
+  | "compras"
+  | "fotos"
+  | "leilao"
+  | "roi"
+  | "videos"
+  | "planilhas"
+  | "objetivos"
+  | "roadmap"
+  | "backlog"
+  | "requisitos"
+  | "telas"
+  | "apis"
+  | "bugs"
+  | "coach"
+  | "projetos_pontual"
+  | "historico_financeiro";
 
 export interface TabDefinition {
   key: TabKey;
