@@ -46,6 +46,7 @@ import {
 } from "@/lib/workspace-tabs";
 import { ModuleBoard } from "./workspace/common/ModuleBoard";
 import { isModuleKey } from "@/lib/workspace-modules";
+import { ProjectBoard } from "./workspace/board/ProjectBoard";
 
 // Template Faculdade
 import { FaculdadeWorkspace } from "./workspace/faculdade/FaculdadeWorkspace";
