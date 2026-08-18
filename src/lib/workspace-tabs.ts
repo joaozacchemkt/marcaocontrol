@@ -107,8 +107,14 @@ const DEFAULT_BY_TYPE: Record<string, TabKey[]> = {
     "caligrafia", "rotina", "desempenho", "tasks", "calendar", "notes",
     "files", "timeline",
   ],
-  domestico: ["overview", "tasks", "calendar", "finance", "files", "team", "timeline"],
-  financeiro_pessoal: ["overview", "finance", "tasks", "notes", "files", "timeline"],
+  domestico: [
+    "overview", "casa_rotinas", "casa_manutencao", "casa_compras", "tasks",
+    "calendar", "finance", "files", "team", "timeline",
+  ],
+  financeiro_pessoal: [
+    "overview", "orcamento_pessoal", "metas_financeiras", "assinaturas",
+    "finance", "tasks", "notes", "files", "timeline",
+  ],
   perfil_imobiliario: [
     "overview", "conteudo", "temas", "personas", "referencias", "mercado",
     "jornada", "cases", "tasks", "calendar", "team", "notes", "files", "timeline",
