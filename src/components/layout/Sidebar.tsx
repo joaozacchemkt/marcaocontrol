@@ -11,6 +11,7 @@ import {
   LayoutDashboard
 } from "lucide-react";
 import { Link, useLocation } from "@tanstack/react-router";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { GlobalAddButton } from "./GlobalAddButton";
 import { GlobalSearch } from "../search/GlobalSearch";
