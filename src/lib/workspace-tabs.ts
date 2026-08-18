@@ -50,7 +50,21 @@ export type TabKey =
   | "tecnicas"
   | "caligrafia"
   | "rotina"
-  | "desempenho";
+  | "desempenho"
+  // Fase 4 — consultoria, doméstico e financeiro pessoal
+  | "frentes"
+  | "plano_acao"
+  | "reunioes"
+  | "decisoes"
+  | "indicadores"
+  | "crm_externo"
+  | "integracoes"
+  | "casa_rotinas"
+  | "casa_manutencao"
+  | "casa_compras"
+  | "orcamento_pessoal"
+  | "metas_financeiras"
+  | "assinaturas";
 
 export interface TabDefinition {
   key: TabKey;
