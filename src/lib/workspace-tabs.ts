@@ -136,8 +136,13 @@ const DEFAULT_BY_TYPE: Record<string, TabKey[]> = {
     "notes", "files", "team", "timeline",
   ],
   consultoria: [
-    "overview", "pipeline", "tasks", "calendar", "team", "finance",
-    "notes", "files", "timeline",
+    "overview", "frentes", "plano_acao", "reunioes", "decisoes",
+    "indicadores", "crm_externo", "integracoes", "pipeline", "tasks",
+    "calendar", "team", "finance", "notes", "files", "timeline",
+  ],
+  novo_negocio: [
+    "overview", "frentes", "plano_acao", "reunioes", "decisoes", "indicadores",
+    "pipeline", "tasks", "calendar", "team", "finance", "notes", "files", "timeline",
   ],
 };
 
