@@ -21,6 +21,8 @@ export interface BoardTask {
   contact_id: string | null;
   parent_task_id: string | null;
   project_id: string | null;
+  /** Usado para saber o que foi concluído hoje. */
+  updated_at?: string | null;
 }
 
 export const BOARD_COLUMNS: { id: BoardStatus; label: string }[] = [

@@ -13,7 +13,7 @@ import {
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { endOfWeek, isToday, startOfWeek } from "date-fns";
-import { Plus } from "lucide-react";
+import { CheckCircle2, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -171,6 +171,17 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
 
   const overdueCount = useMemo(() => parents.filter(isOverdue).length, [parents]);
 
+  /** Produção do dia: tudo que foi concluído hoje (inclui subtarefas). */
+  const doneToday = useMemo(
+    () =>
+      allTasks.filter((task) => {
+        if (task.status !== "concluido" || !task.updated_at) return false;
+        const when = new Date(task.updated_at);
+        return !Number.isNaN(when.getTime()) && isToday(when);
+      }),
+    [allTasks],
+  );
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -233,6 +244,37 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
           </Button>
         ))}
       </div>
+
+      <section className="rounded-xl border bg-card p-4">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h4 className="text-sm font-semibold tracking-tight">
+            Concluídos hoje
+          </h4>
+          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
+            {doneToday.length}
+          </span>
+        </div>
+        {doneToday.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Nada concluído hoje ainda — mova cards para “Concluído” e eles aparecem aqui.
+          </p>
+        ) : (
+          <ul className="space-y-1">
+            {doneToday.map((task) => (
+              <li
+                key={task.id}
+                className="flex items-center gap-2 text-sm text-muted-foreground"
+              >
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
+                <span className="truncate text-foreground">{task.title}</span>
+                {task.responsible && (
+                  <span className="shrink-0 text-xs">· {task.responsible}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Carregando quadro...</p>
