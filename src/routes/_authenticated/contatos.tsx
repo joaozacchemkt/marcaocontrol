@@ -2,6 +2,16 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppLayout } from "@/components/layout/AppLayout";
 
 export const Route = createFileRoute("/_authenticated/contatos")({
+  head: () => ({
+    meta: [
+      { title: "Contatos — Marcão Control" },
+      { name: "description", content: "CRM simplificado de stakeholders, parceiros e fornecedores." },
+      { property: "og:title", content: "Contatos — Marcão Control" },
+      { property: "og:description", content: "CRM simplificado de stakeholders, parceiros e fornecedores." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: ContatosPage,
 });
 

@@ -25,6 +25,16 @@ import { Progress } from "@/components/ui/progress";
 import { EstudarAgora } from "@/components/projects/workspace/faculdade/EstudarAgora";
 
 export const Route = createFileRoute("/_authenticated/")({
+  head: () => ({
+    meta: [
+      { title: "Dashboard — Marcão Control" },
+      { name: "description", content: "Resumo executivo com projetos ativos, pendências do dia e saúde financeira." },
+      { property: "og:title", content: "Dashboard — Marcão Control" },
+      { property: "og:description", content: "Resumo executivo com projetos ativos, pendências do dia e saúde financeira." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: Dashboard,
 });
 

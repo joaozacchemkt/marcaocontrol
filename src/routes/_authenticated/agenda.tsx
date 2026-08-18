@@ -3,6 +3,16 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { CalendarAgenda } from "@/components/calendar/CalendarAgenda";
 
 export const Route = createFileRoute("/_authenticated/agenda")({
+  head: () => ({
+    meta: [
+      { title: "Agenda — Marcão Control" },
+      { name: "description", content: "Compromissos, prazos e tarefas em um calendário executivo integrado." },
+      { property: "og:title", content: "Agenda — Marcão Control" },
+      { property: "og:description", content: "Compromissos, prazos e tarefas em um calendário executivo integrado." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: AgendaPage,
 });
 
