@@ -50,7 +50,21 @@ export type TabKey =
   | "tecnicas"
   | "caligrafia"
   | "rotina"
-  | "desempenho";
+  | "desempenho"
+  // Fase 4 — consultoria, doméstico e financeiro pessoal
+  | "frentes"
+  | "plano_acao"
+  | "reunioes"
+  | "decisoes"
+  | "indicadores"
+  | "crm_externo"
+  | "integracoes"
+  | "casa_rotinas"
+  | "casa_manutencao"
+  | "casa_compras"
+  | "orcamento_pessoal"
+  | "metas_financeiras"
+  | "assinaturas";
 
 export interface TabDefinition {
   key: TabKey;
@@ -93,8 +107,14 @@ const DEFAULT_BY_TYPE: Record<string, TabKey[]> = {
     "caligrafia", "rotina", "desempenho", "tasks", "calendar", "notes",
     "files", "timeline",
   ],
-  domestico: ["overview", "tasks", "calendar", "finance", "files", "team", "timeline"],
-  financeiro_pessoal: ["overview", "finance", "tasks", "notes", "files", "timeline"],
+  domestico: [
+    "overview", "casa_rotinas", "casa_manutencao", "casa_compras", "tasks",
+    "calendar", "finance", "files", "team", "timeline",
+  ],
+  financeiro_pessoal: [
+    "overview", "orcamento_pessoal", "metas_financeiras", "assinaturas",
+    "finance", "tasks", "notes", "files", "timeline",
+  ],
   perfil_imobiliario: [
     "overview", "conteudo", "temas", "personas", "referencias", "mercado",
     "jornada", "cases", "tasks", "calendar", "team", "notes", "files", "timeline",
@@ -116,8 +136,13 @@ const DEFAULT_BY_TYPE: Record<string, TabKey[]> = {
     "notes", "files", "team", "timeline",
   ],
   consultoria: [
-    "overview", "pipeline", "tasks", "calendar", "team", "finance",
-    "notes", "files", "timeline",
+    "overview", "frentes", "plano_acao", "reunioes", "decisoes",
+    "indicadores", "crm_externo", "integracoes", "pipeline", "tasks",
+    "calendar", "team", "finance", "notes", "files", "timeline",
+  ],
+  novo_negocio: [
+    "overview", "frentes", "plano_acao", "reunioes", "decisoes", "indicadores",
+    "pipeline", "tasks", "calendar", "team", "finance", "notes", "files", "timeline",
   ],
 };
 
@@ -128,7 +153,16 @@ export const MODULE_TABS_BY_TYPE: Record<string, TabKey[]> = {
   obra: ["etapas", "materiais", "medicoes", "pagamentos"],
   investimento_imovel: ["aquisicao", "legalizacao", "venda", "cases"],
   produto_digital: ["conteudo", "temas"],
-  consultoria: ["pipeline"],
+  consultoria: [
+    "frentes", "plano_acao", "reunioes", "decisoes", "indicadores",
+    "crm_externo", "integracoes", "pipeline",
+  ],
+  novo_negocio: [
+    "frentes", "plano_acao", "reunioes", "decisoes", "indicadores", "pipeline",
+  ],
+  domestico: ["casa_rotinas", "casa_manutencao", "casa_compras"],
+  financeiro_pessoal: ["orcamento_pessoal", "metas_financeiras", "assinaturas"],
+  pessoal: ["casa_rotinas", "casa_manutencao", "casa_compras"],
   faculdade: ["biblioteca", "ferramentas_ia"],
   oab: [
     "plano_estudos", "disciplinas", "questoes", "caderno_erros", "simulados",

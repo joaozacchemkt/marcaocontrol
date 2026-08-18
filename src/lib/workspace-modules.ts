@@ -392,3 +392,178 @@ const ESTUDOS_MODULES: Record<string, ModuleDefinition> = {
 };
 
 Object.assign(MODULES, ESTUDOS_MODULES);
+
+/* --------------------------------------------------------------------------
+ * Fase 4 — Consultoria, negócios diversos, doméstico e financeiro pessoal
+ * ------------------------------------------------------------------------ */
+
+const FASE4_MODULES: Record<string, ModuleDefinition> = {
+  // --- Consultoria Pontual (e demais consultorias) ---
+  frentes: {
+    key: "frentes",
+    label: "Frentes",
+    description: "Frentes de trabalho ativas da consultoria.",
+    itemLabel: "Frente",
+    stages: [
+      stage("mapeada", "Mapeada"),
+      stage("andamento", "Em andamento"),
+      stage("pausada", "Pausada"),
+      stage("concluida", "Concluída"),
+    ],
+    date: true,
+  },
+  plano_acao: {
+    key: "plano_acao",
+    label: "Plano de Ação",
+    description: "Problema → ação → responsável → prazo → status.",
+    itemLabel: "Ação",
+    stages: [
+      stage("pendente", "Pendente"),
+      stage("andamento", "Em andamento"),
+      stage("aguardando", "Aguardando terceiro"),
+      stage("concluida", "Concluída"),
+    ],
+    date: true,
+  },
+  reunioes: {
+    key: "reunioes",
+    label: "Reuniões",
+    description: "Pautas, participantes e encaminhamentos.",
+    itemLabel: "Reunião",
+    stages: [
+      stage("agendada", "Agendada"),
+      stage("realizada", "Realizada"),
+      stage("com_ata", "Com ata"),
+    ],
+    date: true,
+  },
+  decisoes: {
+    key: "decisoes",
+    label: "Decisões",
+    description: "Decisões tomadas e pendentes de definição.",
+    itemLabel: "Decisão",
+    stages: [
+      stage("pendente", "Pendente"),
+      stage("decidida", "Decidida"),
+      stage("revisar", "Revisar"),
+    ],
+    date: true,
+  },
+  indicadores: {
+    key: "indicadores",
+    label: "Indicadores Executivos",
+    description: "Indicadores acompanhados periodicamente.",
+    itemLabel: "Indicador",
+    stages: [
+      stage("acompanhando", "Acompanhando"),
+      stage("atencao", "Atenção"),
+      stage("ok", "Dentro da meta"),
+    ],
+    amount: true,
+    date: true,
+  },
+  crm_externo: {
+    key: "crm_externo",
+    label: "CRM Externo",
+    description: "Painel de acompanhamento de bases externas (não é CRM).",
+    itemLabel: "Acompanhamento",
+    stages: [
+      stage("monitorando", "Monitorando"),
+      stage("acao", "Requer ação"),
+      stage("resolvido", "Resolvido"),
+    ],
+    date: true,
+  },
+  integracoes: {
+    key: "integracoes",
+    label: "Integrações",
+    description: "Sistemas e integrações em avaliação ou uso.",
+    itemLabel: "Integração",
+    stages: [
+      stage("mapeada", "Mapeada"),
+      stage("em_implantacao", "Em implantação"),
+      stage("ativa", "Ativa"),
+      stage("descartada", "Descartada"),
+    ],
+    date: true,
+  },
+
+  // --- Assuntos domésticos ---
+  casa_rotinas: {
+    key: "casa_rotinas",
+    label: "Rotinas da Casa",
+    description: "Rotinas domésticas recorrentes e responsáveis.",
+    itemLabel: "Rotina",
+    stages: [stage("ativa", "Ativa"), stage("pausada", "Pausada")],
+    date: true,
+  },
+  casa_manutencao: {
+    key: "casa_manutencao",
+    label: "Manutenção",
+    description: "Reparos, revisões e serviços da casa.",
+    itemLabel: "Manutenção",
+    stages: [
+      stage("pendente", "Pendente"),
+      stage("agendada", "Agendada"),
+      stage("concluida", "Concluída"),
+    ],
+    amount: true,
+    date: true,
+  },
+  casa_compras: {
+    key: "casa_compras",
+    label: "Compras",
+    description: "Itens a comprar para a casa.",
+    itemLabel: "Item",
+    stages: [
+      stage("listado", "Listado"),
+      stage("cotado", "Cotado"),
+      stage("comprado", "Comprado"),
+    ],
+    amount: true,
+    date: true,
+  },
+
+  // --- Financeiro pessoal ---
+  orcamento_pessoal: {
+    key: "orcamento_pessoal",
+    label: "Orçamento",
+    description: "Categorias de orçamento e limites do mês.",
+    itemLabel: "Categoria",
+    stages: [
+      stage("planejado", "Planejado"),
+      stage("dentro", "Dentro do limite"),
+      stage("estourado", "Estourado"),
+    ],
+    amount: true,
+    date: true,
+  },
+  metas_financeiras: {
+    key: "metas_financeiras",
+    label: "Metas Financeiras",
+    description: "Objetivos financeiros e progresso.",
+    itemLabel: "Meta",
+    stages: [
+      stage("definida", "Definida"),
+      stage("andamento", "Em andamento"),
+      stage("atingida", "Atingida"),
+    ],
+    amount: true,
+    date: true,
+  },
+  assinaturas: {
+    key: "assinaturas",
+    label: "Assinaturas",
+    description: "Assinaturas e cobranças recorrentes.",
+    itemLabel: "Assinatura",
+    stages: [
+      stage("ativa", "Ativa"),
+      stage("revisar", "Revisar"),
+      stage("cancelada", "Cancelada"),
+    ],
+    amount: true,
+    date: true,
+  },
+};
+
+Object.assign(MODULES, FASE4_MODULES);
