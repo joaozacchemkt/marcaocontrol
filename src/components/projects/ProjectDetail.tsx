@@ -238,6 +238,10 @@ export function ProjectDetail() {
           </div>
         </TabsContent>
 
+        <TabsContent value="board" className="mt-0 focus-visible:outline-none">
+          <ProjectBoard projectId={projectId} />
+        </TabsContent>
+
         <TabsContent value="tasks" className="mt-0 focus-visible:outline-none">
           <ProjectTasks project={project} />
         </TabsContent>
