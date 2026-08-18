@@ -258,7 +258,7 @@ export function TaskList({ initialProjectId }: { initialProjectId?: string }) {
             <tbody className="divide-y">
               {filteredTasks.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-muted-foreground">Nenhuma tarefa encontrada.</td>
+                  <td colSpan={7} className="p-8 text-center text-muted-foreground">Nenhuma tarefa encontrada.</td>
                 </tr>
               ) : filteredTasks.map(task => (
                 <tr
