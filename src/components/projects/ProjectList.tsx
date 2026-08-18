@@ -118,8 +118,8 @@ export function ProjectList() {
     em_analise: "bg-purple-500/10 text-purple-500 border-purple-500/20",
     planejamento: "bg-amber-500/10 text-amber-500 border-amber-500/20",
     em_andamento: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
-    pausado: "bg-slate-500/10 text-slate-500 border-slate-500/20",
-    concluido: "bg-emerald-500 text-white border-transparent",
+    pausado: "bg-muted text-muted-foreground border-border",
+    concluido: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
   };
 
   return (
