@@ -65,7 +65,33 @@ export type TabKey =
   | "casa_compras"
   | "orcamento_pessoal"
   | "metas_financeiras"
-  | "assinaturas";
+  | "assinaturas"
+  // Fase 5 — workspaces reais
+  | "posicionamento"
+  | "calendario_editorial"
+  | "parceiros"
+  | "leads"
+  | "clientes"
+  | "profissionais"
+  | "fornecedores"
+  | "antes_depois"
+  | "cronograma"
+  | "compras"
+  | "fotos"
+  | "leilao"
+  | "roi"
+  | "videos"
+  | "planilhas"
+  | "objetivos"
+  | "roadmap"
+  | "backlog"
+  | "requisitos"
+  | "telas"
+  | "apis"
+  | "bugs"
+  | "coach"
+  | "projetos_pontual"
+  | "historico_financeiro";
 
 export interface TabDefinition {
   key: TabKey;
@@ -106,69 +132,92 @@ const DEFAULT_BY_TYPE: Record<string, TabKey[]> = {
   oab: [
     "overview", "board", "painel_oab", "plano_estudos", "disciplinas", "questoes",
     "caderno_erros", "simulados", "revisoes", "lei_seca", "tecnicas",
-    "caligrafia", "rotina", "desempenho", "tasks", "calendar", "notes",
+    "caligrafia", "desempenho", "coach", "rotina", "tasks", "calendar", "notes",
     "files", "timeline",
   ],
   domestico: [
-    "overview", "board", "casa_rotinas", "casa_manutencao", "casa_compras", "tasks",
-    "calendar", "finance", "files", "team", "timeline",
+    "overview", "board", "casa_rotinas", "casa_manutencao", "casa_compras",
+    "profissionais", "tasks", "calendar", "finance", "files", "team", "timeline",
   ],
   financeiro_pessoal: [
     "overview", "board", "orcamento_pessoal", "metas_financeiras", "assinaturas",
-    "finance", "tasks", "notes", "files", "timeline",
+    "historico_financeiro", "finance", "tasks", "notes", "files", "timeline",
   ],
   perfil_imobiliario: [
-    "overview", "board", "conteudo", "temas", "personas", "referencias", "mercado",
-    "jornada", "cases", "tasks", "calendar", "team", "notes", "files", "timeline",
+    "overview", "board", "posicionamento", "mercado", "personas", "conteudo",
+    "calendario_editorial", "temas", "referencias", "parceiros", "jornada",
+    "cases", "tasks", "calendar", "team", "notes", "files", "timeline",
   ],
   reformas: [
-    "overview", "board", "pipeline", "obras", "orcamentos", "tasks", "team",
+    "overview", "board", "obras", "leads", "clientes", "orcamentos", "pipeline",
+    "profissionais", "fornecedores", "antes_depois", "tasks", "team",
     "finance", "calendar", "files", "notes", "timeline",
   ],
   obra: [
-    "overview", "board", "etapas", "materiais", "medicoes", "pagamentos", "tasks",
+    "overview", "board", "cronograma", "etapas", "profissionais", "pagamentos",
+    "materiais", "compras", "orcamentos", "medicoes", "fotos", "tasks",
     "team", "finance", "calendar", "files", "timeline",
   ],
   investimento_imovel: [
-    "overview", "board", "aquisicao", "legalizacao", "venda", "cases", "finance",
-    "tasks", "files", "timeline",
+    "overview", "board", "aquisicao", "leilao", "legalizacao", "roi", "venda",
+    "fotos", "videos", "planilhas", "cases", "finance", "tasks", "files", "timeline",
   ],
   produto_digital: [
-    "overview", "board", "conteudo", "temas", "tasks", "calendar", "finance",
+    "overview", "board", "objetivos", "roadmap", "backlog", "requisitos",
+    "telas", "integracoes", "apis", "bugs", "decisoes", "tasks", "calendar",
     "notes", "files", "team", "timeline",
   ],
   consultoria: [
     "overview", "board", "frentes", "plano_acao", "reunioes", "decisoes",
-    "indicadores", "crm_externo", "integracoes", "pipeline", "tasks",
+    "projetos_pontual", "indicadores", "crm_externo", "integracoes", "tasks",
     "calendar", "team", "finance", "notes", "files", "timeline",
   ],
   novo_negocio: [
-    "overview", "board", "frentes", "plano_acao", "reunioes", "decisoes", "indicadores",
-    "pipeline", "tasks", "calendar", "team", "finance", "notes", "files", "timeline",
+    "overview", "board", "objetivos", "frentes", "plano_acao", "reunioes", "decisoes",
+    "indicadores", "pipeline", "tasks", "calendar", "team", "finance", "notes",
+    "files", "timeline",
   ],
 };
 
 /** Módulos específicos habilitados por tipo de projeto. */
 export const MODULE_TABS_BY_TYPE: Record<string, TabKey[]> = {
-  perfil_imobiliario: ["mercado", "personas", "referencias", "conteudo", "temas", "jornada", "cases"],
-  reformas: ["pipeline", "obras", "orcamentos"],
-  obra: ["etapas", "materiais", "medicoes", "pagamentos"],
-  investimento_imovel: ["aquisicao", "legalizacao", "venda", "cases"],
-  produto_digital: ["conteudo", "temas"],
+  perfil_imobiliario: [
+    "posicionamento", "mercado", "personas", "referencias", "conteudo",
+    "calendario_editorial", "temas", "parceiros", "jornada", "cases",
+  ],
+  reformas: [
+    "pipeline", "obras", "leads", "clientes", "orcamentos", "profissionais",
+    "fornecedores", "antes_depois",
+  ],
+  obra: [
+    "cronograma", "etapas", "materiais", "compras", "orcamentos", "medicoes",
+    "pagamentos", "profissionais", "fotos",
+  ],
+  investimento_imovel: [
+    "aquisicao", "leilao", "legalizacao", "roi", "venda", "fotos", "videos",
+    "planilhas", "cases",
+  ],
+  produto_digital: [
+    "objetivos", "roadmap", "backlog", "requisitos", "telas", "apis", "bugs",
+    "integracoes", "decisoes", "conteudo", "temas",
+  ],
   consultoria: [
-    "frentes", "plano_acao", "reunioes", "decisoes", "indicadores",
-    "crm_externo", "integracoes", "pipeline",
+    "frentes", "plano_acao", "reunioes", "decisoes", "projetos_pontual",
+    "indicadores", "crm_externo", "integracoes", "pipeline",
   ],
   novo_negocio: [
-    "frentes", "plano_acao", "reunioes", "decisoes", "indicadores", "pipeline",
+    "objetivos", "frentes", "plano_acao", "reunioes", "decisoes", "indicadores", "pipeline",
   ],
-  domestico: ["casa_rotinas", "casa_manutencao", "casa_compras"],
-  financeiro_pessoal: ["orcamento_pessoal", "metas_financeiras", "assinaturas"],
+  domestico: ["casa_rotinas", "casa_manutencao", "casa_compras", "profissionais"],
+  financeiro_pessoal: [
+    "orcamento_pessoal", "metas_financeiras", "assinaturas", "historico_financeiro",
+  ],
   pessoal: ["casa_rotinas", "casa_manutencao", "casa_compras"],
+  generico: ["objetivos"],
   faculdade: ["biblioteca", "ferramentas_ia"],
   oab: [
     "plano_estudos", "disciplinas", "questoes", "caderno_erros", "simulados",
-    "revisoes", "lei_seca", "tecnicas", "caligrafia", "rotina", "desempenho",
+    "revisoes", "lei_seca", "tecnicas", "caligrafia", "rotina", "desempenho", "coach",
   ],
 };
 
