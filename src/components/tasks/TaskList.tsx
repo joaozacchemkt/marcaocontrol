@@ -45,6 +45,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { toast } from "sonner";
+import { Checkbox } from "@/components/ui/checkbox";
 import { TaskModal } from "../modals/TaskModal";
 import { logActivity } from "@/lib/activity";
 import { advanceRecurrence } from "@/lib/recurrence";
@@ -78,6 +79,15 @@ export function TaskList({ initialProjectId }: { initialProjectId?: string }) {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [editingTask, setEditingTask] = useState<any | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const toggleSelect = (taskId: string) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(taskId)) next.delete(taskId);
+      else next.add(taskId);
+      return next;
+    });
 
   const { data: tasks = [], isLoading } = useQuery({
     queryKey: ['tasks', initialProjectId],
@@ -154,6 +164,21 @@ export function TaskList({ initialProjectId }: { initialProjectId?: string }) {
     onError: (error: Error) => toast.error("Erro ao excluir: " + error.message),
   });
 
+  /** Exclusão em massa das pendências selecionadas. */
+  const deleteManyTasks = useMutation({
+    mutationFn: async (ids: string[]) => {
+      if (ids.length === 0) return;
+      const { error } = await supabase.from('tasks').delete().in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: (_data, ids) => {
+      setSelectedIds(new Set());
+      toast.success(`${ids.length} pendência(s) excluída(s).`);
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    },
+    onError: (error: Error) => toast.error("Erro ao excluir: " + error.message),
+  });
+
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(search.toLowerCase());
     
@@ -202,6 +227,20 @@ export function TaskList({ initialProjectId }: { initialProjectId?: string }) {
               <TabsTrigger value="kanban"><LayoutGrid className="h-4 w-4 mr-2" /> Kanban</TabsTrigger>
             </TabsList>
           </Tabs>
+          {selectedIds.size > 0 && (
+            <>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  if (confirm(`Excluir ${selectedIds.size} pendência(s)?`))
+                    deleteManyTasks.mutate([...selectedIds]);
+                }}
+              >
+                <Trash2 className="h-4 w-4 mr-2" /> Excluir {selectedIds.size}
+              </Button>
+              <Button variant="ghost" onClick={() => setSelectedIds(new Set())}>Limpar</Button>
+            </>
+          )}
           <Button onClick={() => setShowTaskModal(true)}>
             <Plus className="h-4 w-4 mr-2" /> Novo
           </Button>
@@ -246,6 +285,15 @@ export function TaskList({ initialProjectId }: { initialProjectId?: string }) {
           <table className="w-full text-sm">
             <thead className="bg-accent/50 border-b">
               <tr>
+                <th className="p-4 w-10">
+                  <Checkbox
+                    aria-label="Selecionar todas"
+                    checked={filteredTasks.length > 0 && filteredTasks.every((t) => selectedIds.has(t.id))}
+                    onCheckedChange={(checked) =>
+                      setSelectedIds(checked ? new Set(filteredTasks.map((t) => t.id)) : new Set())
+                    }
+                  />
+                </th>
                 <th className="text-left p-4 font-medium text-muted-foreground">Título</th>
                 <th className="text-left p-4 font-medium text-muted-foreground">Projeto</th>
                 <th className="text-left p-4 font-medium text-muted-foreground">Responsável</th>
@@ -258,7 +306,7 @@ export function TaskList({ initialProjectId }: { initialProjectId?: string }) {
             <tbody className="divide-y">
               {filteredTasks.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-muted-foreground">Nenhuma tarefa encontrada.</td>
+                  <td colSpan={8} className="p-8 text-center text-muted-foreground">Nenhuma tarefa encontrada.</td>
                 </tr>
               ) : filteredTasks.map(task => (
                 <tr
@@ -267,6 +315,13 @@ export function TaskList({ initialProjectId }: { initialProjectId?: string }) {
                   onClick={() => setEditingTask(task)}
                   title="Clique para editar"
                 >
+                  <td className="p-4" onClick={(event) => event.stopPropagation()}>
+                    <Checkbox
+                      aria-label="Selecionar pendência"
+                      checked={selectedIds.has(task.id)}
+                      onCheckedChange={() => toggleSelect(task.id)}
+                    />
+                  </td>
                   <td className="p-4">
                     <div className="flex items-center">
                       <div className={cn(
@@ -343,6 +398,12 @@ export function TaskList({ initialProjectId }: { initialProjectId?: string }) {
         <TaskKanban 
           tasks={filteredTasks} 
           onStatusChange={(taskId, status) => updateTaskStatus.mutate({ taskId, status })}
+          onOpen={(task) => setEditingTask(task)}
+          onDelete={(task) => {
+            if (confirm(`Excluir "${task.title}"?`)) deleteTask.mutate(task.id);
+          }}
+          selectedIds={selectedIds}
+          onToggleSelect={toggleSelect}
         />
       )}
 
@@ -375,9 +436,13 @@ function FilterButton({ children, active, onClick, variant = 'default' }: any) {
 interface KanbanProps {
   tasks: Task[];
   onStatusChange: (taskId: string, status: Task['status']) => void;
+  onOpen: (task: Task) => void;
+  onDelete: (task: Task) => void;
+  selectedIds: Set<string>;
+  onToggleSelect: (taskId: string) => void;
 }
 
-function TaskKanban({ tasks, onStatusChange }: KanbanProps) {
+function TaskKanban({ tasks, onStatusChange, onOpen, onDelete, selectedIds, onToggleSelect }: KanbanProps) {
   const [activeTask, setActiveTask] = useState<Task | null>(null);
 
   const sensors = useSensors(
@@ -429,6 +494,10 @@ function TaskKanban({ tasks, onStatusChange }: KanbanProps) {
             id={col.id} 
             label={col.label} 
             tasks={tasks.filter(t => t.status === col.id)}
+            onOpen={onOpen}
+            onDelete={onDelete}
+            selectedIds={selectedIds}
+            onToggleSelect={onToggleSelect}
           />
         ))}
       </div>
