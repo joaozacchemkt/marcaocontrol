@@ -75,11 +75,17 @@ export function ProjectTimeline({ project }: ProjectTimelineProps) {
                     {format(new Date(item.created_at), "dd 'de' MMM, HH:mm", { locale: ptBR })}
                   </span>
                 </div>
-                {item.details && (
-                  <p className="text-[11px] text-muted-foreground italic">
-                    "{item.details}"
-                  </p>
-                )}
+                {(() => {
+                  const note =
+                    typeof item.details === "string"
+                      ? item.details
+                      : item.details && typeof item.details === "object"
+                        ? (item.details.note as string | undefined)
+                        : undefined;
+                  return note ? (
+                    <p className="text-[11px] text-muted-foreground italic">"{note}"</p>
+                  ) : null;
+                })()}
               </div>
             </div>
           ))}

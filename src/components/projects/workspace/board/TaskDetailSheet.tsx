@@ -19,7 +19,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Bell, BellOff, Check, Plus, Trash2 } from "lucide-react";
+import { Bell, BellOff, Check, History, Plus, Trash2 } from "lucide-react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { logActivity } from "@/lib/activity";
 import { toast } from "sonner";
 import { BOARD_COLUMNS, type BoardStatus, type BoardTask } from "./board-types";
 
@@ -45,6 +48,7 @@ export function TaskDetailSheet({ task, projectId, open, onOpenChange }: TaskDet
     contact_id: "none",
   });
   const [subtaskTitle, setSubtaskTitle] = useState("");
+  const [observation, setObservation] = useState("");
 
   useEffect(() => {
     if (!task) return;
@@ -102,6 +106,42 @@ export function TaskDetailSheet({ task, projectId, open, onOpenChange }: TaskDet
         .maybeSingle();
       return data;
     },
+  });
+
+  /** Histórico da tarefa: tudo o que aconteceu com este card, com observações. */
+  const { data: history = [] } = useQuery({
+    queryKey: ["task-history", task?.id],
+    enabled: Boolean(task?.id),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("activity_history")
+        .select("id, action, description, details, created_at")
+        .eq("entity_id", task!.id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const addObservation = useMutation({
+    mutationFn: async (note: string) => {
+      if (!task) return;
+      await logActivity({
+        projectId,
+        type: "note_created",
+        description: `Observação em "${form.title || task.title}"`,
+        entityType: "task",
+        entityId: task.id,
+        details: { note },
+      });
+    },
+    onSuccess: () => {
+      setObservation("");
+      queryClient.invalidateQueries({ queryKey: ["task-history", task?.id] });
+      queryClient.invalidateQueries({ queryKey: ["activity-history", projectId] });
+      toast.success("Observação registrada no histórico");
+    },
+    onError: (error: Error) => toast.error(error.message),
   });
 
   const save = useMutation({
@@ -230,6 +270,7 @@ export function TaskDetailSheet({ task, projectId, open, onOpenChange }: TaskDet
   const removeTask = useMutation({
     mutationFn: async () => {
       if (!task) return;
+      if (!confirm(`Excluir "${task.title}"?`)) throw new Error("cancelado");
       const { error } = await supabase.from("tasks").delete().eq("id", task.id);
       if (error) throw error;
     },
@@ -443,6 +484,70 @@ export function TaskDetailSheet({ task, projectId, open, onOpenChange }: TaskDet
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
+          </div>
+
+          <div className="space-y-2 rounded-xl border bg-accent/20 p-3">
+            <div className="flex items-center gap-2">
+              <History className="h-4 w-4 text-primary" />
+              <Label>Histórico da tarefa</Label>
+              <Badge variant="secondary" className="ml-auto text-[10px]">
+                {history.length}
+              </Badge>
+            </div>
+
+            <div className="flex gap-2">
+              <Input
+                value={observation}
+                placeholder="Adicionar observação..."
+                onChange={(e) => setObservation(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && observation.trim()) {
+                    addObservation.mutate(observation.trim());
+                  }
+                }}
+                className="h-9 text-sm"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!observation.trim() || addObservation.isPending}
+                onClick={() => addObservation.mutate(observation.trim())}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {history.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                Sem registros ainda — mudanças de status e observações aparecem aqui.
+              </p>
+            ) : (
+              <ul className="max-h-52 space-y-2 overflow-y-auto pr-1">
+                {history.map((entry) => {
+                  const note =
+                    entry.details && typeof entry.details === "object" && !Array.isArray(entry.details)
+                      ? ((entry.details as Record<string, unknown>)["note"] as string | undefined)
+                      : typeof entry.details === "string"
+                        ? entry.details
+                        : undefined;
+                  return (
+                    <li key={entry.id} className="rounded-md border bg-card px-2 py-1.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-xs font-medium">{entry.description}</p>
+                        <span className="shrink-0 text-[10px] text-muted-foreground">
+                          {format(new Date(entry.created_at as string), "dd/MM HH:mm", {
+                            locale: ptBR,
+                          })}
+                        </span>
+                      </div>
+                      {note && (
+                        <p className="mt-1 text-[11px] italic text-muted-foreground">“{note}”</p>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2 pt-2">
