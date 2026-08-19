@@ -2,7 +2,8 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { AlertCircle, Bell, CalendarDays, ListChecks, User } from "lucide-react";
+import { AlertCircle, Bell, CalendarDays, ListChecks, User, X } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { isOverdue, type BoardTask } from "./board-types";
@@ -13,6 +14,9 @@ export interface BoardCardProps {
   hasReminder?: boolean;
   isOverlay?: boolean;
   onOpen?: (task: BoardTask) => void;
+  onDelete?: (task: BoardTask) => void;
+  selected?: boolean;
+  onToggleSelect?: (task: BoardTask) => void;
 }
 
 const PRIORITY_VARIANT = {
@@ -27,6 +31,9 @@ export function BoardCard({
   hasReminder = false,
   isOverlay = false,
   onOpen,
+  onDelete,
+  selected = false,
+  onToggleSelect,
 }: BoardCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: task.id });
@@ -52,9 +59,22 @@ export function BoardCard({
       )}
     >
       <div className="flex items-start justify-between gap-2">
+        {!isOverlay && onToggleSelect && (
+          <span
+            className="pt-0.5"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <Checkbox
+              checked={selected}
+              aria-label="Selecionar card"
+              onCheckedChange={() => onToggleSelect(task)}
+            />
+          </span>
+        )}
         <p
           className={cn(
-            "text-sm font-semibold leading-snug",
+            "flex-1 text-sm font-semibold leading-snug",
             task.status === "concluido" && "text-muted-foreground line-through",
           )}
         >
@@ -63,6 +83,21 @@ export function BoardCard({
         <div className="flex shrink-0 items-center gap-1">
           {hasReminder && <Bell className="h-3.5 w-3.5 text-primary" />}
           {overdue && <AlertCircle className="h-3.5 w-3.5 text-destructive" />}
+          {!isOverlay && onDelete && (
+            <button
+              type="button"
+              aria-label="Excluir card"
+              title="Excluir card"
+              className="rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                onDelete(task);
+              }}
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
