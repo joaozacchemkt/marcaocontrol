@@ -9,9 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/auth")({
-  // A tela de acesso depende da sessão guardada no navegador; sem SSR não há
-  // divergência entre o HTML do servidor e o da hidratação.
-  ssr: false,
+  // O markup da tela é determinístico (a sessão só é lida em useEffect), então
+  // manter o SSR evita o mismatch de hidratação quando uma rota protegida
+  // redireciona para cá.
+
   head: () => ({
     meta: [
       { title: "Acesso | Marcão Control" },
