@@ -517,7 +517,7 @@ function TaskKanban({ tasks, onStatusChange, onOpen, onDelete, selectedIds, onTo
   );
 }
 
-function KanbanColumn({ id, label, tasks }: { id: string, label: string, tasks: Task[] }) {
+function KanbanColumn({ id, label, tasks, onOpen, onDelete, selectedIds, onToggleSelect }: { id: string, label: string, onOpen: (task: Task) => void, onDelete: (task: Task) => void, selectedIds: Set<string>, onToggleSelect: (taskId: string) => void, tasks: Task[] }) {
   return (
     <div className="flex-1 min-w-[300px] flex flex-col gap-4 bg-accent/20 rounded-2xl p-4 border border-border/50">
       <div className="flex items-center justify-between px-2">
@@ -536,7 +536,14 @@ function KanbanColumn({ id, label, tasks }: { id: string, label: string, tasks: 
       >
         <div className="flex-1 flex flex-col gap-3 min-h-[150px]">
           {tasks.map(task => (
-            <KanbanCard key={task.id} task={task} />
+            <KanbanCard
+              key={task.id}
+              task={task}
+              onOpen={onOpen}
+              onDelete={onDelete}
+              selected={selectedIds.has(task.id)}
+              onToggleSelect={onToggleSelect}
+            />
           ))}
           {tasks.length === 0 && (
             <div className="h-24 rounded-xl border border-dashed border-muted-foreground/20 flex items-center justify-center text-xs text-muted-foreground">
@@ -549,7 +556,21 @@ function KanbanColumn({ id, label, tasks }: { id: string, label: string, tasks: 
   );
 }
 
-function KanbanCard({ task, isOverlay = false }: { task: Task, isOverlay?: boolean }) {
+function KanbanCard({
+  task,
+  isOverlay = false,
+  onOpen,
+  onDelete,
+  selected = false,
+  onToggleSelect,
+}: {
+  task: Task;
+  isOverlay?: boolean;
+  onOpen?: (task: Task) => void;
+  onDelete?: (task: Task) => void;
+  selected?: boolean;
+  onToggleSelect?: (taskId: string) => void;
+}) {
   const {
     attributes,
     listeners,
@@ -573,6 +594,7 @@ function KanbanCard({ task, isOverlay = false }: { task: Task, isOverlay?: boole
       style={style} 
       {...attributes} 
       {...listeners}
+      onClick={() => onOpen?.(task)}
       className={cn(
         "bg-card p-4 rounded-xl border shadow-sm transition-all cursor-grab active:cursor-grabbing group select-none",
         isOverlay && "shadow-xl border-primary ring-2 ring-primary/20 cursor-grabbing",
@@ -589,7 +611,36 @@ function KanbanCard({ task, isOverlay = false }: { task: Task, isOverlay?: boole
             )}>
               {task.title}
             </h4>
-            {isOverdue && <AlertCircle className="h-4 w-4 text-destructive shrink-0" />}
+            <div className="flex shrink-0 items-center gap-1">
+              {isOverdue && <AlertCircle className="h-4 w-4 text-destructive" />}
+              {!isOverlay && onToggleSelect && (
+                <span
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <Checkbox
+                    aria-label="Selecionar tarefa"
+                    checked={selected}
+                    onCheckedChange={() => onToggleSelect(task.id)}
+                  />
+                </span>
+              )}
+              {!isOverlay && onDelete && (
+                <button
+                  type="button"
+                  aria-label="Excluir tarefa"
+                  title="Excluir tarefa"
+                  className="rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onDelete(task);
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           </div>
           
           {task.projects?.name && (
