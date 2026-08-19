@@ -16,6 +16,9 @@ export interface BoardColumnProps {
   reminders: Set<string>;
   onOpen: (task: BoardTask) => void;
   onQuickAdd: (title: string, status: BoardStatus) => void;
+  onDelete: (task: BoardTask) => void;
+  selectedIds: Set<string>;
+  onToggleSelect: (task: BoardTask) => void;
 }
 
 export function BoardColumn({
@@ -26,6 +29,9 @@ export function BoardColumn({
   reminders,
   onOpen,
   onQuickAdd,
+  onDelete,
+  selectedIds,
+  onToggleSelect,
 }: BoardColumnProps) {
   const { setNodeRef } = useDroppable({ id });
   const [adding, setAdding] = useState(false);
@@ -64,6 +70,9 @@ export function BoardColumn({
               subtaskCount={subtaskCounts[task.id] ?? 0}
               hasReminder={reminders.has(task.id)}
               onOpen={onOpen}
+              onDelete={onDelete}
+              selected={selectedIds.has(task.id)}
+              onToggleSelect={onToggleSelect}
             />
           ))}
           {tasks.length === 0 && (

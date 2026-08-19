@@ -13,7 +13,7 @@ import {
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { endOfWeek, isToday, startOfWeek } from "date-fns";
-import { CheckCircle2, Plus } from "lucide-react";
+import { CheckCircle2, Plus, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -41,6 +41,7 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
   const [activeTask, setActiveTask] = useState<BoardTask | null>(null);
   const [selected, setSelected] = useState<BoardTask | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const queryKey = ["board-tasks", projectId];
 
@@ -126,6 +127,29 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
     onSuccess: invalidate,
     onError: (error: Error) => toast.error(error.message),
   });
+
+  /** Exclusão de cards: individual (X) ou em massa (seleção). */
+  const deleteTasks = useMutation({
+    mutationFn: async (ids: string[]) => {
+      if (ids.length === 0) return;
+      const { error } = await supabase.from("tasks").delete().in("id", ids);
+      if (error) throw error;
+    },
+    onSuccess: (_data, ids) => {
+      setSelectedIds(new Set());
+      toast.success(ids.length > 1 ? `${ids.length} cards excluídos` : "Card excluído");
+      invalidate();
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const toggleSelect = (task: BoardTask) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(task.id)) next.delete(task.id);
+      else next.add(task.id);
+      return next;
+    });
 
   const parents = useMemo(() => allTasks.filter((t) => !t.parent_task_id), [allTasks]);
 
@@ -219,9 +243,28 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
             Arraste os cards entre as colunas — o status é salvo na hora.
           </p>
         </div>
-        <Button size="sm" onClick={() => createTask.mutate({ title: "Nova tarefa", status: "a_fazer" })}>
-          <Plus className="mr-2 h-4 w-4" /> Nova tarefa
-        </Button>
+        <div className="flex items-center gap-2">
+          {selectedIds.size > 0 && (
+            <>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => {
+                  if (confirm(`Excluir ${selectedIds.size} card(s) selecionado(s)?`))
+                    deleteTasks.mutate([...selectedIds]);
+                }}
+              >
+                <Trash2 className="mr-2 h-4 w-4" /> Excluir {selectedIds.size}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>
+                Limpar seleção
+              </Button>
+            </>
+          )}
+          <Button size="sm" onClick={() => createTask.mutate({ title: "Nova tarefa", status: "a_fazer" })}>
+            <Plus className="mr-2 h-4 w-4" /> Nova tarefa
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -261,15 +304,19 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
         ) : (
           <ul className="space-y-1">
             {doneToday.map((task) => (
-              <li
-                key={task.id}
-                className="flex items-center gap-2 text-sm text-muted-foreground"
-              >
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
-                <span className="truncate text-foreground">{task.title}</span>
-                {task.responsible && (
-                  <span className="shrink-0 text-xs">· {task.responsible}</span>
-                )}
+              <li key={task.id}>
+                <button
+                  type="button"
+                  onClick={() => openTask(task)}
+                  title="Ver histórico e observações"
+                  className="flex w-full items-center gap-2 rounded-md px-1 py-1 text-left text-sm text-muted-foreground transition-colors hover:bg-accent/50"
+                >
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
+                  <span className="truncate text-foreground">{task.title}</span>
+                  {task.responsible && (
+                    <span className="shrink-0 text-xs">· {task.responsible}</span>
+                  )}
+                </button>
               </li>
             ))}
           </ul>
@@ -296,6 +343,11 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
                 reminders={reminders}
                 onOpen={openTask}
                 onQuickAdd={(title, status) => createTask.mutate({ title, status })}
+                onDelete={(task) => {
+                  if (confirm(`Excluir "${task.title}"?`)) deleteTasks.mutate([task.id]);
+                }}
+                selectedIds={selectedIds}
+                onToggleSelect={toggleSelect}
               />
             ))}
           </div>
