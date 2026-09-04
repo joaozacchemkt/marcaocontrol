@@ -47,11 +47,12 @@ export function EstudarAgora({ projectId }: EstudarAgoraProps) {
 
   const sortedItems = [
     ...exams.filter(e => e.status !== 'corrigida').map(e => {
-      const date = parseLocalDate(e.date)!;
+      const date = parseLocalDate(e.date);
+      if (!date) return null;
       const isOverdue = isPast(date) && !isToday(date);
       const diff = differenceInDays(date, new Date());
       const isSoon = !isOverdue && diff <= 3;
-      
+
       return {
         id: e.id,
         title: e.title,

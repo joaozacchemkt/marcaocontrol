@@ -25,6 +25,7 @@ import {
   MonitorSmartphone,
   LayoutGrid,
   Kanban,
+  Layers,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -46,8 +47,7 @@ import {
   visibleTabs,
   type TabKey,
 } from "@/lib/workspace-tabs";
-import { ModuleBoard } from "./workspace/common/ModuleBoard";
-import { isModuleKey } from "@/lib/workspace-modules";
+import { ModulesHub } from "./workspace/common/ModulesHub";
 import { ProjectBoard } from "./workspace/board/ProjectBoard";
 
 // Template Faculdade
@@ -58,6 +58,7 @@ import { PainelOab } from "./workspace/oab/PainelOab";
 const TAB_ICONS: Partial<Record<TabKey, React.ComponentType<{ className?: string }>>> = {
   overview: LayoutDashboard,
   board: Kanban,
+  modules: Layers,
   faculdade: GraduationCap,
   painel_oab: Scale,
   tasks: CheckSquare,
@@ -128,14 +129,14 @@ export function ProjectDetail() {
       "finance",
       "timeline",
     ];
-    const modules = MODULE_TABS_BY_TYPE[projectType] ?? [];
+    const hasModules = (MODULE_TABS_BY_TYPE[projectType] ?? []).length > 0;
     const withTemplate: TabKey[] =
       projectType === "faculdade"
         ? [...base, "faculdade"]
         : projectType === "oab"
           ? [...base, "painel_oab"]
           : base;
-    return [...withTemplate, ...modules];
+    return hasModules ? [...withTemplate, "modules"] : withTemplate;
   }, [projectType]);
 
   const tabConfig = useMemo(
@@ -272,17 +273,9 @@ export function ProjectDetail() {
           <ProjectTimeline project={project} />
         </TabsContent>
 
-        {tabs
-          .filter((tab) => isModuleKey(tab.key))
-          .map((tab) => (
-            <TabsContent
-              key={tab.key}
-              value={tab.key}
-              className="mt-0 focus-visible:outline-none"
-            >
-              <ModuleBoard projectId={projectId} moduleKey={tab.key} />
-            </TabsContent>
-          ))}
+        <TabsContent value="modules" className="mt-0 focus-visible:outline-none">
+          <ModulesHub projectId={projectId} projectType={projectType} />
+        </TabsContent>
 
         {projectType === "oab" && (
           <TabsContent value="painel_oab" className="mt-0 focus-visible:outline-none">

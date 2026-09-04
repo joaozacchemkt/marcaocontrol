@@ -11,6 +11,7 @@ import { MODULES } from "./workspace-modules";
 export type TabKey =
   | "overview"
   | "board"
+  | "modules"
   | "faculdade"
   | "tasks"
   | "calendar"
@@ -19,6 +20,9 @@ export type TabKey =
   | "team"
   | "finance"
   | "timeline"
+  // Chaves de módulo individuais — não usadas mais como abas próprias (ver
+  // "modules" acima, que as reúne em uma só); mantidas no tipo só para não
+  // quebrar quem ainda referencia esses valores (ex.: workspace-modules.ts).
   // Módulos específicos (Fase 2) — ver src/lib/workspace-modules.ts
   | "mercado"
   | "personas"
@@ -103,6 +107,7 @@ export interface TabDefinition {
 export const ALL_TABS: TabDefinition[] = [
   { key: "overview", label: "Visão Geral", locked: true },
   { key: "board", label: "Quadro" },
+  { key: "modules", label: "Módulos" },
   { key: "faculdade", label: "Faculdade" },
   { key: "painel_oab", label: "Painel OAB" },
   { key: "tasks", label: "Pendências" },
@@ -123,58 +128,54 @@ export interface TabConfig {
   hidden: TabKey[];
 }
 
-/** Abas padrão por tipo de projeto. */
+/**
+ * Abas padrão por tipo de projeto. Cada tipo tinha uma aba própria por
+ * módulo (até 20 no caso de "oab") — todas viraram uma única aba
+ * "modules", que reúne os mesmos módulos como filtro (ver ModulesHub.tsx).
+ * Nenhum módulo foi removido de MODULE_TABS_BY_TYPE: só pararam de virar
+ * abas separadas.
+ */
 const DEFAULT_BY_TYPE: Record<string, TabKey[]> = {
   faculdade: [
-    "overview", "board", "faculdade", "biblioteca", "ferramentas_ia", "tasks",
+    "overview", "board", "faculdade", "modules", "tasks",
     "calendar", "notes", "files", "timeline",
   ],
   oab: [
-    "overview", "board", "painel_oab", "plano_estudos", "disciplinas", "questoes",
-    "caderno_erros", "simulados", "revisoes", "lei_seca", "tecnicas",
-    "caligrafia", "desempenho", "coach", "rotina", "tasks", "calendar", "notes",
+    "overview", "board", "painel_oab", "modules", "tasks", "calendar", "notes",
     "files", "timeline",
   ],
   domestico: [
-    "overview", "board", "casa_rotinas", "casa_manutencao", "casa_compras",
-    "profissionais", "tasks", "calendar", "finance", "files", "team", "timeline",
+    "overview", "board", "modules", "tasks", "calendar", "finance", "files",
+    "team", "timeline",
   ],
   financeiro_pessoal: [
-    "overview", "board", "orcamento_pessoal", "metas_financeiras", "assinaturas",
-    "historico_financeiro", "finance", "tasks", "notes", "files", "timeline",
+    "overview", "board", "modules", "finance", "tasks", "notes", "files", "timeline",
   ],
   perfil_imobiliario: [
-    "overview", "board", "posicionamento", "mercado", "personas", "conteudo",
-    "calendario_editorial", "temas", "referencias", "parceiros", "jornada",
-    "cases", "tasks", "calendar", "team", "notes", "files", "timeline",
+    "overview", "board", "modules", "tasks", "calendar", "team", "notes",
+    "files", "timeline",
   ],
   reformas: [
-    "overview", "board", "obras", "leads", "clientes", "orcamentos", "pipeline",
-    "profissionais", "fornecedores", "antes_depois", "tasks", "team",
+    "overview", "board", "modules", "tasks", "team",
     "finance", "calendar", "files", "notes", "timeline",
   ],
   obra: [
-    "overview", "board", "cronograma", "etapas", "profissionais", "pagamentos",
-    "materiais", "compras", "orcamentos", "medicoes", "fotos", "tasks",
+    "overview", "board", "modules", "tasks",
     "team", "finance", "calendar", "files", "timeline",
   ],
   investimento_imovel: [
-    "overview", "board", "aquisicao", "leilao", "legalizacao", "roi", "venda",
-    "fotos", "videos", "planilhas", "cases", "finance", "tasks", "files", "timeline",
+    "overview", "board", "modules", "finance", "tasks", "files", "timeline",
   ],
   produto_digital: [
-    "overview", "board", "objetivos", "roadmap", "backlog", "requisitos",
-    "telas", "integracoes", "apis", "bugs", "decisoes", "tasks", "calendar",
+    "overview", "board", "modules", "tasks", "calendar",
     "notes", "files", "team", "timeline",
   ],
   consultoria: [
-    "overview", "board", "frentes", "plano_acao", "reunioes", "decisoes",
-    "projetos_pontual", "indicadores", "crm_externo", "integracoes", "tasks",
+    "overview", "board", "modules", "tasks",
     "calendar", "team", "finance", "notes", "files", "timeline",
   ],
   novo_negocio: [
-    "overview", "board", "objetivos", "frentes", "plano_acao", "reunioes", "decisoes",
-    "indicadores", "pipeline", "tasks", "calendar", "team", "finance", "notes",
+    "overview", "board", "modules", "tasks", "calendar", "team", "finance", "notes",
     "files", "timeline",
   ],
 };
@@ -221,9 +222,14 @@ export const MODULE_TABS_BY_TYPE: Record<string, TabKey[]> = {
   ],
 };
 
+// Usado quando o tipo de projeto não tem entrada própria em DEFAULT_BY_TYPE
+// (hoje: "generico", "pessoal", "imovel", "perfil_publico"). "generico" e
+// "pessoal" têm módulos em MODULE_TABS_BY_TYPE — sem "modules" aqui, a aba
+// fica disponível mas escondida por padrão e o usuário nunca a vê sozinho.
 const GENERIC_TABS: TabKey[] = [
   "overview",
   "board",
+  "modules",
   "tasks",
   "calendar",
   "notes",
