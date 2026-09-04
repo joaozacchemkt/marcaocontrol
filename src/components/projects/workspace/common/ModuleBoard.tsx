@@ -51,7 +51,11 @@ export function ModuleBoard({ projectId, moduleKey }: ModuleBoardProps) {
     },
   });
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey });
+  // Invalida pelo prefixo ["workspace-items", projectId], não pela chave
+  // exata: isso também pega a query de contagem por módulo do ModulesHub
+  // (["workspace-items", projectId, "counts", ...]), senão o badge de
+  // contagem fica desatualizado até a aba ser desmontada/remontada.
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["workspace-items", projectId] });
 
   const save = useMutation({
     mutationFn: async (values: Partial<WorkspaceItem>) => {

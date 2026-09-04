@@ -29,8 +29,11 @@ export function ModulesHub({ projectId, projectType }: ModulesHubProps) {
   const activeKey = (moduleKeys as string[]).includes(active) ? active : (moduleKeys[0] ?? "");
 
   // Contagem por módulo, pra ver de longe onde tem algo pendente sem abrir um por um.
+  // Fica sob o mesmo prefixo ["workspace-items", projectId] que ModuleBoard usa
+  // pra invalidar — assim salvar/mover/excluir um item atualiza o badge na hora,
+  // sem precisar sair da aba e voltar.
   const { data: counts = {} } = useQuery({
-    queryKey: ["workspace-items-counts", projectId, moduleKeys.join(",")],
+    queryKey: ["workspace-items", projectId, "counts", moduleKeys.join(",")],
     enabled: moduleKeys.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase

@@ -21,14 +21,25 @@
  *
  * NÃO use para instantes reais que carregam hora (events.start_time /
  * end_time, created_at, updated_at) — esses continuam com `new Date()`.
+ *
+ * Só devolve `null` para entrada vazia/nula. Uma string não vazia mas mal
+ * formada (dado corrompido — não deveria acontecer, já que todo campo aqui
+ * vem de um `<input type="date">` ou de uma coluna DATE/TIMESTAMPTZ do
+ * Postgres, nunca de texto livre) vira um `Date` inválido, não `null`. É
+ * proposital: a maioria dos call sites confia na sobrecarga `(value:
+ * string) => Date` sem checar nulo, e o date-fns trata `null` como a
+ * "época" (1970) — ou seja, sempre no passado — o que faria um dado ruim
+ * aparecer como "sempre atrasado" silenciosamente. Um Date inválido, em
+ * vez disso, faz isPast/isToday devolverem `false` (nem passado, nem
+ * hoje) — o mesmo comportamento seguro que `new Date(string-ruim)` já
+ * tinha antes deste util existir.
  */
 export function parseLocalDate(value: string): Date;
 export function parseLocalDate(value: string | null | undefined): Date | null;
 export function parseLocalDate(value: string | null | undefined): Date | null {
   if (!value) return null;
   const ymd = value.slice(0, 10);
-  const date = new Date(`${ymd}T00:00:00`);
-  return Number.isNaN(date.getTime()) ? null : date;
+  return new Date(`${ymd}T00:00:00`);
 }
 
 /**
