@@ -1,5 +1,7 @@
 /** Tipos e helpers do Quadro (Kanban) de projeto. */
 
+import { parseLocalDate } from "@/lib/dates";
+
 export type BoardStatus =
   | "nao_esquecer"
   | "a_fazer"
@@ -44,8 +46,8 @@ export const STATUS_LABELS: Record<BoardStatus, string> = {
 /** Atraso é sempre derivado: prazo passado + tarefa não concluída. */
 export function isOverdue(task: Pick<BoardTask, "deadline" | "status">): boolean {
   if (!task.deadline || task.status === "concluido") return false;
-  const deadline = new Date(task.deadline);
-  if (Number.isNaN(deadline.getTime())) return false;
+  const deadline = parseLocalDate(task.deadline);
+  if (!deadline) return false;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return deadline < today;

@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { parseLocalDate } from "@/lib/dates";
 import { 
   Target, 
   Calendar, 
@@ -59,10 +60,10 @@ export function ProjectOverview({ project }: ProjectOverviewProps) {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {project.deadline ? format(new Date(project.deadline), "dd MMM, yyyy", { locale: ptBR }) : "Não definido"}
+                {project.deadline ? format(parseLocalDate(project.deadline)!, "dd MMM, yyyy", { locale: ptBR }) : "Não definido"}
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                {project.start_date ? `Iniciado em ${format(new Date(project.start_date), "dd/MM/yy")}` : "Início pendente"}
+                {project.start_date ? `Iniciado em ${format(parseLocalDate(project.start_date)!, "dd/MM/yy")}` : "Início pendente"}
               </p>
             </CardContent>
           </Card>

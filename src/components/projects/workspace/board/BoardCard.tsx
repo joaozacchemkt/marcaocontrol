@@ -6,6 +6,7 @@ import { AlertCircle, Bell, CalendarDays, ListChecks, User, X } from "lucide-rea
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { parseLocalDate } from "@/lib/dates";
 import { isOverdue, type BoardTask } from "./board-types";
 
 export interface BoardCardProps {
@@ -123,7 +124,7 @@ export function BoardCard({
             )}
           >
             <CalendarDays className="h-3 w-3" />
-            {format(new Date(task.deadline), "dd MMM", { locale: ptBR })}
+            {format(parseLocalDate(task.deadline)!, "dd MMM", { locale: ptBR })}
           </span>
         )}
         {task.responsible && (

@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import { parseLocalDate } from "@/lib/dates";
 import { EstudarAgora } from "@/components/projects/workspace/faculdade/EstudarAgora";
 
 export const Route = createFileRoute("/_authenticated/")({
@@ -128,8 +129,8 @@ function Dashboard() {
     }))
   ] as any[])
     .sort((a, b) => {
-      const isOverdueA = a.deadline && isPast(new Date(a.deadline)) && !isToday(new Date(a.deadline)) ? 1 : 0;
-      const isOverdueB = b.deadline && isPast(new Date(b.deadline)) && !isToday(new Date(b.deadline)) ? 1 : 0;
+      const isOverdueA = a.deadline && isPast(parseLocalDate(a.deadline)) && !isToday(parseLocalDate(a.deadline)) ? 1 : 0;
+      const isOverdueB = b.deadline && isPast(parseLocalDate(b.deadline)) && !isToday(parseLocalDate(b.deadline)) ? 1 : 0;
       if (isOverdueA !== isOverdueB) return isOverdueB - isOverdueA;
       
       const priorityWeight = { alta: 3, media: 2, baixa: 1 };
@@ -138,7 +139,7 @@ function Dashboard() {
       
       if (weightA !== weightB) return weightB - weightA;
       
-      if (a.deadline && b.deadline) return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+      if (a.deadline && b.deadline) return parseLocalDate(a.deadline)!.getTime() - parseLocalDate(b.deadline)!.getTime();
       if (a.deadline) return -1;
       if (b.deadline) return 1;
       return 0;
@@ -152,7 +153,7 @@ function Dashboard() {
   const projectsNeedingAttention = projects
     .filter(p => p.status !== 'concluido')
     .filter(p => {
-      const hasOverdueTasks = p.tasks?.some((t: any) => t.deadline && isPast(new Date(t.deadline)) && !isToday(new Date(t.deadline)) && t.status !== 'concluido');
+      const hasOverdueTasks = p.tasks?.some((t: any) => t.deadline && isPast(parseLocalDate(t.deadline)) && !isToday(parseLocalDate(t.deadline)) && t.status !== 'concluido');
       const deadlineSoon = p.deadline && differenceInDays(new Date(p.deadline), new Date()) < 7;
       return hasOverdueTasks || deadlineSoon;
     })
@@ -211,7 +212,7 @@ function Dashboard() {
               <PriorityItem 
                 key={task.id}
                 title={task.title} 
-                time={task.deadline ? format(new Date(task.deadline), "dd/MM") : "S/D"} 
+                time={task.deadline ? format(parseLocalDate(task.deadline)!, "dd/MM") : "S/D"}
                 project={task.projects?.name || "Geral"} 
                 priority={task.priority}
               />

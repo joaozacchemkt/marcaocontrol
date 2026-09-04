@@ -38,6 +38,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, startOfMonth, endOfMonth, subMonths, addMonths, isSameMonth, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { parseLocalDate } from "@/lib/dates";
 import { TransactionModal } from "@/components/modals/TransactionModal";
 import { DatePickerWithRange } from "../ui/date-range-picker";
 import { DateRange } from "react-day-picker";
@@ -309,7 +310,7 @@ export function FinanceiroView() {
                       ) : <span className="text-muted-foreground/30">—</span>}
                     </td>
                     <td className="p-4 text-muted-foreground font-medium">
-                      {format(new Date(transaction.date), "dd/MM/yyyy")}
+                      {format(parseLocalDate(transaction.date)!, "dd/MM/yyyy")}
                     </td>
                     <td className={cn(
                       "p-4 text-right font-black text-base",

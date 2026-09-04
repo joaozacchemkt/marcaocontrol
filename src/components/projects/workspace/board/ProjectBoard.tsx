@@ -18,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activity";
+import { parseLocalDate } from "@/lib/dates";
 import { BoardCard } from "./BoardCard";
 import { BoardColumn } from "./BoardColumn";
 import { TaskDetailSheet } from "./TaskDetailSheet";
@@ -168,7 +169,7 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
   const visible = useMemo(() => {
     const now = new Date();
     return parents.filter((task) => {
-      const deadline = task.deadline ? new Date(task.deadline) : null;
+      const deadline = parseLocalDate(task.deadline);
       switch (filter) {
         case "hoje":
           return deadline ? isToday(deadline) : false;

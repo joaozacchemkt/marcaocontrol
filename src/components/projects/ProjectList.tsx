@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { parseLocalDate } from "@/lib/dates";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Link } from "@tanstack/react-router";
@@ -227,7 +228,7 @@ export function ProjectList() {
                     <div>
                       <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Prazo</p>
                       <p className="text-sm font-semibold">
-                        {project.deadline ? format(new Date(project.deadline), "dd/MM/yyyy") : "Sem prazo"}
+                        {project.deadline ? format(parseLocalDate(project.deadline)!, "dd/MM/yyyy") : "Sem prazo"}
                       </p>
                     </div>
                     <div>

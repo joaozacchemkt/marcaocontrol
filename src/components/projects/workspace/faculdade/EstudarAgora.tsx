@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, isPast, isToday, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { parseLocalDate } from "@/lib/dates";
 import { Target, GraduationCap } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -46,7 +47,7 @@ export function EstudarAgora({ projectId }: EstudarAgoraProps) {
 
   const sortedItems = [
     ...exams.filter(e => e.status !== 'corrigida').map(e => {
-      const date = new Date(e.date);
+      const date = parseLocalDate(e.date)!;
       const isOverdue = isPast(date) && !isToday(date);
       const diff = differenceInDays(date, new Date());
       const isSoon = !isOverdue && diff <= 3;
@@ -65,7 +66,7 @@ export function EstudarAgora({ projectId }: EstudarAgoraProps) {
     }),
     ...assignments.filter(a => a.status !== 'corrigido').map(a => {
       if (!a.deadline) return null;
-      const date = new Date(a.deadline);
+      const date = parseLocalDate(a.deadline)!;
       const isOverdue = isPast(date) && !isToday(date);
       const diff = differenceInDays(date, new Date());
       const isSoon = !isOverdue && diff <= 3;
@@ -87,7 +88,7 @@ export function EstudarAgora({ projectId }: EstudarAgoraProps) {
   const prioritized = sortedItems
     .sort((a, b) => {
       if (a.priority !== b.priority) return a.priority - b.priority;
-      return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+      return parseLocalDate(a.deadline)!.getTime() - parseLocalDate(b.deadline)!.getTime();
     })
     .slice(0, 5);
 
@@ -119,7 +120,7 @@ export function EstudarAgora({ projectId }: EstudarAgoraProps) {
             <div className="flex items-center gap-2">
                <div className="text-right mr-3 hidden md:block">
                   <p className="text-[10px] font-black uppercase tracking-tighter text-muted-foreground">Prazo</p>
-                  <p className="text-xs font-bold">{format(new Date(item.deadline), "dd/MM")}</p>
+                  <p className="text-xs font-bold">{format(parseLocalDate(item.deadline)!, "dd/MM")}</p>
                </div>
                {item.projectId ? (
                  <Button asChild size="sm" variant="outline" className="h-8 text-xs px-3">

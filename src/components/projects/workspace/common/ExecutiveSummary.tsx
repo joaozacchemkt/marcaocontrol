@@ -4,6 +4,7 @@ import { AlertTriangle, ArrowRight, Clock, ListTodo } from "lucide-react";
 import { format, isPast, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { parseLocalDate } from "@/lib/dates";
 
 interface TaskLike {
   id: string;
@@ -29,7 +30,7 @@ export function ExecutiveSummary({ project }: ExecutiveSummaryProps) {
   const open = tasks.filter((t) => t.status !== "concluido");
 
   const overdue = open.filter(
-    (t) => t.deadline && isPast(new Date(t.deadline)) && !isToday(new Date(t.deadline)),
+    (t) => t.deadline && isPast(parseLocalDate(t.deadline)) && !isToday(parseLocalDate(t.deadline)),
   );
 
   const waiting = open.filter((t) => t.status === "aguardando_terceiro");
@@ -37,7 +38,7 @@ export function ExecutiveSummary({ project }: ExecutiveSummaryProps) {
   const nextTask = [...open]
     .filter((t) => t.deadline)
     .sort(
-      (a, b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime(),
+      (a, b) => parseLocalDate(a.deadline!)!.getTime() - parseLocalDate(b.deadline!)!.getTime(),
     )[0];
 
   const nextAction = project.next_action?.trim() || nextTask?.title || null;
@@ -50,7 +51,7 @@ export function ExecutiveSummary({ project }: ExecutiveSummaryProps) {
         value={nextAction ?? "Nada definido"}
         hint={
           nextTask?.deadline
-            ? format(new Date(nextTask.deadline), "dd MMM", { locale: ptBR })
+            ? format(parseLocalDate(nextTask.deadline)!, "dd MMM", { locale: ptBR })
             : undefined
         }
       />

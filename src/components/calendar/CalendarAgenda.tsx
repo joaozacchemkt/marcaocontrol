@@ -15,6 +15,7 @@ import { isSameDay, parseISO, startOfMonth } from "date-fns";
 import { Loader2, Settings2, PanelRightOpen } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
+import { parseLocalDate } from "@/lib/dates";
 
 const LAYOUT_KEY = "agenda:panel-layout";
 const DENSITY_KEY = "agenda:density";
@@ -153,25 +154,25 @@ export function CalendarAgenda() {
   const isLoading = tasksLoading || eventsLoading;
 
   const selectedDateTasks =
-    tasks?.filter((task) => task.deadline && isSameDay(parseISO(task.deadline), date || new Date())) || [];
-  
-  const selectedDateExams = 
-    academicExams?.filter((exam) => exam.date && isSameDay(parseISO(exam.date), date || new Date())) || [];
-    
-  const selectedDateAssignments = 
-    academicAssignments?.filter((a) => a.deadline && isSameDay(parseISO(a.deadline), date || new Date())) || [];
+    tasks?.filter((task) => task.deadline && isSameDay(parseLocalDate(task.deadline)!, date || new Date())) || [];
+
+  const selectedDateExams =
+    academicExams?.filter((exam) => exam.date && isSameDay(parseLocalDate(exam.date)!, date || new Date())) || [];
+
+  const selectedDateAssignments =
+    academicAssignments?.filter((a) => a.deadline && isSameDay(parseLocalDate(a.deadline)!, date || new Date())) || [];
 
   const selectedDateEvents =
     events?.filter((event) => isSameDay(parseISO(event.start_time), date || new Date())) || [];
   const selectedDateFinances =
-    finances?.filter((t) => t.due_date && isSameDay(parseISO(t.due_date), date || new Date())) || [];
+    finances?.filter((t) => t.due_date && isSameDay(parseLocalDate(t.due_date)!, date || new Date())) || [];
 
   const getCounts = (day: Date): DayCounts => ({
     events: events?.filter((e) => isSameDay(parseISO(e.start_time), day)).length || 0,
-    tasks: (tasks?.filter((t) => t.deadline && isSameDay(parseISO(t.deadline), day)).length || 0) +
-           (academicExams?.filter((e) => e.date && isSameDay(parseISO(e.date), day)).length || 0) +
-           (academicAssignments?.filter((a) => a.deadline && isSameDay(parseISO(a.deadline), day)).length || 0),
-    finances: finances?.filter((t) => t.due_date && isSameDay(parseISO(t.due_date), day)).length || 0,
+    tasks: (tasks?.filter((t) => t.deadline && isSameDay(parseLocalDate(t.deadline)!, day)).length || 0) +
+           (academicExams?.filter((e) => e.date && isSameDay(parseLocalDate(e.date)!, day)).length || 0) +
+           (academicAssignments?.filter((a) => a.deadline && isSameDay(parseLocalDate(a.deadline)!, day)).length || 0),
+    finances: finances?.filter((t) => t.due_date && isSameDay(parseLocalDate(t.due_date)!, day)).length || 0,
   });
 
   const settings = (

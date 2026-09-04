@@ -80,25 +80,35 @@ export function RecurringTasks() {
       const projectId = form.project_id !== "none" ? form.project_id : null;
       const interval = Math.max(1, Number.parseInt(form.interval_count, 10) || 1);
 
-      const { error } = await supabase.from("task_recurrences" as never).insert({
-        user_id: user.id,
-        project_id: projectId,
-        title: form.title.trim(),
-        frequency: form.frequency,
-        interval_count: interval,
-        start_date: form.start_date,
-        end_date: form.end_date || null,
-        next_run: form.start_date,
-      } as never);
+      const { data: created, error } = await supabase
+        .from("task_recurrences" as never)
+        .insert({
+          user_id: user.id,
+          project_id: projectId,
+          title: form.title.trim(),
+          frequency: form.frequency,
+          interval_count: interval,
+          start_date: form.start_date,
+          end_date: form.end_date || null,
+          next_run: form.start_date,
+        } as never)
+        .select()
+        .single();
       if (error) throw error;
+      const recurrenceId = (created as { id: string } | null)?.id;
+      if (!recurrenceId) throw new Error("Falha ao criar a recorrência.");
 
       // Primeira ocorrência já entra como tarefa normal do sistema global.
+      // Precisa do recurrence_id: é o que faz a próxima ocorrência ser
+      // gerada quando esta for concluída (ver advanceRecurrence em
+      // src/lib/recurrence.ts). Sem ele, a recorrência para na primeira.
       const { error: taskError } = await supabase.from("tasks").insert({
         user_id: user.id,
         project_id: projectId,
         title: form.title.trim(),
         deadline: new Date(`${form.start_date}T12:00:00`).toISOString(),
         status: "a_fazer",
+        recurrence_id: recurrenceId,
       } as never);
       if (taskError) throw taskError;
     },

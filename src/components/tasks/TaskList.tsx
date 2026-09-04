@@ -49,6 +49,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { TaskModal } from "../modals/TaskModal";
 import { logActivity } from "@/lib/activity";
 import { advanceRecurrence } from "@/lib/recurrence";
+import { parseLocalDate } from "@/lib/dates";
 
 // Tipagem baseada no banco
 type Task = {
@@ -185,20 +186,20 @@ export function TaskList({ initialProjectId }: { initialProjectId?: string }) {
     // Filtro de Data Personalizado
     if (dateRange?.from) {
       if (!task.deadline) return false;
-      const taskDate = new Date(task.deadline);
+      const taskDate = parseLocalDate(task.deadline);
       const start = startOfDay(dateRange.from);
       const end = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
       if (!isWithinInterval(taskDate, { start, end })) return false;
     }
 
     if (filter === 'atrasadas') {
-      return matchesSearch && task.deadline && isPast(new Date(task.deadline)) && !isToday(new Date(task.deadline)) && task.status !== 'concluido';
+      return matchesSearch && task.deadline && isPast(parseLocalDate(task.deadline)) && !isToday(parseLocalDate(task.deadline)) && task.status !== 'concluido';
     }
     if (filter === 'hoje') {
-      return matchesSearch && task.deadline && isToday(new Date(task.deadline));
+      return matchesSearch && task.deadline && isToday(parseLocalDate(task.deadline));
     }
     if (filter === 'esta_semana') {
-      return matchesSearch && task.deadline && isThisWeek(new Date(task.deadline));
+      return matchesSearch && task.deadline && isThisWeek(parseLocalDate(task.deadline));
     }
     if (filter === 'alta_prioridade') {
       return matchesSearch && task.priority === 'alta';
@@ -338,9 +339,9 @@ export function TaskList({ initialProjectId }: { initialProjectId?: string }) {
                   <td className="p-4">
                     {task.deadline ? (
                       <span className={cn(
-                        isPast(new Date(task.deadline)) && !isToday(new Date(task.deadline)) && task.status !== 'concluido' && "text-destructive font-semibold"
+                        isPast(parseLocalDate(task.deadline)) && !isToday(parseLocalDate(task.deadline)) && task.status !== 'concluido' && "text-destructive font-semibold"
                       )}>
-                        {format(new Date(task.deadline), "dd 'de' MMM", { locale: ptBR })}
+                        {format(parseLocalDate(task.deadline)!, "dd 'de' MMM", { locale: ptBR })}
                       </span>
                     ) : "-"}
                   </td>
@@ -586,7 +587,7 @@ function KanbanCard({
     opacity: isDragging ? 0.3 : 1,
   };
 
-  const isOverdue = task.deadline && isPast(new Date(task.deadline)) && !isToday(new Date(task.deadline)) && task.status !== 'concluido';
+  const isOverdue = task.deadline && isPast(parseLocalDate(task.deadline)) && !isToday(parseLocalDate(task.deadline)) && task.status !== 'concluido';
 
   return (
     <div 
@@ -676,11 +677,11 @@ function KanbanCard({
                 isOverdue ? "text-destructive" : "text-muted-foreground"
               )}>
                 <Clock className="h-3 w-3" />
-                {format(new Date(task.deadline), "dd/MM")}
+                {format(parseLocalDate(task.deadline)!, "dd/MM")}
               </div>
             )}
             <Badge variant={
-              task.priority === 'alta' ? "destructive" : 
+              task.priority === 'alta' ? "destructive" :
               task.priority === 'media' ? "default" : "secondary"
             } className="h-4 text-[8px] px-1.5 uppercase font-black border-none">
               {task.priority}

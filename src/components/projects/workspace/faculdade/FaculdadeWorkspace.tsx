@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { format, isFuture } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { parseLocalDate } from "@/lib/dates";
 
 import { ExamModal, AssignmentModal, SummaryModal } from "./AcademicModals";
 import { EstudarAgora } from "./EstudarAgora";
@@ -232,7 +233,7 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
                       <div className="flex items-center gap-3 mt-1">
                         <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
                           <Calendar className="h-3 w-3" />
-                          {exam.date ? format(new Date(exam.date), "dd/MM/yyyy", { locale: ptBR }) : 'Data não definida'}
+                          {exam.date ? format(parseLocalDate(exam.date)!, "dd/MM/yyyy", { locale: ptBR }) : 'Data não definida'}
                         </span>
                         <Badge variant="outline" className="text-[8px] uppercase">{exam.status?.replace('_', ' ')}</Badge>
                       </div>
@@ -274,10 +275,10 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
                       <div className="flex items-center gap-3 mt-1">
                         <span className={cn(
                           "flex items-center gap-1 text-[10px]",
-                          assignment.deadline && isFuture(new Date(assignment.deadline)) ? "text-muted-foreground" : "text-destructive font-bold"
+                          assignment.deadline && isFuture(parseLocalDate(assignment.deadline)!) ? "text-muted-foreground" : "text-destructive font-bold"
                         )}>
                           <Clock className="h-3 w-3" />
-                          Entrega: {assignment.deadline ? format(new Date(assignment.deadline), "dd/MM/yyyy", { locale: ptBR }) : 'Pendente'}
+                          Entrega: {assignment.deadline ? format(parseLocalDate(assignment.deadline)!, "dd/MM/yyyy", { locale: ptBR }) : 'Pendente'}
                         </span>
                         <Badge variant="secondary" className="text-[8px] uppercase">{assignment.status.replace('_', ' ')}</Badge>
                       </div>
