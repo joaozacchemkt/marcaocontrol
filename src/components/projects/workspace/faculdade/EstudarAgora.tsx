@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, isPast, isToday, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { parseLocalDate } from "@/lib/dates";
+import { parseLocalDate, localDateTime } from "@/lib/dates";
 import { Target, GraduationCap } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -88,7 +88,7 @@ export function EstudarAgora({ projectId }: EstudarAgoraProps) {
   const prioritized = sortedItems
     .sort((a, b) => {
       if (a.priority !== b.priority) return a.priority - b.priority;
-      return parseLocalDate(a.deadline)!.getTime() - parseLocalDate(b.deadline)!.getTime();
+      return localDateTime(a.deadline) - localDateTime(b.deadline);
     })
     .slice(0, 5);
 

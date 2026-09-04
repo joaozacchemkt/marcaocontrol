@@ -110,7 +110,13 @@ export function RecurringTasks() {
         status: "a_fazer",
         recurrence_id: recurrenceId,
       } as never);
-      if (taskError) throw taskError;
+      if (taskError) {
+        // Sem a primeira tarefa a recorrência nunca dispararia a próxima
+        // ocorrência (nada para concluir) — desfaz a regra em vez de deixar
+        // uma linha órfã em task_recurrences.
+        await supabase.from("task_recurrences" as never).delete().eq("id", recurrenceId);
+        throw taskError;
+      }
     },
     onSuccess: () => {
       setForm(EMPTY_FORM);

@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { isPast, isToday, addDays, differenceInDays } from "date-fns";
+import { parseLocalDate } from "@/lib/dates";
 
 export function useAlerts() {
   const { data: tasks = [] } = useQuery({
@@ -45,27 +46,28 @@ export function useAlerts() {
     // Evitar notificações duplicadas na mesma sessão (simples flag)
     if ((window as any)._alertsShown) return;
 
-    const overdueTasks = tasks.filter(t => t.deadline && isPast(new Date(t.deadline)) && !isToday(new Date(t.deadline)));
-    const todayTasks = tasks.filter(t => t.deadline && isToday(new Date(t.deadline)));
+    const overdueTasks = tasks.filter(t => t.deadline && isPast(parseLocalDate(t.deadline)!) && !isToday(parseLocalDate(t.deadline)!));
+    const todayTasks = tasks.filter(t => t.deadline && isToday(parseLocalDate(t.deadline)!));
     const highPriorityToday = todayTasks.filter(t => t.priority === 'alta');
-    
-    const overdueTransactions = transactions.filter(t => t.due_date && isPast(new Date(t.due_date)) && !isToday(new Date(t.due_date)));
-    const todayTransactions = transactions.filter(t => t.due_date && isToday(new Date(t.due_date)));
-    
+
+    const overdueTransactions = transactions.filter(t => t.due_date && isPast(parseLocalDate(t.due_date)!) && !isToday(parseLocalDate(t.due_date)!));
+    const todayTransactions = transactions.filter(t => t.due_date && isToday(parseLocalDate(t.due_date)!));
+
     // Alertas Acadêmicos
     const examsSoon = academicExams.filter(e => {
-      if (!e.date) return false;
-      const date = new Date(e.date);
+      const date = parseLocalDate(e.date);
+      if (!date) return false;
       const diff = differenceInDays(date, new Date());
       return diff >= 0 && diff <= 3;
     });
 
     const overdueAssignments = academicAssignments.filter(a => {
-      if (!a.deadline) return false;
-      return isPast(new Date(a.deadline)) && !isToday(new Date(a.deadline));
+      const deadline = parseLocalDate(a.deadline);
+      if (!deadline) return false;
+      return isPast(deadline) && !isToday(deadline);
     });
 
-    const todayExams = academicExams.filter(e => e.date && isToday(new Date(e.date)));
+    const todayExams = academicExams.filter(e => e.date && isToday(parseLocalDate(e.date)!));
 
     const alerts = [];
 

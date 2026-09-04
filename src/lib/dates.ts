@@ -30,3 +30,14 @@ export function parseLocalDate(value: string | null | undefined): Date | null {
   const date = new Date(`${ymd}T00:00:00`);
   return Number.isNaN(date.getTime()) ? null : date;
 }
+
+/**
+ * Mesma leitura de `parseLocalDate`, mas devolve o timestamp direto para
+ * comparadores de `.sort()`. Um valor vazio ou inválido vira `NaN` — igual
+ * ao que `new Date(string-inválida).getTime()` sempre devolveu — em vez de
+ * lançar exceção, então um dado ruim só bagunça a ordenação, nunca derruba
+ * a tela.
+ */
+export function localDateTime(value: string | null | undefined): number {
+  return parseLocalDate(value)?.getTime() ?? NaN;
+}

@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import { parseLocalDate } from "@/lib/dates";
+import { parseLocalDate, localDateTime } from "@/lib/dates";
 import { EstudarAgora } from "@/components/projects/workspace/faculdade/EstudarAgora";
 
 export const Route = createFileRoute("/_authenticated/")({
@@ -139,7 +139,7 @@ function Dashboard() {
       
       if (weightA !== weightB) return weightB - weightA;
       
-      if (a.deadline && b.deadline) return parseLocalDate(a.deadline)!.getTime() - parseLocalDate(b.deadline)!.getTime();
+      if (a.deadline && b.deadline) return localDateTime(a.deadline) - localDateTime(b.deadline);
       if (a.deadline) return -1;
       if (b.deadline) return 1;
       return 0;
@@ -154,7 +154,7 @@ function Dashboard() {
     .filter(p => p.status !== 'concluido')
     .filter(p => {
       const hasOverdueTasks = p.tasks?.some((t: any) => t.deadline && isPast(parseLocalDate(t.deadline)) && !isToday(parseLocalDate(t.deadline)) && t.status !== 'concluido');
-      const deadlineSoon = p.deadline && differenceInDays(new Date(p.deadline), new Date()) < 7;
+      const deadlineSoon = p.deadline && differenceInDays(parseLocalDate(p.deadline)!, new Date()) < 7;
       return hasOverdueTasks || deadlineSoon;
     })
     .slice(0, 3);

@@ -14,6 +14,7 @@ import {
 import { Plus, Trash2, Pencil, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
 import { MODULES, type ModuleDefinition } from "@/lib/workspace-modules";
+import { parseLocalDate } from "@/lib/dates";
 import { ModuleItemDialog } from "./ModuleItemDialog";
 import type { WorkspaceItem } from "./workspace-item";
 
@@ -208,7 +209,7 @@ export function ModuleBoard({ projectId, moduleKey }: ModuleBoardProps) {
                         {item.due_date && (
                           <span className="inline-flex items-center gap-1">
                             <CalendarDays className="h-3 w-3" />
-                            {new Date(`${item.due_date}T00:00:00`).toLocaleDateString("pt-BR")}
+                            {parseLocalDate(item.due_date)!.toLocaleDateString("pt-BR")}
                           </span>
                         )}
                         {item.amount != null && (

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { CalendarClock, Target, ListChecks, AlertTriangle } from "lucide-react";
+import { parseLocalDate } from "@/lib/dates";
 
 export interface PainelOabProps {
   projectId: string;
@@ -60,7 +61,7 @@ export function PainelOab({ projectId }: PainelOabProps) {
       if (!i.due_date) return false;
       const done = ["concluido", "feita", "feito", "realizado", "corrigido", "lida", "revisada", "resolvido", "revisado"];
       if (done.includes(i.stage)) return false;
-      return new Date(`${i.due_date}T00:00:00`) < today;
+      return parseLocalDate(i.due_date)! < today;
     }).length;
 
     return {

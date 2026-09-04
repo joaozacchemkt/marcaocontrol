@@ -4,7 +4,7 @@ import { AlertTriangle, ArrowRight, Clock, ListTodo } from "lucide-react";
 import { format, isPast, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { parseLocalDate } from "@/lib/dates";
+import { parseLocalDate, localDateTime } from "@/lib/dates";
 
 interface TaskLike {
   id: string;
@@ -37,9 +37,7 @@ export function ExecutiveSummary({ project }: ExecutiveSummaryProps) {
 
   const nextTask = [...open]
     .filter((t) => t.deadline)
-    .sort(
-      (a, b) => parseLocalDate(a.deadline!)!.getTime() - parseLocalDate(b.deadline!)!.getTime(),
-    )[0];
+    .sort((a, b) => localDateTime(a.deadline) - localDateTime(b.deadline))[0];
 
   const nextAction = project.next_action?.trim() || nextTask?.title || null;
 
