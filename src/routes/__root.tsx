@@ -104,8 +104,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    // pt-BR + notranslate: sem isso o Chrome vê lang="en" num app em
+    // português, acha que é página estrangeira e "traduz" en->pt-BR,
+    // gerando paráfrases sem sentido ("Início" -> "não se trata de uma
+    // questão") e quebrando o React ao mexer no DOM.
+    <html lang="pt-BR" translate="no">
       <head>
+        <meta name="google" content="notranslate" />
         <HeadContent />
       </head>
       <body>
