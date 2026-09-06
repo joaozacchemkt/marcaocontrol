@@ -26,13 +26,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ProjectPainel } from "./workspace/common/ProjectPainel";
 import { ProjectFinance } from "./workspace/common/ProjectFinance";
-import { ProjectNotes } from "./workspace/common/ProjectNotes";
-import { ProjectFiles } from "./workspace/common/ProjectFiles";
+import { ProjectNotesFiles } from "./workspace/common/ProjectNotesFiles";
 import { ProjectTeam } from "./workspace/common/ProjectTeam";
 import { ProjectTimeline } from "./workspace/common/ProjectTimeline";
 import { ProjectModal } from "@/components/modals/ProjectModal";
 import { ProjectBoard } from "./workspace/board/ProjectBoard";
-import { FaculdadeWorkspace } from "./workspace/faculdade/FaculdadeWorkspace";
+import { EstudoPanel } from "./workspace/faculdade/EstudoPanel";
 
 /** Tipos de projeto que ganham a aba extra "Estudo". */
 const STUDY_TYPES = new Set(["faculdade", "oab"]);
@@ -175,7 +174,7 @@ export function ProjectDetail() {
 
         {isStudy && (
           <TabsContent value="estudo" className="mt-0 focus-visible:outline-none">
-            <FaculdadeWorkspace project={project} />
+            <EstudoPanel project={project} />
           </TabsContent>
         )}
 
@@ -188,10 +187,7 @@ export function ProjectDetail() {
         </TabsContent>
 
         <TabsContent value="arquivos" className="mt-0 focus-visible:outline-none">
-          <div className="space-y-8">
-            <ProjectNotes project={project} />
-            <ProjectFiles project={project} />
-          </div>
+          <ProjectNotesFiles project={project} />
         </TabsContent>
 
         <TabsContent value="historico" className="mt-0 focus-visible:outline-none">

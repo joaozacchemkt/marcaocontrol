@@ -34,8 +34,23 @@ interface ProjectModalProps {
 }
 
 const CATEGORIES = [
-  "Imóvel", "Terreno", "Obra/Reforma", "Consultoria", 
+  "Imóvel", "Terreno", "Obra/Reforma", "Consultoria",
   "Perfil Público", "Novo Negócio", "Pessoal", "Outros"
+];
+
+/** Tipo do projeto — define o Painel, a aba Estudo e as etiquetas sugeridas. */
+const TYPE_OPTIONS: { value: Database["public"]["Enums"]["project_type"]; label: string }[] = [
+  { value: "generico", label: "Geral" },
+  { value: "consultoria", label: "Consultoria" },
+  { value: "obra", label: "Obra / Reforma" },
+  { value: "imovel", label: "Imóvel" },
+  { value: "investimento_imovel", label: "Investimento imobiliário" },
+  { value: "perfil_publico", label: "Perfil público" },
+  { value: "novo_negocio", label: "Novo negócio" },
+  { value: "faculdade", label: "Faculdade" },
+  { value: "oab", label: "OAB / Concurso" },
+  { value: "financeiro_pessoal", label: "Financeiro" },
+  { value: "pessoal", label: "Pessoal" },
 ];
 
 const STATUS_OPTIONS = [
@@ -54,6 +69,7 @@ export function ProjectModal({ open, onOpenChange, initialData, project }: Proje
   const [formData, setFormData] = useState({
     name: "",
     category: "Outros",
+    type: "generico" as Database["public"]["Enums"]["project_type"],
     description: "",
     objective: "",
     status: "ideia" as Database["public"]["Enums"]["project_status"],
@@ -69,6 +85,7 @@ export function ProjectModal({ open, onOpenChange, initialData, project }: Proje
       setFormData({
         name: project.name ?? "",
         category: project.category ?? "Outros",
+        type: (project.type ?? "generico"),
         description: project.description ?? "",
         objective: project.objective ?? "",
         status: (project.status ?? "ideia"),
@@ -100,6 +117,7 @@ export function ProjectModal({ open, onOpenChange, initialData, project }: Proje
       const payload = {
         name: data.name.trim() || "Projeto sem título",
         category: data.category || null,
+        type: data.type || "generico",
         description: data.description || null,
         objective: data.objective || null,
         status: data.status || "ideia",
@@ -130,6 +148,7 @@ export function ProjectModal({ open, onOpenChange, initialData, project }: Proje
         user_id: userData.user.id,
         name: data.name.trim() || "Projeto sem título",
         category: data.category || null,
+        type: data.type || "generico",
         description: data.description || null,
         objective: data.objective || null,
         status: data.status || "ideia",
@@ -171,6 +190,7 @@ export function ProjectModal({ open, onOpenChange, initialData, project }: Proje
       setFormData({
         name: "",
         category: "Outros",
+        type: "generico",
         description: "",
         objective: "",
         status: "ideia",
@@ -201,18 +221,38 @@ export function ProjectModal({ open, onOpenChange, initialData, project }: Proje
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2 space-y-2">
               <Label htmlFor="name">Nome do Projeto</Label>
-              <Input 
-                id="name" 
-                placeholder="Ex: Reforma Apartamento Jardins" 
+              <Input
+                id="name"
+                placeholder="Ex: Reforma Apartamento Jardins"
                 value={formData.name}
                 onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
               />
             </div>
-            
+
+            <div className="col-span-2 space-y-2">
+              <Label htmlFor="type">Tipo</Label>
+              <Select
+                value={formData.type}
+                onValueChange={(v: any) => setFormData(prev => ({ ...prev, type: v }))}
+              >
+                <SelectTrigger id="type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TYPE_OPTIONS.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground">
+                Faculdade e OAB ganham a aba <strong>Estudo</strong> com matérias e provas.
+              </p>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="category">Categoria</Label>
-              <Select 
-                value={formData.category} 
+              <Select
+                value={formData.category}
                 onValueChange={v => setFormData(prev => ({ ...prev, category: v }))}
               >
                 <SelectTrigger id="category">

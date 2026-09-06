@@ -26,11 +26,21 @@ import { parseLocalDate } from "@/lib/dates";
 import { SubjectModal, ExamModal, AssignmentModal } from "./AcademicModals";
 import { EstudarAgora } from "./EstudarAgora";
 
-interface FaculdadeWorkspaceProps {
+interface EstudoPanelProps {
   project: any;
 }
 
-export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
+/** Dias corridos até uma data (0 = hoje, negativo = já passou). */
+function daysUntil(dateStr: string): number {
+  const target = parseLocalDate(dateStr);
+  if (!target) return NaN;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  target.setHours(0, 0, 0, 0);
+  return Math.round((target.getTime() - today.getTime()) / 86400000);
+}
+
+export function EstudoPanel({ project }: EstudoPanelProps) {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("materias");
   const [showSubjectModal, setShowSubjectModal] = useState(false);
@@ -128,15 +138,21 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
   const totalAbsences = subjects.reduce((acc, s) => acc + (s.current_absences || 0), 0);
   const totalAbsenceLimit = subjects.reduce((acc, s) => acc + (s.absences_limit || 0), 0);
 
+  const isOab = project.type === "oab";
+  const countdown = project.deadline ? daysUntil(project.deadline) : NaN;
+  const showCountdown = Number.isFinite(countdown) && countdown >= 0;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h3 className="text-2xl font-bold flex items-center gap-2">
             <GraduationCap className="h-6 w-6 text-primary" />
-            Portal Acadêmico
+            {isOab ? "Preparação" : "Estudo"}
           </h3>
-          <p className="text-sm text-muted-foreground">Gestão completa do curso e matérias.</p>
+          <p className="text-sm text-muted-foreground">
+            Matérias, provas e trabalhos — tudo do curso em uma tela.
+          </p>
         </div>
         <div className="flex gap-2">
           <Button size="sm" onClick={() => { setEditingSubject(null); setShowSubjectModal(true); }}>
@@ -144,6 +160,27 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
           </Button>
         </div>
       </div>
+
+      {showCountdown && (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="flex items-center justify-between gap-4 py-4">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-wide text-primary">
+                {isOab ? "Contagem para a prova da OAB" : "Contagem para a data final"}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {format(parseLocalDate(project.deadline)!, "dd 'de' MMMM, yyyy", { locale: ptBR })}
+              </p>
+            </div>
+            <div className="text-right">
+              <span className="text-3xl font-black tabular-nums">{countdown}</span>
+              <span className="ml-1 text-sm text-muted-foreground">
+                {countdown === 1 ? "dia" : "dias"}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <EstudarAgora projectId={project.id} />
 
