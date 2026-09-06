@@ -77,56 +77,6 @@ export type Database = {
           },
         ]
       }
-      academic_classes: {
-        Row: {
-          content: string | null
-          created_at: string | null
-          date: string
-          id: string
-          materials_links: string[] | null
-          observations: string | null
-          subject_id: string
-          summary: string | null
-          title: string
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          content?: string | null
-          created_at?: string | null
-          date?: string
-          id?: string
-          materials_links?: string[] | null
-          observations?: string | null
-          subject_id: string
-          summary?: string | null
-          title: string
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          content?: string | null
-          created_at?: string | null
-          date?: string
-          id?: string
-          materials_links?: string[] | null
-          observations?: string | null
-          subject_id?: string
-          summary?: string | null
-          title?: string
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "academic_classes_subject_id_fkey"
-            columns: ["subject_id"]
-            isOneToOne: false
-            referencedRelation: "academic_subjects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       academic_exams: {
         Row: {
           content: string | null
@@ -176,60 +126,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "academic_exams_subject_id_fkey"
-            columns: ["subject_id"]
-            isOneToOne: false
-            referencedRelation: "academic_subjects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      academic_resources: {
-        Row: {
-          created_at: string | null
-          description: string | null
-          id: string
-          project_id: string
-          status: string | null
-          subject_id: string | null
-          title: string
-          type: string | null
-          url: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          project_id: string
-          status?: string | null
-          subject_id?: string | null
-          title: string
-          type?: string | null
-          url: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          project_id?: string
-          status?: string | null
-          subject_id?: string | null
-          title?: string
-          type?: string | null
-          url?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "academic_resources_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "academic_resources_subject_id_fkey"
             columns: ["subject_id"]
             isOneToOne: false
             referencedRelation: "academic_subjects"
@@ -298,57 +194,6 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      academic_summaries: {
-        Row: {
-          content: string
-          created_at: string | null
-          id: string
-          project_id: string
-          subject_id: string
-          tags: string[] | null
-          title: string
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          content: string
-          created_at?: string | null
-          id?: string
-          project_id: string
-          subject_id: string
-          tags?: string[] | null
-          title: string
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          content?: string
-          created_at?: string | null
-          id?: string
-          project_id?: string
-          subject_id?: string
-          tags?: string[] | null
-          title?: string
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "academic_summaries_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "academic_summaries_subject_id_fkey"
-            columns: ["subject_id"]
-            isOneToOne: false
-            referencedRelation: "academic_subjects"
             referencedColumns: ["id"]
           },
         ]
@@ -844,7 +689,6 @@ export type Database = {
           objective: string | null
           start_date: string | null
           status: Database["public"]["Enums"]["project_status"] | null
-          tab_config: Json | null
           type: Database["public"]["Enums"]["project_type"] | null
           updated_at: string | null
           user_id: string
@@ -862,7 +706,6 @@ export type Database = {
           objective?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["project_status"] | null
-          tab_config?: Json | null
           type?: Database["public"]["Enums"]["project_type"] | null
           updated_at?: string | null
           user_id: string
@@ -880,7 +723,6 @@ export type Database = {
           objective?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["project_status"] | null
-          tab_config?: Json | null
           type?: Database["public"]["Enums"]["project_type"] | null
           updated_at?: string | null
           user_id?: string
@@ -1144,68 +986,6 @@ export type Database = {
             columns: ["subject_id"]
             isOneToOne: false
             referencedRelation: "academic_subjects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      workspace_items: {
-        Row: {
-          amount: number | null
-          completed_at: string | null
-          created_at: string
-          deleted_at: string | null
-          description: string | null
-          due_date: string | null
-          id: string
-          meta: Json
-          module: string
-          position: number
-          project_id: string
-          stage: string
-          title: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          amount?: number | null
-          completed_at?: string | null
-          created_at?: string
-          deleted_at?: string | null
-          description?: string | null
-          due_date?: string | null
-          id?: string
-          meta?: Json
-          module: string
-          position?: number
-          project_id: string
-          stage?: string
-          title?: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          amount?: number | null
-          completed_at?: string | null
-          created_at?: string
-          deleted_at?: string | null
-          description?: string | null
-          due_date?: string | null
-          id?: string
-          meta?: Json
-          module?: string
-          position?: number
-          project_id?: string
-          stage?: string
-          title?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "workspace_items_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]

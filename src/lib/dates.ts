@@ -17,7 +17,7 @@
  *
  * Use para: tasks.deadline, projects.deadline / start_date,
  * financial_transactions.date / due_date, academic_exams.date,
- * academic_assignments.deadline, workspace_items.due_date.
+ * academic_assignments.deadline.
  *
  * NÃO use para instantes reais que carregam hora (events.start_time /
  * end_time, created_at, updated_at) — esses continuam com `new Date()`.

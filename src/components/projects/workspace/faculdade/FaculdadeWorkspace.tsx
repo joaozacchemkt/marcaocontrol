@@ -12,8 +12,7 @@ import {
   Clock,
   CheckCircle2,
   FileText,
-  ClipboardList,
-  Brain
+  ClipboardList
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -24,7 +23,7 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { parseLocalDate } from "@/lib/dates";
 
-import { SubjectModal, ExamModal, AssignmentModal, SummaryModal } from "./AcademicModals";
+import { SubjectModal, ExamModal, AssignmentModal } from "./AcademicModals";
 import { EstudarAgora } from "./EstudarAgora";
 
 interface FaculdadeWorkspaceProps {
@@ -37,11 +36,9 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
   const [showSubjectModal, setShowSubjectModal] = useState(false);
   const [showExamModal, setShowExamModal] = useState(false);
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
-  const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [editingSubject, setEditingSubject] = useState<any | null>(null);
   const [editingExam, setEditingExam] = useState<any | null>(null);
   const [editingAssignment, setEditingAssignment] = useState<any | null>(null);
-  const [editingSummary, setEditingSummary] = useState<any | null>(null);
 
   // Cards clicáveis: também respondem a Enter/Espaço (teclado / leitor de tela).
   const activateOnKey = (fn: () => void) => (e: React.KeyboardEvent) => {
@@ -93,18 +90,6 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
     }
   });
 
-  const { data: summaries = [], isLoading: loadingSummaries } = useQuery({
-    queryKey: ['academic-summaries', project.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('academic_summaries')
-        .select('*, academic_subjects(name)')
-        .eq('project_id', project.id)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return data;
-    }
-  });
 
   // Médias e faltas — a partir das notas lançadas (provas + trabalhos).
   const activeSubjects = subjects.filter(s => s.status === 'ativa');
@@ -207,7 +192,6 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
           <TabsTrigger value="materias">Matérias</TabsTrigger>
           <TabsTrigger value="provas">Provas</TabsTrigger>
           <TabsTrigger value="trabalhos">Trabalhos</TabsTrigger>
-          <TabsTrigger value="resumos">Resumos</TabsTrigger>
         </TabsList>
 
         <TabsContent value="materias" className="pt-4">
@@ -351,47 +335,6 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
             </div>
           </div>
         </TabsContent>
-
-        <TabsContent value="resumos" className="pt-4">
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Base de Conhecimento</h4>
-              <Button size="sm" variant="outline" onClick={() => { setEditingSummary(null); setShowSummaryModal(true); }}><Plus className="h-3 w-3 mr-1" /> Criar Resumo</Button>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              {loadingSummaries ? (
-                <div className="h-40 animate-pulse bg-accent rounded-xl" />
-              ) : summaries.length === 0 ? (
-                <div className="col-span-full py-10 text-center border rounded-xl border-dashed text-muted-foreground text-sm">
-                  Nenhum resumo criado. Estude e registre seus insights aqui.
-                </div>
-              ) : summaries.map(summary => (
-                <Card
-                  key={summary.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setEditingSummary(summary)}
-                  onKeyDown={activateOnKey(() => setEditingSummary(summary))}
-                  className="hover:border-primary/30 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
-                >
-                  <CardHeader className="pb-2">
-                    <div className="flex justify-between items-start">
-                      <CardTitle className="text-sm font-bold">{summary.title}</CardTitle>
-                      <Badge variant="outline" className="text-[8px]">{(summary as any).academic_subjects?.name}</Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-xs text-muted-foreground line-clamp-3">{summary.content}</p>
-                    <div className="flex items-center gap-2 mt-4 text-[9px] text-muted-foreground font-medium">
-                      <Brain className="h-3 w-3" />
-                      {summary.created_at ? format(new Date(summary.created_at), "dd MMM yyyy", { locale: ptBR }) : ''}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        </TabsContent>
       </Tabs>
 
       <SubjectModal
@@ -411,12 +354,6 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
         onOpenChange={(o) => { if (!o) { setShowAssignmentModal(false); setEditingAssignment(null); } }}
         projectId={project.id}
         item={editingAssignment}
-      />
-      <SummaryModal
-        open={showSummaryModal || editingSummary !== null}
-        onOpenChange={(o) => { if (!o) { setShowSummaryModal(false); setEditingSummary(null); } }}
-        projectId={project.id}
-        item={editingSummary}
       />
     </div>
   );

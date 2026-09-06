@@ -6,12 +6,10 @@ import { useParams, Link } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   CheckSquare,
-  Calendar as CalendarIcon,
-  FileText,
   Users,
   DollarSign,
   Clock,
-  FileUp,
+  FileText,
   GraduationCap,
   Building2,
   Users2,
@@ -23,74 +21,45 @@ import {
   Hammer,
   Scale,
   MonitorSmartphone,
-  LayoutGrid,
-  Kanban,
-  Layers,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ProjectOverview } from "./workspace/common/ProjectOverview";
-import { ProjectTasks } from "./workspace/common/ProjectTasks";
-import { ProjectCalendar } from "./workspace/common/ProjectCalendar";
 import { ProjectFinance } from "./workspace/common/ProjectFinance";
 import { ProjectNotes } from "./workspace/common/ProjectNotes";
 import { ProjectFiles } from "./workspace/common/ProjectFiles";
 import { ProjectTeam } from "./workspace/common/ProjectTeam";
 import { ProjectTimeline } from "./workspace/common/ProjectTimeline";
-import { ConfigurarAmbiente } from "./workspace/common/ConfigurarAmbiente";
 import { ProjectRelations } from "./workspace/common/ProjectRelations";
 import { ExecutiveSummary } from "./workspace/common/ExecutiveSummary";
 import { ProjectModal } from "@/components/modals/ProjectModal";
-import {
-  MODULE_TABS_BY_TYPE,
-  resolveTabConfig,
-  visibleTabs,
-  type TabKey,
-} from "@/lib/workspace-tabs";
-import { ModulesHub } from "./workspace/common/ModulesHub";
 import { ProjectBoard } from "./workspace/board/ProjectBoard";
-
-// Template Faculdade
 import { FaculdadeWorkspace } from "./workspace/faculdade/FaculdadeWorkspace";
-// Template OAB
-import { PainelOab } from "./workspace/oab/PainelOab";
 
-const TAB_ICONS: Partial<Record<TabKey, React.ComponentType<{ className?: string }>>> = {
-  overview: LayoutDashboard,
-  board: Kanban,
-  modules: Layers,
-  faculdade: GraduationCap,
-  painel_oab: Scale,
-  tasks: CheckSquare,
-  calendar: CalendarIcon,
-  notes: FileText,
-  files: FileUp,
-  team: Users,
-  finance: DollarSign,
-  timeline: Clock,
-};
+/** Tipos de projeto que ganham a aba extra "Estudo". */
+const STUDY_TYPES = new Set(["faculdade", "oab"]);
 
 const TYPE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   faculdade: GraduationCap,
+  oab: Scale,
   imovel: Building2,
+  perfil_imobiliario: Target,
+  investimento_imovel: Building2,
   consultoria: Users2,
   perfil_publico: Target,
-  perfil_imobiliario: Target,
   novo_negocio: Rocket,
-  pessoal: User,
+  produto_digital: MonitorSmartphone,
   reformas: Hammer,
   obra: Hammer,
-  oab: Scale,
-  produto_digital: MonitorSmartphone,
   domestico: Home,
+  pessoal: User,
   financeiro_pessoal: Wallet,
-  investimento_imovel: Building2,
   generico: LayoutDashboard,
 };
 
 export function ProjectDetail() {
   const { projectId } = useParams({ from: "/_authenticated/projetos/$projectId" });
-  const [activeTab, setActiveTab] = useState<string>("overview");
+  const [activeTab, setActiveTab] = useState<string>("painel");
   const [editOpen, setEditOpen] = useState(false);
 
   const { data: project, isLoading } = useQuery({
@@ -115,42 +84,21 @@ export function ProjectDetail() {
   });
 
   const projectType = (project as { type?: string } | undefined)?.type || "generico";
+  const isStudy = STUDY_TYPES.has(projectType);
 
-  // Abas disponíveis para este workspace (a de Faculdade só existe no template).
-  const availableTabs = useMemo<TabKey[]>(() => {
-    const base: TabKey[] = [
-      "overview",
-      "board",
-      "tasks",
-      "calendar",
-      "notes",
-      "files",
-      "team",
-      "finance",
-      "timeline",
-    ];
-    const hasModules = (MODULE_TABS_BY_TYPE[projectType] ?? []).length > 0;
-    const withTemplate: TabKey[] =
-      projectType === "faculdade"
-        ? [...base, "faculdade"]
-        : projectType === "oab"
-          ? [...base, "painel_oab"]
-          : base;
-    return hasModules ? [...withTemplate, "modules"] : withTemplate;
-  }, [projectType]);
-
-  const tabConfig = useMemo(
-    () =>
-      resolveTabConfig(
-        projectType,
-        (project as { tab_config?: unknown } | undefined)?.tab_config,
-      ),
-    [projectType, project],
-  );
-
+  // Estrutura padrão, igual em todo projeto. "Estudo" só aparece em faculdade/OAB.
   const tabs = useMemo(
-    () => visibleTabs(tabConfig, availableTabs),
-    [tabConfig, availableTabs],
+    () =>
+      [
+        { key: "painel", label: "Painel", icon: LayoutDashboard },
+        { key: "tarefas", label: "Tarefas", icon: CheckSquare },
+        ...(isStudy ? [{ key: "estudo", label: "Estudo", icon: GraduationCap }] : []),
+        { key: "pessoas", label: "Pessoas", icon: Users },
+        { key: "financeiro", label: "Financeiro", icon: DollarSign },
+        { key: "arquivos", label: "Arquivos & Notas", icon: FileText },
+        { key: "historico", label: "Histórico", icon: Clock },
+      ] as const,
+    [isStudy],
   );
 
   if (isLoading)
@@ -163,13 +111,11 @@ export function ProjectDetail() {
   if (!project) return <div>Projeto não encontrado.</div>;
 
   const TypeIcon = TYPE_ICONS[projectType] || LayoutDashboard;
-  const currentTab = tabs.some((tab) => tab.key === activeTab)
-    ? activeTab
-    : (tabs[0]?.key ?? "overview");
+  const currentTab = tabs.some((tab) => tab.key === activeTab) ? activeTab : "painel";
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Breadcrumb & Header */}
+      {/* Cabeçalho */}
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Link to="/projetos" className="hover:text-foreground transition-colors">
@@ -203,37 +149,25 @@ export function ProjectDetail() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <ConfigurarAmbiente
-              projectId={projectId}
-              config={tabConfig}
-              available={availableTabs}
-            />
-            <Button size="sm" onClick={() => setEditOpen(true)}>Editar Projeto</Button>
-          </div>
+          <Button size="sm" onClick={() => setEditOpen(true)}>
+            Editar Projeto
+          </Button>
         </div>
       </div>
 
-      {/* Tabs System */}
-      <Tabs
-        value={currentTab}
-        onValueChange={setActiveTab}
-        className="w-full space-y-6"
-      >
+      {/* Abas */}
+      <Tabs value={currentTab} onValueChange={setActiveTab} className="w-full space-y-6">
         <div className="overflow-x-auto pb-2 scrollbar-hide">
           <TabsList className="bg-muted/50 p-1 inline-flex w-auto min-w-full md:min-w-0">
-            {tabs.map((tab) => {
-              const Icon = TAB_ICONS[tab.key] ?? LayoutGrid;
-              return (
-                <TabsTrigger key={tab.key} value={tab.key} className="gap-2">
-                  <Icon className="h-4 w-4" /> {tab.label}
-                </TabsTrigger>
-              );
-            })}
+            {tabs.map((tab) => (
+              <TabsTrigger key={tab.key} value={tab.key} className="gap-2">
+                <tab.icon className="h-4 w-4" /> {tab.label}
+              </TabsTrigger>
+            ))}
           </TabsList>
         </div>
 
-        <TabsContent value="overview" className="mt-0 focus-visible:outline-none">
+        <TabsContent value="painel" className="mt-0 focus-visible:outline-none">
           <div className="space-y-6">
             <ExecutiveSummary project={project as never} />
             <ProjectOverview project={project} />
@@ -241,53 +175,34 @@ export function ProjectDetail() {
           </div>
         </TabsContent>
 
-        <TabsContent value="board" className="mt-0 focus-visible:outline-none">
+        <TabsContent value="tarefas" className="mt-0 focus-visible:outline-none">
           <ProjectBoard projectId={projectId} />
         </TabsContent>
 
-        <TabsContent value="tasks" className="mt-0 focus-visible:outline-none">
-          <ProjectTasks project={project} />
-        </TabsContent>
-
-        <TabsContent value="calendar" className="mt-0 focus-visible:outline-none">
-          <ProjectCalendar project={project} />
-        </TabsContent>
-
-        <TabsContent value="notes" className="mt-0 focus-visible:outline-none">
-          <ProjectNotes project={project} />
-        </TabsContent>
-
-        <TabsContent value="files" className="mt-0 focus-visible:outline-none">
-          <ProjectFiles project={project} />
-        </TabsContent>
-
-        <TabsContent value="team" className="mt-0 focus-visible:outline-none">
-          <ProjectTeam project={project} />
-        </TabsContent>
-
-        <TabsContent value="finance" className="mt-0 focus-visible:outline-none">
-          <ProjectFinance project={project} />
-        </TabsContent>
-
-        <TabsContent value="timeline" className="mt-0 focus-visible:outline-none">
-          <ProjectTimeline project={project} />
-        </TabsContent>
-
-        <TabsContent value="modules" className="mt-0 focus-visible:outline-none">
-          <ModulesHub projectId={projectId} projectType={projectType} />
-        </TabsContent>
-
-        {projectType === "oab" && (
-          <TabsContent value="painel_oab" className="mt-0 focus-visible:outline-none">
-            <PainelOab projectId={projectId} />
-          </TabsContent>
-        )}
-
-        {projectType === "faculdade" && (
-          <TabsContent value="faculdade" className="mt-0 focus-visible:outline-none">
+        {isStudy && (
+          <TabsContent value="estudo" className="mt-0 focus-visible:outline-none">
             <FaculdadeWorkspace project={project} />
           </TabsContent>
         )}
+
+        <TabsContent value="pessoas" className="mt-0 focus-visible:outline-none">
+          <ProjectTeam project={project} />
+        </TabsContent>
+
+        <TabsContent value="financeiro" className="mt-0 focus-visible:outline-none">
+          <ProjectFinance project={project} />
+        </TabsContent>
+
+        <TabsContent value="arquivos" className="mt-0 focus-visible:outline-none">
+          <div className="space-y-8">
+            <ProjectNotes project={project} />
+            <ProjectFiles project={project} />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="historico" className="mt-0 focus-visible:outline-none">
+          <ProjectTimeline project={project} />
+        </TabsContent>
       </Tabs>
 
       <ProjectModal
