@@ -17,7 +17,11 @@ import { toast } from "sonner";
 import { logActivity } from "@/lib/activity";
 import { useGuardedSubmit } from "@/lib/use-guarded-submit";
 import { FINANCE_CATEGORIES } from "@/lib/finance-categories";
-import { FINANCIAL_FREQUENCY_LABELS, type FinancialFrequency } from "@/lib/financial-recurrence";
+import {
+  FINANCIAL_FREQUENCY_LABELS,
+  advanceFinancialRecurrence,
+  type FinancialFrequency,
+} from "@/lib/financial-recurrence";
 
 interface TransactionModalProps {
   open: boolean;
@@ -152,6 +156,12 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
           entityType: 'transaction',
           entityId: created.id
         });
+      }
+
+      // Se o 1º lançamento da recorrência já entrou como pago, gera o próximo
+      // agora (o disparo normal é ao quitar — que não vai acontecer aqui).
+      if (recurrenceId && created?.status === "pago") {
+        await advanceFinancialRecurrence(recurrenceId);
       }
     },
     onSuccess: () => {

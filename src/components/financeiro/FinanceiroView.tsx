@@ -40,6 +40,7 @@ import { cn } from "@/lib/utils";
 import { parseLocalDate } from "@/lib/dates";
 import {
   FINANCIAL_FREQUENCY_LABELS,
+  MONTHLY_FACTOR,
   advanceFinancialRecurrence,
   type FinancialFrequency,
 } from "@/lib/financial-recurrence";
@@ -49,17 +50,6 @@ type View = "extrato" | "receber" | "pagar" | "recorrencias";
 
 const brl = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
-
-/** Fração do valor que "pesa" por mês, para somar frequências diferentes. */
-const MONTHLY_FACTOR: Record<FinancialFrequency, number> = {
-  semanal: 4.345,
-  quinzenal: 2.17,
-  mensal: 1,
-  bimestral: 0.5,
-  trimestral: 1 / 3,
-  semestral: 1 / 6,
-  anual: 1 / 12,
-};
 
 export function FinanceiroView() {
   const queryClient = useQueryClient();
@@ -206,10 +196,11 @@ export function FinanceiroView() {
     () =>
       recorrencias
         .filter((r) => r.active && r.type === "despesa")
-        .reduce(
-          (a, r) => a + r.amount * (MONTHLY_FACTOR[r.frequency as FinancialFrequency] ?? 1),
-          0,
-        ),
+        .reduce((a, r) => {
+          const factor = MONTHLY_FACTOR[r.frequency as FinancialFrequency] ?? 1;
+          const every = Math.max(1, r.interval_count || 1);
+          return a + (r.amount * factor) / every;
+        }, 0),
     [recorrencias],
   );
 
@@ -270,7 +261,7 @@ export function FinanceiroView() {
         {(
           [
             ["extrato", "Extrato do mês"],
-            ["receber", `A receber${aReceber ? "" : ""}`],
+            ["receber", "A receber"],
             ["pagar", "A pagar"],
             ["recorrencias", "Recorrências & Assinaturas"],
           ] as [View, string][]
@@ -340,6 +331,7 @@ export function FinanceiroView() {
                   <TxRow
                     key={t.id}
                     t={t}
+                    busy={toggleStatus.isPending}
                     onToggle={() => toggleStatus.mutate(t)}
                     onEdit={() => setEditingTransaction(t)}
                     onDelete={() => deleteTransaction.mutate(t.id)}
@@ -371,10 +363,10 @@ export function FinanceiroView() {
               }
               return (
                 <>
-                  <BucketGroup title="Vencido" tone="bad" items={g.vencido} onToggle={toggleStatus} onEdit={setEditingTransaction} onDelete={deleteTransaction} />
-                  <BucketGroup title="Vence em até 7 dias" tone="warn" items={g.semana} onToggle={toggleStatus} onEdit={setEditingTransaction} onDelete={deleteTransaction} />
-                  <BucketGroup title="Mais pra frente" tone="neutral" items={g.futuro} onToggle={toggleStatus} onEdit={setEditingTransaction} onDelete={deleteTransaction} />
-                  <BucketGroup title="Sem data de vencimento" tone="neutral" items={g.sem_data} onToggle={toggleStatus} onEdit={setEditingTransaction} onDelete={deleteTransaction} />
+                  <BucketGroup title="Vencido" tone="bad" items={g.vencido} busy={toggleStatus.isPending} onToggle={toggleStatus} onEdit={setEditingTransaction} onDelete={deleteTransaction} />
+                  <BucketGroup title="Vence em até 7 dias" tone="warn" items={g.semana} busy={toggleStatus.isPending} onToggle={toggleStatus} onEdit={setEditingTransaction} onDelete={deleteTransaction} />
+                  <BucketGroup title="Mais pra frente" tone="neutral" items={g.futuro} busy={toggleStatus.isPending} onToggle={toggleStatus} onEdit={setEditingTransaction} onDelete={deleteTransaction} />
+                  <BucketGroup title="Sem data de vencimento" tone="neutral" items={g.sem_data} busy={toggleStatus.isPending} onToggle={toggleStatus} onEdit={setEditingTransaction} onDelete={deleteTransaction} />
                 </>
               );
             })()
@@ -532,6 +524,7 @@ function BucketGroup({
   onToggle,
   onEdit,
   onDelete,
+  busy,
 }: {
   title: string;
   tone: "bad" | "warn" | "neutral";
@@ -539,6 +532,7 @@ function BucketGroup({
   onToggle: { mutate: (t: any) => void };
   onEdit: (t: any) => void;
   onDelete: { mutate: (id: string) => void };
+  busy?: boolean;
 }) {
   if (items.length === 0) return null;
   const subtotal = items.reduce((a, t) => a + t.amount, 0);
@@ -562,6 +556,7 @@ function BucketGroup({
           <TxRow
             key={t.id}
             t={t}
+            busy={!!busy}
             onToggle={() => onToggle.mutate(t)}
             onEdit={() => onEdit(t)}
             onDelete={() => onDelete.mutate(t.id)}
@@ -580,6 +575,7 @@ function TxRow({
   onDelete,
   showDate,
   showDue,
+  busy,
 }: {
   t: any;
   onToggle: () => void;
@@ -587,6 +583,7 @@ function TxRow({
   onDelete: () => void;
   showDate?: boolean;
   showDue?: boolean;
+  busy?: boolean;
 }) {
   const due = parseLocalDate(t.due_date);
   const overdue = due && isPast(due) && !isToday(due) && t.status === "pendente";
@@ -630,6 +627,7 @@ function TxRow({
           variant="ghost"
           size="icon"
           className="h-8 w-8"
+          disabled={busy}
           title={t.status === "pago" ? "Reabrir" : t.type === "receita" ? "Marcar recebido" : "Marcar pago"}
           aria-label={t.status === "pago" ? "Reabrir" : "Marcar quitado"}
           onClick={onToggle}
