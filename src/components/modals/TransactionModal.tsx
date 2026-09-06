@@ -117,6 +117,20 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
           .update({ ...insertData, user_id: undefined })
           .eq('id', transaction.id);
         if (updateError) throw updateError;
+        // Mantém a regra de recorrência em sincronia com a edição, para as
+        // próximas ocorrências não saírem com valor/descrição defasados.
+        if (transaction.financial_recurrence_id) {
+          await supabase
+            .from('financial_recurrences')
+            .update({
+              description: insertData.description,
+              amount: insertData.amount,
+              category: insertData.category,
+              project_id: insertData.project_id,
+              contact_id: insertData.contact_id,
+            })
+            .eq('id', transaction.financial_recurrence_id);
+        }
         return;
       }
 
@@ -146,7 +160,13 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
 
       const { data: created, error } = await supabase.from('financial_transactions').insert(insertData).select().single();
 
-      if (error) throw error;
+      if (error) {
+        // Não deixa a regra órfã se o lançamento falhar.
+        if (recurrenceId) {
+          await supabase.from('financial_recurrences').delete().eq('id', recurrenceId);
+        }
+        throw error;
+      }
 
       if (created && created.project_id) {
         await logActivity({
@@ -161,7 +181,10 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
       // Se o 1º lançamento da recorrência já entrou como pago, gera o próximo
       // agora (o disparo normal é ao quitar — que não vai acontecer aqui).
       if (recurrenceId && created?.status === "pago") {
-        await advanceFinancialRecurrence(recurrenceId);
+        await advanceFinancialRecurrence(
+          recurrenceId,
+          created.due_date ? String(created.due_date).slice(0, 10) : undefined,
+        );
       }
     },
     onSuccess: () => {

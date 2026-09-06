@@ -133,7 +133,10 @@ export function FinanceiroView() {
         .eq("id", t.id);
       if (error) throw error;
       if (next === "pago" && t.financial_recurrence_id) {
-        await advanceFinancialRecurrence(t.financial_recurrence_id);
+        await advanceFinancialRecurrence(
+          t.financial_recurrence_id,
+          t.due_date ? String(t.due_date).slice(0, 10) : undefined,
+        );
       }
       return next;
     },

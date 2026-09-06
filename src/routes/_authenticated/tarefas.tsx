@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { TaskList } from "@/components/tasks/TaskList";
+import { ProjectBoard } from "@/components/projects/workspace/board/ProjectBoard";
 import { RecurringTasks } from "@/components/tasks/RecurringTasks";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -35,7 +35,7 @@ function TarefasPage() {
         </TabsList>
 
         <TabsContent value="tarefas" className="mt-0 focus-visible:outline-none">
-          <TaskList />
+          <ProjectBoard />
         </TabsContent>
 
         <TabsContent value="recorrentes" className="mt-0 focus-visible:outline-none">

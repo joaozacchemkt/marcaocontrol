@@ -23,6 +23,8 @@ export interface BoardTask {
   contact_id: string | null;
   parent_task_id: string | null;
   project_id: string | null;
+  /** Nome do projeto — presente só na visão global de tarefas. */
+  projects?: { name: string } | null;
   /** Usado para saber o que foi concluído hoje. */
   updated_at?: string | null;
 }

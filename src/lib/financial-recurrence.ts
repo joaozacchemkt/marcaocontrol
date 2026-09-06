@@ -82,12 +82,33 @@ interface RecurrenceRow {
   active: boolean;
 }
 
+/** Já existe um lançamento dessa regra vencendo nessa data? (dedupe robusto) */
+async function occurrenceExists(recurrenceId: string, dueDate: string): Promise<boolean> {
+  const { data } = await supabase
+    .from("financial_transactions")
+    .select("id")
+    .eq("financial_recurrence_id", recurrenceId)
+    .eq("due_date", dueDate)
+    .limit(1);
+  return (data?.length ?? 0) > 0;
+}
+
 /**
- * Ao quitar um lançamento recorrente, gera o próximo (pendente) e avança a
- * régua. Idempotente: se já existe um lançamento dessa regra para a próxima
- * data, não duplica (protege contra duplo clique / re-quitar).
+ * Ao quitar um lançamento recorrente, gera a(s) próxima(s) ocorrência(s)
+ * pendente(s) e avança a régua (`next_run`).
+ *
+ * - Idempotente: nunca duplica um lançamento já existente para a mesma data
+ *   (protege contra duplo clique).
+ * - Re-quitar um lançamento antigo (reabrir → marcar pago de novo) não gera
+ *   nada: se `paidOccurrenceDate` é anterior ao `next_run`, a régua já passou
+ *   por ele.
+ * - Catch-up: se a regra ficou para trás (usuário sumiu 3 meses), avança em
+ *   laço até alcançar hoje, com teto de 24 ciclos.
  */
-export async function advanceFinancialRecurrence(recurrenceId: string): Promise<void> {
+export async function advanceFinancialRecurrence(
+  recurrenceId: string,
+  paidOccurrenceDate?: string,
+): Promise<void> {
   try {
     const { data, error } = await supabase
       .from("financial_recurrences")
@@ -102,51 +123,57 @@ export async function advanceFinancialRecurrence(recurrenceId: string): Promise<
     const rec = data as unknown as RecurrenceRow;
     if (!rec.active) return;
 
-    const base = parseLocalDate(rec.next_run) ?? new Date();
-    const anchorDay = (parseLocalDate(rec.start_date) ?? base).getDate();
-    const next = nextFinancialOccurrence(base, rec.frequency, rec.interval_count, anchorDay);
-    const nextStr = format(next, "yyyy-MM-dd");
+    // Re-quitação de uma ocorrência que a régua já ultrapassou: não faz nada.
+    if (paidOccurrenceDate && paidOccurrenceDate < rec.next_run) return;
 
-    if (rec.end_date) {
-      const end = parseLocalDate(rec.end_date);
+    const end = rec.end_date ? parseLocalDate(rec.end_date) : null;
+    const today = format(new Date(), "yyyy-MM-dd");
+
+    let cursor = parseLocalDate(rec.next_run) ?? new Date();
+    let cursorStr = format(cursor, "yyyy-MM-dd");
+    let lastGenerated = "";
+
+    for (let i = 0; i < 24; i++) {
+      const anchorDay = cursor.getDate();
+      const next = nextFinancialOccurrence(cursor, rec.frequency, rec.interval_count, anchorDay);
+      const nextStr = format(next, "yyyy-MM-dd");
+
       if (end && next > end) {
         await supabase.from("financial_recurrences").update({ active: false }).eq("id", rec.id);
-        return;
+        break;
       }
+
+      if (!(await occurrenceExists(rec.id, nextStr))) {
+        const { error: insErr } = await supabase.from("financial_transactions").insert({
+          user_id: rec.user_id,
+          project_id: rec.project_id,
+          contact_id: rec.contact_id,
+          description: rec.description,
+          type: rec.type,
+          amount: rec.amount,
+          category: rec.category,
+          date: nextStr,
+          due_date: nextStr,
+          status: "pendente",
+          financial_recurrence_id: rec.id,
+        } as never);
+        if (insErr) {
+          console.warn("[recorrência financeira] falha ao gerar lançamento:", insErr.message);
+          break;
+        }
+      }
+
+      lastGenerated = nextStr;
+      cursor = next;
+      cursorStr = nextStr;
+      // Parou de estar atrasado — a próxima ocorrência já é futura.
+      if (cursorStr > today) break;
     }
 
-    // Idempotência: já existe lançamento dessa regra vencendo nessa data?
-    const { data: dupe } = await supabase
-      .from("financial_transactions")
-      .select("id")
-      .eq("financial_recurrence_id", rec.id)
-      .eq("due_date", nextStr)
-      .maybeSingle();
-
-    if (!dupe) {
-      const { error: insErr } = await supabase.from("financial_transactions").insert({
-        user_id: rec.user_id,
-        project_id: rec.project_id,
-        contact_id: rec.contact_id,
-        description: rec.description,
-        type: rec.type,
-        amount: rec.amount,
-        category: rec.category,
-        date: nextStr,
-        due_date: nextStr,
-        status: "pendente",
-        financial_recurrence_id: rec.id,
-      } as never);
-      if (insErr) {
-        console.warn("[recorrência financeira] falha ao gerar próximo lançamento:", insErr.message);
-        return;
-      }
-    }
-
-    if (nextStr > rec.next_run) {
+    if (lastGenerated && lastGenerated > rec.next_run) {
       await supabase
         .from("financial_recurrences")
-        .update({ next_run: nextStr })
+        .update({ next_run: lastGenerated })
         .eq("id", rec.id);
     }
   } catch (e) {

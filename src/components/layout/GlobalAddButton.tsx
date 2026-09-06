@@ -16,7 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { TaskModal } from "../modals/TaskModal";
+import { QuickTaskModal } from "../modals/QuickTaskModal";
 import { ProjectModal } from "../modals/ProjectModal";
 import { ContactModal } from "../modals/ContactModal";
 import { TransactionModal } from "../modals/TransactionModal";
@@ -60,9 +60,9 @@ export function GlobalAddButton() {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <TaskModal 
-        open={activeModal === "task"} 
-        onOpenChange={() => setActiveModal(null)} 
+      <QuickTaskModal
+        open={activeModal === "task"}
+        onOpenChange={() => setActiveModal(null)}
       />
       <EventModal
         open={activeModal === "event"}

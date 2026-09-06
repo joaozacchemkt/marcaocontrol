@@ -13,7 +13,7 @@ import {
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { endOfWeek, isToday, startOfWeek } from "date-fns";
-import { CheckCircle2, Plus, Trash2 } from "lucide-react";
+import { CheckCircle2, KanbanSquare, List, Plus, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -33,40 +33,42 @@ import {
 } from "./board-types";
 
 export interface ProjectBoardProps {
-  projectId: string;
+  /** Ausente = visão global de todas as tarefas (rota /tarefas). */
+  projectId?: string;
 }
 
 export function ProjectBoard({ projectId }: ProjectBoardProps) {
   const queryClient = useQueryClient();
+  const globalMode = !projectId;
   const [filter, setFilter] = useState<BoardFilter>("todas");
+  const [view, setView] = useState<"quadro" | "lista">(globalMode ? "lista" : "quadro");
   const [activeTask, setActiveTask] = useState<BoardTask | null>(null);
   const [selected, setSelected] = useState<BoardTask | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const queryKey = ["board-tasks", projectId];
+  const queryKey = ["board-tasks", projectId ?? "all"];
 
   const { data: allTasks = [], isLoading } = useQuery({
     queryKey,
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("tasks")
-        .select("*")
-        .eq("project_id", projectId)
+        .select(globalMode ? "*, projects(name)" : "*")
         .order("created_at", { ascending: false });
+      if (projectId) query = query.eq("project_id", projectId);
+      const { data, error } = await query;
       if (error) throw error;
       return (data ?? []) as unknown as BoardTask[];
     },
   });
 
   const { data: reminderIds = [] } = useQuery({
-    queryKey: ["board-reminders", projectId],
+    queryKey: ["board-reminders", projectId ?? "all"],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("reminders")
-        .select("entity_id")
-        .eq("project_id", projectId)
-        .eq("status", "pendente");
+      let query = supabase.from("reminders").select("entity_id").eq("status", "pendente");
+      if (projectId) query = query.eq("project_id", projectId);
+      const { data } = await query;
       return (data ?? []).map((row) => row.entity_id as string);
     },
   });
@@ -85,9 +87,10 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
         .select()
         .single();
       if (error) throw error;
-      if (data) {
+      const logProjectId = data?.project_id ?? projectId;
+      if (data && logProjectId) {
         await logActivity({
-          projectId,
+          projectId: logProjectId,
           type: status === "concluido" ? "task_completed" : "task_reopened",
           description: `Card "${data.title}" movido para ${STATUS_LABELS[status]}`,
           entityType: "task",
@@ -118,7 +121,7 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
       if (!user) throw new Error("Sessão expirada.");
       const { error } = await supabase.from("tasks").insert({
         user_id: user.id,
-        project_id: projectId,
+        project_id: projectId ?? null,
         title,
         status: status as never,
         priority: "media",
@@ -196,6 +199,23 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
 
   const overdueCount = useMemo(() => parents.filter(isOverdue).length, [parents]);
 
+  /** Visão Lista: tarefas em aberto agrupadas por etiqueta. */
+  const listGroups = useMemo(() => {
+    const groups = new Map<string, BoardTask[]>();
+    for (const task of visible) {
+      if (task.status === "concluido") continue;
+      const key = task.category?.trim() || "Sem etiqueta";
+      const bucket = groups.get(key) ?? [];
+      bucket.push(task);
+      groups.set(key, bucket);
+    }
+    return [...groups.entries()].sort((a, b) => {
+      if (a[0] === "Sem etiqueta") return 1;
+      if (b[0] === "Sem etiqueta") return -1;
+      return a[0].localeCompare(b[0], "pt-BR");
+    });
+  }, [visible]);
+
   /** Produção do dia: tudo que foi concluído hoje (inclui subtarefas). */
   const doneToday = useMemo(
     () =>
@@ -239,12 +259,34 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-lg font-semibold tracking-tight">Quadro</h3>
+          <h3 className="text-lg font-semibold tracking-tight">
+            {globalMode ? "Todas as tarefas" : "Tarefas"}
+          </h3>
           <p className="text-sm text-muted-foreground">
-            Arraste os cards entre as colunas — o status é salvo na hora.
+            {view === "quadro"
+              ? "Arraste os cards entre as colunas — o status é salvo na hora."
+              : "Lista agrupada por etiqueta."}
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <div className="flex rounded-lg border p-0.5">
+            <Button
+              size="sm"
+              variant={view === "lista" ? "default" : "ghost"}
+              className="h-7 px-2 text-xs"
+              onClick={() => setView("lista")}
+            >
+              <List className="mr-1 h-3.5 w-3.5" /> Lista
+            </Button>
+            <Button
+              size="sm"
+              variant={view === "quadro" ? "default" : "ghost"}
+              className="h-7 px-2 text-xs"
+              onClick={() => setView("quadro")}
+            >
+              <KanbanSquare className="mr-1 h-3.5 w-3.5" /> Quadro
+            </Button>
+          </div>
           {selectedIds.size > 0 && (
             <>
               <Button
@@ -325,7 +367,92 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
       </section>
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">Carregando quadro...</p>
+        <p className="text-sm text-muted-foreground">Carregando tarefas...</p>
+      ) : view === "lista" ? (
+        <div className="space-y-5">
+          {listGroups.length === 0 ? (
+            <p className="rounded-xl border bg-card p-4 text-sm text-muted-foreground">
+              Nenhuma tarefa em aberto neste filtro.
+            </p>
+          ) : (
+            listGroups.map(([label, groupTasks]) => (
+              <div key={label} className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                    {label}
+                  </h4>
+                  <span className="text-xs text-muted-foreground">{groupTasks.length}</span>
+                </div>
+                <ul className="divide-y rounded-xl border bg-card">
+                  {groupTasks.map((task) => {
+                    const overdue = isOverdue(task);
+                    return (
+                      <li key={task.id}>
+                        <div className="flex items-center gap-3 px-3 py-2.5 text-sm">
+                          <button
+                            type="button"
+                            aria-label="Concluir tarefa"
+                            className="shrink-0 rounded-full text-muted-foreground transition-colors hover:text-primary"
+                            onClick={() =>
+                              changeStatus.mutate({ id: task.id, status: "concluido" })
+                            }
+                          >
+                            <CheckCircle2 className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openTask(task)}
+                            className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 text-left"
+                          >
+                            <span className="truncate font-medium">{task.title}</span>
+                            {globalMode && task.projects?.name && (
+                              <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold uppercase text-muted-foreground">
+                                {task.projects.name}
+                              </span>
+                            )}
+                            {task.priority === "alta" && (
+                              <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] font-bold uppercase text-destructive">
+                                Alta
+                              </span>
+                            )}
+                            {task.status === "aguardando_terceiro" && (
+                              <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
+                                Aguardando{task.waiting_for ? `: ${task.waiting_for}` : ""}
+                              </span>
+                            )}
+                          </button>
+                          {task.deadline && (
+                            <span
+                              className={
+                                "shrink-0 text-xs " +
+                                (overdue ? "font-semibold text-destructive" : "text-muted-foreground")
+                              }
+                            >
+                              {parseLocalDate(task.deadline)!.toLocaleDateString("pt-BR", {
+                                day: "2-digit",
+                                month: "short",
+                              })}
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            aria-label="Excluir tarefa"
+                            className="shrink-0 rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                            onClick={() => {
+                              if (confirm(`Excluir "${task.title}"?`)) deleteTasks.mutate([task.id]);
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ))
+          )}
+        </div>
       ) : (
         <DndContext
           sensors={sensors}
@@ -361,7 +488,7 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
 
       <TaskDetailSheet
         task={selected}
-        projectId={projectId}
+        projectId={projectId ?? null}
         open={sheetOpen}
         onOpenChange={(open) => {
           setSheetOpen(open);

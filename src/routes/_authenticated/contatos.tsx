@@ -36,7 +36,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ContactModal } from "@/components/modals/ContactModal";
-import { TaskModal } from "@/components/modals/TaskModal";
+import { QuickTaskModal } from "@/components/modals/QuickTaskModal";
 import { EventModal } from "@/components/modals/EventModal";
 
 
@@ -233,7 +233,7 @@ function ContactCard({ contact, onEdit }: { contact: any; onEdit: () => void }) 
         </Button>
       </div>
 
-      <TaskModal
+      <QuickTaskModal
         open={activeModal === 'task'}
         onOpenChange={(open: boolean) => !open && setActiveModal(null)}
         initialContactId={contact.id}

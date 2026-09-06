@@ -10,7 +10,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/componen
 import { MonthGrid, type DayCounts } from "@/components/calendar/MonthGrid";
 import { DayDetailsPanel } from "@/components/calendar/DayDetailsPanel";
 import { EventModal } from "@/components/modals/EventModal";
-import { TaskModal } from "@/components/modals/TaskModal";
+import { QuickTaskModal } from "@/components/modals/QuickTaskModal";
 import { isSameDay, parseISO, startOfMonth } from "date-fns";
 import { Loader2, Settings2, PanelRightOpen } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -326,7 +326,7 @@ export function CalendarAgenda() {
         onOpenChange={(open) => !open && setEditingEvent(null)}
         event={editingEvent}
       />
-      <TaskModal open={taskModal} onOpenChange={setTaskModal} />
+      <QuickTaskModal open={taskModal} onOpenChange={setTaskModal} />
     </div>
   );
 }

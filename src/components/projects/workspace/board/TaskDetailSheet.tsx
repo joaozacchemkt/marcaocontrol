@@ -24,11 +24,13 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { logActivity } from "@/lib/activity";
 import { toast } from "sonner";
+import { SUGGESTED_TAGS } from "@/lib/task-tags";
 import { BOARD_COLUMNS, type BoardStatus, type BoardTask } from "./board-types";
 
 export interface TaskDetailSheetProps {
   task: BoardTask | null;
-  projectId: string;
+  /** Projeto da tarefa. Ausente na visão global de tarefas soltas. */
+  projectId?: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -66,10 +68,13 @@ export function TaskDetailSheet({ task, projectId, open, onOpenChange }: TaskDet
     });
   }, [task]);
 
+  const taskProjectId = task?.project_id ?? projectId ?? null;
+
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["tasks"] });
-    queryClient.invalidateQueries({ queryKey: ["board-tasks", projectId] });
-    queryClient.invalidateQueries({ queryKey: ["board-reminders", projectId] });
+    queryClient.invalidateQueries({ queryKey: ["board-tasks"] });
+    queryClient.invalidateQueries({ queryKey: ["board-reminders"] });
+    queryClient.invalidateQueries({ queryKey: ["dashboard-tasks"] });
   };
 
   const { data: contacts = [] } = useQuery({
@@ -125,9 +130,9 @@ export function TaskDetailSheet({ task, projectId, open, onOpenChange }: TaskDet
 
   const addObservation = useMutation({
     mutationFn: async (note: string) => {
-      if (!task) return;
+      if (!task || !taskProjectId) return;
       await logActivity({
-        projectId,
+        projectId: taskProjectId,
         type: "note_created",
         description: `Observação em "${form.title || task.title}"`,
         entityType: "task",
@@ -138,7 +143,7 @@ export function TaskDetailSheet({ task, projectId, open, onOpenChange }: TaskDet
     onSuccess: () => {
       setObservation("");
       queryClient.invalidateQueries({ queryKey: ["task-history", task?.id] });
-      queryClient.invalidateQueries({ queryKey: ["activity-history", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["activity-history"] });
       toast.success("Observação registrada no histórico");
     },
     onError: (error: Error) => toast.error(error.message),
@@ -180,7 +185,7 @@ export function TaskDetailSheet({ task, projectId, open, onOpenChange }: TaskDet
       if (!user || !task) throw new Error("Sessão expirada.");
       const { error } = await supabase.from("tasks").insert({
         user_id: user.id,
-        project_id: projectId,
+        project_id: taskProjectId,
         parent_task_id: task.id,
         title,
         status: "a_fazer",
@@ -234,19 +239,20 @@ export function TaskDetailSheet({ task, projectId, open, onOpenChange }: TaskDet
         : new Date(Date.now() + 86400000).toISOString();
       const { error } = await supabase.from("reminders").insert({
         user_id: user.id,
-        project_id: projectId,
+        project_id: taskProjectId,
         entity_type: "task",
         entity_id: task.id,
         title: form.title || task.title,
         remind_at: remindAt,
-        channel: "app",
+        channel: "sistema",
         status: "pendente",
       } as never);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["task-reminder", task?.id] });
-      queryClient.invalidateQueries({ queryKey: ["board-reminders", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["board-reminders"] });
+      queryClient.invalidateQueries({ queryKey: ["today-reminders"] });
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -353,6 +359,26 @@ export function TaskDetailSheet({ task, projectId, open, onOpenChange }: TaskDet
                 onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))}
               />
             </div>
+          </div>
+
+          <div className="flex flex-wrap gap-1.5">
+            {SUGGESTED_TAGS.map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                onClick={() =>
+                  setForm((p) => ({ ...p, category: p.category === tag ? "" : tag }))
+                }
+                className={
+                  "rounded-full border px-2.5 py-0.5 text-xs transition-colors " +
+                  (form.category === tag
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-input hover:bg-muted")
+                }
+              >
+                {tag}
+              </button>
+            ))}
           </div>
 
           <div className="grid grid-cols-2 gap-3">

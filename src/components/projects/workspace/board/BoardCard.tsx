@@ -111,6 +111,11 @@ export function BoardCard({
             {task.priority}
           </Badge>
         )}
+        {task.projects?.name && (
+          <Badge variant="secondary" className="h-4 px-1.5 py-0 text-[9px] font-bold uppercase">
+            {task.projects.name}
+          </Badge>
+        )}
         {task.category && (
           <Badge variant="outline" className="h-4 px-1.5 py-0 text-[9px]">
             {task.category}
