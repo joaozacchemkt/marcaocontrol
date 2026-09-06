@@ -21,6 +21,7 @@ import { ProjectModal } from "../modals/ProjectModal";
 import { ContactModal } from "../modals/ContactModal";
 import { TransactionModal } from "../modals/TransactionModal";
 import { EventModal } from "../modals/EventModal";
+import { IdeaModal } from "../modals/IdeaModal";
 
 export function GlobalAddButton() {
   const [open, setOpen] = useState(false);
@@ -33,7 +34,7 @@ export function GlobalAddButton() {
     { label: "Novo Contato", icon: Users, onClick: () => setActiveModal("contact") },
     { label: "Nova Receita", icon: ArrowUpRight, onClick: () => setActiveModal("revenue"), className: "text-emerald-500" },
     { label: "Nova Despesa", icon: ArrowDownLeft, onClick: () => setActiveModal("expense"), className: "text-destructive" },
-    { label: "Nova Ideia", icon: Lightbulb, onClick: () => console.log("Idea") },
+    { label: "Nova Ideia", icon: Lightbulb, onClick: () => setActiveModal("idea") },
   ];
 
   return (
@@ -84,6 +85,10 @@ export function GlobalAddButton() {
         open={activeModal === "expense"}
         onOpenChange={() => setActiveModal(null)}
         type="despesa"
+      />
+      <IdeaModal
+        open={activeModal === "idea"}
+        onOpenChange={() => setActiveModal(null)}
       />
     </div>
   );
