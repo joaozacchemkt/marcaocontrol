@@ -13,7 +13,6 @@ import {
   CheckCircle2,
   FileText,
   ClipboardList,
-  Target,
   Brain
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -25,7 +24,7 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { parseLocalDate } from "@/lib/dates";
 
-import { ExamModal, AssignmentModal, SummaryModal } from "./AcademicModals";
+import { SubjectModal, ExamModal, AssignmentModal, SummaryModal } from "./AcademicModals";
 import { EstudarAgora } from "./EstudarAgora";
 
 interface FaculdadeWorkspaceProps {
@@ -35,9 +34,22 @@ interface FaculdadeWorkspaceProps {
 export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("materias");
+  const [showSubjectModal, setShowSubjectModal] = useState(false);
   const [showExamModal, setShowExamModal] = useState(false);
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [editingSubject, setEditingSubject] = useState<any | null>(null);
+  const [editingExam, setEditingExam] = useState<any | null>(null);
+  const [editingAssignment, setEditingAssignment] = useState<any | null>(null);
+  const [editingSummary, setEditingSummary] = useState<any | null>(null);
+
+  // Cards clicáveis: também respondem a Enter/Espaço (teclado / leitor de tela).
+  const activateOnKey = (fn: () => void) => (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      fn();
+    }
+  };
 
   const { data: subjects = [], isLoading: loadingSubjects } = useQuery({
     queryKey: ['academic-subjects', project.id],
@@ -94,9 +106,40 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
     }
   });
 
-  // Cálculo de Médias e Faltas
+  // Médias e faltas — a partir das notas lançadas (provas + trabalhos).
   const activeSubjects = subjects.filter(s => s.status === 'ativa');
-  const globalAverage = subjects.length > 0 ? 8.5 : 0;
+
+  // Notas válidas, agrupadas por matéria.
+  const gradesBySubject = new Map<string, { grade: number; weight: number }[]>();
+  for (const it of [...exams, ...assignments] as any[]) {
+    const grade = Number(it.grade);
+    if (it.grade == null || !Number.isFinite(grade)) continue;
+    const weight = Number(it.weight) > 0 ? Number(it.weight) : 1;
+    const key = it.subject_id ?? "";
+    const list = gradesBySubject.get(key) ?? [];
+    list.push({ grade, weight });
+    gradesBySubject.set(key, list);
+  }
+
+  // Média da matéria: ponderada pelo peso de cada prova/trabalho.
+  const subjectAverage = (subjectId: string): number | null => {
+    const items = gradesBySubject.get(subjectId);
+    if (!items || items.length === 0) return null;
+    const totalWeight = items.reduce((acc, i) => acc + i.weight, 0);
+    return items.reduce((acc, i) => acc + i.grade * i.weight, 0) / totalWeight;
+  };
+
+  // Média global: média simples das médias por matéria (cada matéria pesa
+  // igual, não importa quantas notas tem), só as que já têm nota.
+  const subjectAverages = subjects
+    .map(s => subjectAverage(s.id))
+    .filter((v): v is number => v != null);
+  const globalAverage = subjectAverages.length
+    ? subjectAverages.reduce((a, b) => a + b, 0) / subjectAverages.length
+    : null;
+
+  const fmtGrade = (v: number | null) => (v == null ? "—" : v.toFixed(1).replace(".", ","));
+
   const totalAbsences = subjects.reduce((acc, s) => acc + (s.current_absences || 0), 0);
   const totalAbsenceLimit = subjects.reduce((acc, s) => acc + (s.absences_limit || 0), 0);
 
@@ -111,10 +154,7 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
           <p className="text-sm text-muted-foreground">Gestão completa do curso e matérias.</p>
         </div>
         <div className="flex gap-2">
-          <Button size="sm" variant="outline">
-            <Target className="h-4 w-4 mr-2" /> Estudar Agora
-          </Button>
-          <Button size="sm">
+          <Button size="sm" onClick={() => { setEditingSubject(null); setShowSubjectModal(true); }}>
             <Plus className="h-4 w-4 mr-2" /> Nova Matéria
           </Button>
         </div>
@@ -137,7 +177,7 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
             <CardTitle className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Média Global</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-black">{globalAverage}</div>
+            <div className="text-2xl font-black">{fmtGrade(globalAverage)}</div>
           </CardContent>
         </Card>
         <Card>
@@ -181,7 +221,14 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
                 </CardContent>
               </Card>
             ) : subjects.map(subject => (
-              <Card key={subject.id} className="group hover:border-primary/50 transition-all cursor-pointer overflow-hidden">
+              <Card
+                key={subject.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => setEditingSubject(subject)}
+                onKeyDown={activateOnKey(() => setEditingSubject(subject))}
+                className="group hover:border-primary/50 transition-all cursor-pointer overflow-hidden focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
+              >
                 <div className="h-2 w-full bg-primary/20 group-hover:bg-primary transition-colors" />
                 <CardHeader className="pb-2">
                   <div className="flex justify-between items-start">
@@ -202,7 +249,7 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
                   </div>
                   <div className="flex justify-between items-center text-[10px]">
                     <span className="text-muted-foreground font-bold">MÉDIA ATUAL</span>
-                    <span className="font-black text-primary">8.5</span>
+                    <span className="font-black text-primary">{fmtGrade(subjectAverage(subject.id))}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -213,7 +260,7 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
         <TabsContent value="provas" className="pt-4">
           <div className="space-y-4">
             <div className="flex justify-end">
-              <Button size="sm" variant="outline" onClick={() => setShowExamModal(true)}><Plus className="h-3 w-3 mr-1" /> Agendar Prova</Button>
+              <Button size="sm" variant="outline" onClick={() => { setEditingExam(null); setShowExamModal(true); }}><Plus className="h-3 w-3 mr-1" /> Agendar Prova</Button>
             </div>
             <div className="grid gap-3">
               {loadingExams ? (
@@ -223,7 +270,14 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
                   Nenhuma prova agendada.
                 </div>
               ) : exams.map(exam => (
-                <div key={exam.id} className="bg-card border rounded-xl p-4 flex items-center justify-between group hover:border-primary/30 transition-all">
+                <div
+                  key={exam.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setEditingExam(exam)}
+                  onKeyDown={activateOnKey(() => setEditingExam(exam))}
+                  className="bg-card border rounded-xl p-4 flex items-center justify-between group hover:border-primary/30 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
+                >
                   <div className="flex items-center gap-4">
                     <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                       <ClipboardList className="h-5 w-5 text-primary" />
@@ -240,10 +294,10 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
                     </div>
                   </div>
                   <div className="text-right">
-                    {exam.grade ? (
-                      <div className="text-lg font-black text-primary">{exam.grade}</div>
+                    {exam.grade != null && exam.grade !== "" ? (
+                      <div className="text-lg font-black text-primary">{fmtGrade(Number(exam.grade))}</div>
                     ) : (
-                      <Button size="sm" variant="ghost">Lançar Nota</Button>
+                      <span className="text-xs font-bold text-primary">Lançar nota →</span>
                     )}
                   </div>
                 </div>
@@ -255,7 +309,7 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
         <TabsContent value="trabalhos" className="pt-4">
            <div className="space-y-4">
             <div className="flex justify-end">
-              <Button size="sm" variant="outline" onClick={() => setShowAssignmentModal(true)}><Plus className="h-3 w-3 mr-1" /> Novo Trabalho</Button>
+              <Button size="sm" variant="outline" onClick={() => { setEditingAssignment(null); setShowAssignmentModal(true); }}><Plus className="h-3 w-3 mr-1" /> Novo Trabalho</Button>
             </div>
             <div className="grid gap-3">
               {loadingAssignments ? (
@@ -265,7 +319,14 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
                   Nenhum trabalho cadastrado.
                 </div>
               ) : assignments.map(assignment => (
-                <div key={assignment.id} className="bg-card border rounded-xl p-4 flex items-center justify-between group hover:border-primary/30 transition-all">
+                <div
+                  key={assignment.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setEditingAssignment(assignment)}
+                  onKeyDown={activateOnKey(() => setEditingAssignment(assignment))}
+                  className="bg-card border rounded-xl p-4 flex items-center justify-between group hover:border-primary/30 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
+                >
                   <div className="flex items-center gap-4">
                     <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
                       <FileText className="h-5 w-5 text-emerald-500" />
@@ -284,7 +345,7 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
                       </div>
                     </div>
                   </div>
-                  <Button size="sm" variant="ghost">Ver Detalhes</Button>
+                  <span className="text-xs font-bold text-primary shrink-0">Ver detalhes →</span>
                 </div>
               ))}
             </div>
@@ -295,7 +356,7 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Base de Conhecimento</h4>
-              <Button size="sm" variant="outline" onClick={() => setShowSummaryModal(true)}><Plus className="h-3 w-3 mr-1" /> Criar Resumo</Button>
+              <Button size="sm" variant="outline" onClick={() => { setEditingSummary(null); setShowSummaryModal(true); }}><Plus className="h-3 w-3 mr-1" /> Criar Resumo</Button>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               {loadingSummaries ? (
@@ -305,7 +366,14 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
                   Nenhum resumo criado. Estude e registre seus insights aqui.
                 </div>
               ) : summaries.map(summary => (
-                <Card key={summary.id} className="hover:border-primary/30 transition-all cursor-pointer">
+                <Card
+                  key={summary.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setEditingSummary(summary)}
+                  onKeyDown={activateOnKey(() => setEditingSummary(summary))}
+                  className="hover:border-primary/30 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
+                >
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start">
                       <CardTitle className="text-sm font-bold">{summary.title}</CardTitle>
@@ -326,9 +394,30 @@ export function FaculdadeWorkspace({ project }: FaculdadeWorkspaceProps) {
         </TabsContent>
       </Tabs>
 
-      <ExamModal open={showExamModal} onOpenChange={setShowExamModal} projectId={project.id} />
-      <AssignmentModal open={showAssignmentModal} onOpenChange={setShowAssignmentModal} projectId={project.id} />
-      <SummaryModal open={showSummaryModal} onOpenChange={setShowSummaryModal} projectId={project.id} />
+      <SubjectModal
+        open={showSubjectModal || editingSubject !== null}
+        onOpenChange={(o) => { if (!o) { setShowSubjectModal(false); setEditingSubject(null); } }}
+        projectId={project.id}
+        item={editingSubject}
+      />
+      <ExamModal
+        open={showExamModal || editingExam !== null}
+        onOpenChange={(o) => { if (!o) { setShowExamModal(false); setEditingExam(null); } }}
+        projectId={project.id}
+        item={editingExam}
+      />
+      <AssignmentModal
+        open={showAssignmentModal || editingAssignment !== null}
+        onOpenChange={(o) => { if (!o) { setShowAssignmentModal(false); setEditingAssignment(null); } }}
+        projectId={project.id}
+        item={editingAssignment}
+      />
+      <SummaryModal
+        open={showSummaryModal || editingSummary !== null}
+        onOpenChange={(o) => { if (!o) { setShowSummaryModal(false); setEditingSummary(null); } }}
+        projectId={project.id}
+        item={editingSummary}
+      />
     </div>
   );
 }

@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useGuardedSubmit } from "@/lib/use-guarded-submit";
 import type { ModuleDefinition } from "@/lib/workspace-modules";
 import type { WorkspaceItem } from "./workspace-item";
 
@@ -76,11 +77,9 @@ export function ModuleItemDialog({
     setDetailsOpen(Boolean(item));
   }, [open, item, defaultStage]);
 
-  const submit = () => {
-    // O <form> permite enviar com Enter — sem esta guarda, dois Enter
-    // rápidos (ou rede lenta) criariam dois workspace_items iguais, já que
-    // o disabled do botão só entra no próximo render.
-    if (saving) return;
+  // O <form> permite enviar com Enter — useGuardedSubmit trava reenvio até
+  // a mutação do pai terminar, senão dois Enter rápidos criam dois itens.
+  const submit = useGuardedSubmit(() => {
     const parsed = amount.trim() === "" ? null : Number(amount);
     onSubmit({
       title: title.trim() || `${module.itemLabel} sem título`,
@@ -89,7 +88,7 @@ export function ModuleItemDialog({
       amount: parsed != null && Number.isFinite(parsed) ? parsed : null,
       due_date: dueDate || null,
     });
-  };
+  }, saving);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useGuardedSubmit } from "@/lib/use-guarded-submit";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
@@ -119,13 +120,15 @@ export function SubjectModal({ open, onOpenChange, projectId, item }: AcademicMo
     onError: (error: Error) => toast.error("Erro ao salvar matéria: " + error.message),
   });
 
+  const submit = useGuardedSubmit(() => save.mutate(), save.isPending);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>{isEditing ? "Editar Matéria" : "Nova Matéria"}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="space-y-4 py-4">
+        <form onSubmit={(e) => { e.preventDefault(); submit(); }} className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="subject-name">Nome *</Label>
             <Input
@@ -294,13 +297,15 @@ export function ExamModal({ open, onOpenChange, projectId, item }: AcademicModal
     onError: (error: Error) => toast.error("Erro ao salvar prova: " + error.message),
   });
 
+  const submit = useGuardedSubmit(() => save.mutate(), save.isPending);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>{isEditing ? "Editar Prova" : "Agendar Prova"}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="space-y-4 py-4">
+        <form onSubmit={(e) => { e.preventDefault(); submit(); }} className="space-y-4 py-4">
           <div className="space-y-2">
             <Label>Título da Prova *</Label>
             <Input
@@ -446,13 +451,15 @@ export function AssignmentModal({ open, onOpenChange, projectId, item }: Academi
     onError: (error: Error) => toast.error("Erro ao salvar trabalho: " + error.message),
   });
 
+  const submit = useGuardedSubmit(() => save.mutate(), save.isPending);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>{isEditing ? "Editar Trabalho" : "Novo Trabalho/Atividade"}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="space-y-4 py-4">
+        <form onSubmit={(e) => { e.preventDefault(); submit(); }} className="space-y-4 py-4">
           <div className="space-y-2">
             <Label>Título *</Label>
             <Input value={formData.title} onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))} required />
@@ -571,13 +578,15 @@ export function SummaryModal({ open, onOpenChange, projectId, item }: AcademicMo
     onError: (error: Error) => toast.error("Erro ao salvar resumo: " + error.message),
   });
 
+  const submit = useGuardedSubmit(() => save.mutate(), save.isPending);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEditing ? "Editar Resumo" : "Novo Resumo de Estudo"}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="space-y-4 py-4">
+        <form onSubmit={(e) => { e.preventDefault(); submit(); }} className="space-y-4 py-4">
           <div className="space-y-2">
             <Label>Título *</Label>
             <Input value={formData.title} onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))} required />
