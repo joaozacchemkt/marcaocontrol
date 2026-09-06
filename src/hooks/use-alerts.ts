@@ -100,7 +100,7 @@ export function useAlerts() {
     }
 
     if (reminders.length > 0) {
-      alerts.push(`${reminders.length} ${reminders.length === 1 ? 'lembrete' : 'lembretes'} para hoje.`);
+      alerts.push(`${reminders.length} ${reminders.length === 1 ? 'lembrete pendente' : 'lembretes pendentes'}.`);
     }
 
     // Alertas Acadêmicos Agrupados

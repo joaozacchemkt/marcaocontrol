@@ -87,6 +87,19 @@ export async function advanceRecurrence(recurrenceId: string): Promise<void> {
       return;
     }
 
+    const nextStr = format(next, "yyyy-MM-dd");
+    // Idempotência: se a próxima ocorrência já foi gerada (duplo clique, ou
+    // concluir + salvar em sequência), não cria outra.
+    if (nextStr <= rec.next_run) return;
+    const { data: dupe } = await supabase
+      .from("tasks")
+      .select("id")
+      .eq("recurrence_id", rec.id)
+      .gte("deadline", `${nextStr}T00:00:00`)
+      .lte("deadline", `${nextStr}T23:59:59`)
+      .limit(1);
+    if ((dupe?.length ?? 0) > 0) return;
+
     await supabase.from("tasks").insert({
       user_id: rec.user_id,
       project_id: rec.project_id,
@@ -99,7 +112,7 @@ export async function advanceRecurrence(recurrenceId: string): Promise<void> {
 
     await supabase
       .from("task_recurrences" as never)
-      .update({ next_run: format(next, "yyyy-MM-dd") } as never)
+      .update({ next_run: nextStr } as never)
       .eq("id", rec.id);
   } catch {
     // Recorrência é acessória: nunca deve impedir a conclusão da tarefa.

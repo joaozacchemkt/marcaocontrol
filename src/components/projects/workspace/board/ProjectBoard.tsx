@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activity";
+import { advanceRecurrence } from "@/lib/recurrence";
 import { parseLocalDate } from "@/lib/dates";
 import { BoardCard } from "./BoardCard";
 import { BoardColumn } from "./BoardColumn";
@@ -107,6 +108,9 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
           entityType: "task",
           entityId: data.id,
         });
+      }
+      if (status === "concluido" && (data as { recurrence_id?: string | null })?.recurrence_id) {
+        await advanceRecurrence((data as { recurrence_id: string }).recurrence_id);
       }
     },
     onMutate: async ({ id, status }) => {

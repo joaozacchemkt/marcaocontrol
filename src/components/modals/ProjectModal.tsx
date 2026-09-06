@@ -47,11 +47,14 @@ const TYPE_OPTIONS: { value: Database["public"]["Enums"]["project_type"]; label:
   { value: "obra", label: "Obra / Reforma" },
   { value: "imovel", label: "Imóvel" },
   { value: "investimento_imovel", label: "Investimento imobiliário" },
+  { value: "perfil_imobiliario", label: "Perfil imobiliário" },
   { value: "perfil_publico", label: "Perfil público" },
   { value: "novo_negocio", label: "Novo negócio" },
+  { value: "produto_digital", label: "Produto digital" },
   { value: "faculdade", label: "Faculdade" },
   { value: "oab", label: "OAB / Concurso" },
   { value: "financeiro_pessoal", label: "Financeiro" },
+  { value: "domestico", label: "Doméstico" },
   { value: "pessoal", label: "Pessoal" },
 ];
 

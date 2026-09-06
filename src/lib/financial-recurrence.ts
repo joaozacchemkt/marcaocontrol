@@ -141,6 +141,9 @@ export async function advanceFinancialRecurrence(
 
     const end = rec.end_date ? parseLocalDate(rec.end_date) : null;
     const today = format(new Date(), "yyyy-MM-dd");
+    // Não despeja meses de lançamentos velhos numa quitação só: ocorrências
+    // com mais de ~45 dias de atraso são puladas (só a régua avança).
+    const backlogCutoff = format(new Date(Date.now() - 45 * 86400000), "yyyy-MM-dd");
     // Dia-âncora fixo da série (dia do mês da 1ª cobrança), imune ao drift
     // de meses curtos — `start_date` guarda o vencimento original da regra.
     const anchorDay = (parseLocalDate(rec.start_date) ?? parseLocalDate(rec.next_run) ?? new Date()).getDate();
@@ -149,7 +152,7 @@ export async function advanceFinancialRecurrence(
     let cursorStr = format(cursor, "yyyy-MM-dd");
     let lastGenerated = "";
 
-    for (let i = 0; i < 24; i++) {
+    for (let i = 0; i < 18; i++) {
       const next = nextFinancialOccurrence(cursor, rec.frequency, rec.interval_count, anchorDay);
       const nextStr = format(next, "yyyy-MM-dd");
 
@@ -158,7 +161,7 @@ export async function advanceFinancialRecurrence(
         break;
       }
 
-      if (!(await occurrenceExists(rec.id, nextStr))) {
+      if (nextStr >= backlogCutoff && !(await occurrenceExists(rec.id, nextStr))) {
         const { error: insErr } = await supabase.from("financial_transactions").insert({
           user_id: rec.user_id,
           project_id: rec.project_id,

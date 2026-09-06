@@ -224,7 +224,7 @@ function Dashboard() {
       {reminders.length > 0 && (
         <section className="mb-8">
           <h3 className="text-lg font-bold tracking-tight mb-4 flex items-center gap-2">
-            <Bell className="h-4 w-4 text-primary" /> Lembretes de hoje
+            <Bell className="h-4 w-4 text-primary" /> Lembretes
           </h3>
           <div className="space-y-2">
             {reminders.map((r) => {

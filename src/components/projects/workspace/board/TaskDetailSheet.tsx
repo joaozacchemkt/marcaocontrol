@@ -33,6 +33,7 @@ import { Bell, BellOff, Check, History, Plus, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { logActivity } from "@/lib/activity";
+import { advanceRecurrence } from "@/lib/recurrence";
 import { toast } from "sonner";
 import { SUGGESTED_TAGS } from "@/lib/task-tags";
 import { BOARD_COLUMNS, type BoardStatus, type BoardTask } from "./board-types";
@@ -179,6 +180,13 @@ export function TaskDetailSheet({ task, projectId, open, onOpenChange }: TaskDet
         })
         .eq("id", task.id);
       if (error) throw error;
+      if (
+        form.status === "concluido" &&
+        task.status !== "concluido" &&
+        (task as { recurrence_id?: string | null }).recurrence_id
+      ) {
+        await advanceRecurrence((task as { recurrence_id: string }).recurrence_id);
+      }
     },
     onSuccess: () => {
       invalidate();
@@ -276,6 +284,9 @@ export function TaskDetailSheet({ task, projectId, open, onOpenChange }: TaskDet
         .update({ status: "concluido" })
         .eq("id", task.id);
       if (error) throw error;
+      if ((task as { recurrence_id?: string | null }).recurrence_id) {
+        await advanceRecurrence((task as { recurrence_id: string }).recurrence_id);
+      }
     },
     onSuccess: () => {
       invalidate();

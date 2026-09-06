@@ -138,6 +138,26 @@ export function FinanceiroView() {
           t.due_date ? String(t.due_date).slice(0, 10) : undefined,
         );
       }
+      // Reabrir: desfaz a ocorrência futura que esta quitação havia gerado,
+      // para não ficar um lançamento fantasma "a pagar/receber".
+      if (next === "pendente" && t.financial_recurrence_id && t.due_date) {
+        const dueStr = String(t.due_date).slice(0, 10);
+        const { data: successors } = await supabase
+          .from("financial_transactions")
+          .select("id, due_date")
+          .eq("financial_recurrence_id", t.financial_recurrence_id)
+          .eq("status", "pendente")
+          .gt("due_date", dueStr)
+          .order("due_date", { ascending: true });
+        const ids = (successors ?? []).map((s) => s.id);
+        if (ids.length > 0) {
+          await supabase.from("financial_transactions").delete().in("id", ids);
+        }
+        await supabase
+          .from("financial_recurrences")
+          .update({ next_run: dueStr })
+          .eq("id", t.financial_recurrence_id);
+      }
       return next;
     },
     onSuccess: (next) => {
