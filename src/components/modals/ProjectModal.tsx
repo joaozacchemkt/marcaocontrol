@@ -14,8 +14,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Database } from "@/integrations/supabase/types";
 import { logActivity } from "@/lib/activity";
+import { templateFor } from "@/lib/project-templates";
 
 type ProjectCategory = Database["public"]["Enums"]["project_status"] | string;
 
@@ -79,7 +81,8 @@ export function ProjectModal({ open, onOpenChange, initialData, project }: Proje
     next_action: "",
     notes: ""
   });
-  
+  const [seedTasks, setSeedTasks] = useState(true);
+
   useEffect(() => {
     if (open && project?.id) {
       setFormData({
@@ -169,6 +172,20 @@ export function ProjectModal({ open, onOpenChange, initialData, project }: Proje
           entityType: 'project',
           entityId: created.id
         });
+
+        const starters = seedTasks ? templateFor(data.type) : [];
+        if (starters.length > 0) {
+          await supabase.from('tasks').insert(
+            starters.map((s) => ({
+              user_id: userData.user.id,
+              project_id: created.id,
+              title: s.title,
+              category: s.category ?? null,
+              status: 'a_fazer',
+              priority: 'media',
+            })) as never,
+          );
+        }
       }
       
       if (initialData?.ideaId) {
@@ -185,6 +202,8 @@ export function ProjectModal({ open, onOpenChange, initialData, project }: Proje
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       queryClient.invalidateQueries({ queryKey: ['project'] });
       queryClient.invalidateQueries({ queryKey: ['projects-select'] });
+      queryClient.invalidateQueries({ queryKey: ['board-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
       toast.success(isEditing ? "Projeto atualizado!" : "Projeto criado com sucesso!");
       onOpenChange(false);
       setFormData({
@@ -345,6 +364,23 @@ export function ProjectModal({ open, onOpenChange, initialData, project }: Proje
               className="min-h-[100px]"
             />
           </div>
+
+          {!isEditing && templateFor(formData.type).length > 0 && (
+            <label className="flex items-start gap-2 rounded-lg border bg-muted/30 p-3 text-sm">
+              <Checkbox
+                checked={seedTasks}
+                onCheckedChange={(v) => setSeedTasks(v === true)}
+                className="mt-0.5"
+              />
+              <span>
+                Criar {templateFor(formData.type).length} tarefas iniciais sugeridas para
+                este tipo de projeto.
+                <span className="mt-1 block text-[11px] text-muted-foreground">
+                  {templateFor(formData.type).map((t) => t.title).join(" · ")}
+                </span>
+              </span>
+            </label>
+          )}
 
           <DialogFooter className="pt-4 gap-2 sm:gap-0">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>

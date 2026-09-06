@@ -126,15 +126,30 @@ export async function advanceFinancialRecurrence(
     // Re-quitação de uma ocorrência que a régua já ultrapassou: não faz nada.
     if (paidOccurrenceDate && paidOccurrenceDate < rec.next_run) return;
 
+    // Sem a data da ocorrência paga (lançamento sem vencimento): se já existe
+    // uma ocorrência pendente em `next_run` ou depois, a régua já andou.
+    if (!paidOccurrenceDate) {
+      const { data: ahead } = await supabase
+        .from("financial_transactions")
+        .select("id")
+        .eq("financial_recurrence_id", rec.id)
+        .eq("status", "pendente")
+        .gte("due_date", rec.next_run)
+        .limit(1);
+      if ((ahead?.length ?? 0) > 0) return;
+    }
+
     const end = rec.end_date ? parseLocalDate(rec.end_date) : null;
     const today = format(new Date(), "yyyy-MM-dd");
+    // Dia-âncora fixo da série (dia do mês da 1ª cobrança), imune ao drift
+    // de meses curtos — `start_date` guarda o vencimento original da regra.
+    const anchorDay = (parseLocalDate(rec.start_date) ?? parseLocalDate(rec.next_run) ?? new Date()).getDate();
 
     let cursor = parseLocalDate(rec.next_run) ?? new Date();
     let cursorStr = format(cursor, "yyyy-MM-dd");
     let lastGenerated = "";
 
     for (let i = 0; i < 24; i++) {
-      const anchorDay = cursor.getDate();
       const next = nextFinancialOccurrence(cursor, rec.frequency, rec.interval_count, anchorDay);
       const nextStr = format(next, "yyyy-MM-dd");
 
@@ -157,7 +172,8 @@ export async function advanceFinancialRecurrence(
           status: "pendente",
           financial_recurrence_id: rec.id,
         } as never);
-        if (insErr) {
+        // 23505 = corrida perdeu para o índice único: a ocorrência já existe, ok.
+        if (insErr && (insErr as { code?: string }).code !== "23505") {
           console.warn("[recorrência financeira] falha ao gerar lançamento:", insErr.message);
           break;
         }

@@ -25,7 +25,9 @@ const brl = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
 
 export function ProjectPainel({ project }: ProjectPainelProps) {
-  const tasks: any[] = project.tasks ?? [];
+  // Só cards de topo — subtarefas não contam nos números do painel
+  // (a aba Tarefas também conta só os pais).
+  const tasks: any[] = (project.tasks ?? []).filter((t: any) => !t.parent_task_id);
   const tx: any[] = project.financial_transactions ?? [];
 
   const open = tasks.filter((t) => t.status !== "concluido");

@@ -16,6 +16,16 @@ import { endOfWeek, isToday, startOfWeek } from "date-fns";
 import { CheckCircle2, KanbanSquare, List, Plus, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activity";
 import { parseLocalDate } from "@/lib/dates";
@@ -46,6 +56,7 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
   const [selected, setSelected] = useState<BoardTask | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [pendingDelete, setPendingDelete] = useState<{ ids: string[]; label: string } | null>(null);
 
   const queryKey = ["board-tasks", projectId ?? "all"];
 
@@ -292,10 +303,12 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
               <Button
                 size="sm"
                 variant="destructive"
-                onClick={() => {
-                  if (confirm(`Excluir ${selectedIds.size} card(s) selecionado(s)?`))
-                    deleteTasks.mutate([...selectedIds]);
-                }}
+                onClick={() =>
+                  setPendingDelete({
+                    ids: [...selectedIds],
+                    label: `${selectedIds.size} tarefa(s) selecionada(s)`,
+                  })
+                }
               >
                 <Trash2 className="mr-2 h-4 w-4" /> Excluir {selectedIds.size}
               </Button>
@@ -439,7 +452,7 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
                             aria-label="Excluir tarefa"
                             className="shrink-0 rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                             onClick={() => {
-                              if (confirm(`Excluir "${task.title}"?`)) deleteTasks.mutate([task.id]);
+                              setPendingDelete({ ids: [task.id], label: `"${task.title}"` });
                             }}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -472,7 +485,7 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
                 onOpen={openTask}
                 onQuickAdd={(title, status) => createTask.mutate({ title, status })}
                 onDelete={(task) => {
-                  if (confirm(`Excluir "${task.title}"?`)) deleteTasks.mutate([task.id]);
+                  setPendingDelete({ ids: [task.id], label: `"${task.title}"` });
                 }}
                 selectedIds={selectedIds}
                 onToggleSelect={toggleSelect}
@@ -495,6 +508,33 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
           if (!open) setSelected(null);
         }}
       />
+
+      <AlertDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir {pendingDelete?.label}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A ação não pode ser desfeita. Subtarefas e lembretes ligados também somem.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingDelete) deleteTasks.mutate(pendingDelete.ids);
+                setPendingDelete(null);
+              }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

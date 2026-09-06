@@ -148,7 +148,8 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
             amount: insertData.amount,
             category: insertData.category,
             frequency: data.repete,
-            start_date: data.date || new Date().toISOString().split("T")[0],
+            // start_date = vencimento original: é o dia-âncora da série.
+            start_date: data.due_date || data.date || new Date().toISOString().split("T")[0],
             next_run: data.due_date || data.date || new Date().toISOString().split("T")[0],
           } as never)
           .select()

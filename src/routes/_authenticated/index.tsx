@@ -8,6 +8,7 @@ import {
   TrendingDown,
   AlertTriangle,
   ArrowRight,
+  Bell,
 } from "lucide-react";
 import { format, isPast, isToday, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -73,6 +74,22 @@ function Dashboard() {
       const { data } = await supabase.from('academic_assignments').select('*, academic_subjects(name, project_id)');
       return data || [];
     }
+  });
+
+  const { data: reminders = [] } = useQuery({
+    queryKey: ['today-reminders'],
+    queryFn: async () => {
+      const end = new Date();
+      end.setHours(23, 59, 59, 999);
+      const { data } = await supabase
+        .from('reminders')
+        .select('id, title, remind_at, entity_id, project_id')
+        .eq('status', 'pendente')
+        .lte('remind_at', end.toISOString())
+        .order('remind_at', { ascending: true });
+      return data || [];
+    },
+    refetchInterval: 1000 * 60 * 5,
   });
 
   const dateStr = new Date().toLocaleDateString('pt-BR', {
@@ -203,6 +220,38 @@ function Dashboard() {
           </div>
         )}
       </section>
+
+      {reminders.length > 0 && (
+        <section className="mb-8">
+          <h3 className="text-lg font-bold tracking-tight mb-4 flex items-center gap-2">
+            <Bell className="h-4 w-4 text-primary" /> Lembretes de hoje
+          </h3>
+          <div className="space-y-2">
+            {reminders.map((r) => {
+              const row = (
+                <div className="flex items-center justify-between gap-3 p-3 rounded-xl border bg-card transition-colors hover:border-primary/30">
+                  <p className="text-sm font-medium truncate">{r.title}</p>
+                  <span className="shrink-0 text-[11px] font-bold text-muted-foreground">
+                    {format(new Date(r.remind_at), "HH:mm")}
+                  </span>
+                </div>
+              );
+              return r.project_id ? (
+                <Link
+                  key={r.id}
+                  to="/projetos/$projectId"
+                  params={{ projectId: r.project_id }}
+                  className="block"
+                >
+                  {row}
+                </Link>
+              ) : (
+                <div key={r.id}>{row}</div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Sinais secundários — quem está travando você, e o que está silenciosamente atrasando */}
       <div className="grid gap-6 md:grid-cols-2">

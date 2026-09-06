@@ -42,6 +42,21 @@ export function useAlerts() {
     refetchInterval: 1000 * 60 * 5,
   });
 
+  const { data: reminders = [] } = useQuery({
+    queryKey: ['reminders-alerts'],
+    queryFn: async () => {
+      const end = new Date();
+      end.setHours(23, 59, 59, 999);
+      const { data } = await supabase
+        .from('reminders')
+        .select('id, remind_at')
+        .eq('status', 'pendente')
+        .lte('remind_at', end.toISOString());
+      return data || [];
+    },
+    refetchInterval: 1000 * 60 * 5,
+  });
+
   useEffect(() => {
     // Evitar notificações duplicadas na mesma sessão (simples flag)
     if ((window as any)._alertsShown) return;
@@ -84,6 +99,10 @@ export function useAlerts() {
       alerts.push(`${overdueTransactions.length} ${overdueTransactions.length === 1 ? 'pagamento está' : 'pagamentos estão'} em atraso.`);
     }
 
+    if (reminders.length > 0) {
+      alerts.push(`${reminders.length} ${reminders.length === 1 ? 'lembrete' : 'lembretes'} para hoje.`);
+    }
+
     // Alertas Acadêmicos Agrupados
     if (todayExams.length > 0) {
       alerts.push(`Há ${todayExams.length} ${todayExams.length === 1 ? 'prova marcada para' : 'provas marcadas para'} hoje!`);
@@ -105,6 +124,6 @@ export function useAlerts() {
         }, index * 1500);
       });
     }
-  }, [tasks, transactions, academicExams, academicAssignments]);
+  }, [tasks, transactions, academicExams, academicAssignments, reminders]);
 }
 

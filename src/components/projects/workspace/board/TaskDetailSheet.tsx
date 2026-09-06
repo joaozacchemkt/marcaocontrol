@@ -19,6 +19,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Bell, BellOff, Check, History, Plus, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -51,6 +61,7 @@ export function TaskDetailSheet({ task, projectId, open, onOpenChange }: TaskDet
   });
   const [subtaskTitle, setSubtaskTitle] = useState("");
   const [observation, setObservation] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     if (!task) return;
@@ -276,7 +287,6 @@ export function TaskDetailSheet({ task, projectId, open, onOpenChange }: TaskDet
   const removeTask = useMutation({
     mutationFn: async () => {
       if (!task) return;
-      if (!confirm(`Excluir "${task.title}"?`)) throw new Error("cancelado");
       const { error } = await supabase.from("tasks").delete().eq("id", task.id);
       if (error) throw error;
     },
@@ -591,7 +601,7 @@ export function TaskDetailSheet({ task, projectId, open, onOpenChange }: TaskDet
             <Button variant="outline" size="sm" onClick={() => complete.mutate()}>
               <Check className="mr-2 h-4 w-4" /> Concluir
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => removeTask.mutate()}>
+            <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(true)}>
               <Trash2 className="mr-2 h-4 w-4" /> Excluir
             </Button>
             <Button size="sm" className="ml-auto" disabled={save.isPending} onClick={() => save.mutate()}>
@@ -600,6 +610,28 @@ export function TaskDetailSheet({ task, projectId, open, onOpenChange }: TaskDet
           </div>
         </div>
       </SheetContent>
+
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir “{task?.title}”?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A ação não pode ser desfeita. Subtarefas e lembretes ligados também somem.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmDelete(false);
+                removeTask.mutate();
+              }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sheet>
   );
 }
