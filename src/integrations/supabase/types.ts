@@ -368,6 +368,81 @@ export type Database = {
           },
         ]
       }
+      financial_recurrences: {
+        Row: {
+          active: boolean
+          amount: number
+          category: string | null
+          contact_id: string | null
+          created_at: string
+          description: string
+          end_date: string | null
+          frequency: string
+          id: string
+          interval_count: number
+          next_run: string
+          notes: string | null
+          project_id: string | null
+          start_date: string
+          type: Database["public"]["Enums"]["transaction_type"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          amount: number
+          category?: string | null
+          contact_id?: string | null
+          created_at?: string
+          description: string
+          end_date?: string | null
+          frequency?: string
+          id?: string
+          interval_count?: number
+          next_run?: string
+          notes?: string | null
+          project_id?: string | null
+          start_date?: string
+          type: Database["public"]["Enums"]["transaction_type"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          amount?: number
+          category?: string | null
+          contact_id?: string | null
+          created_at?: string
+          description?: string
+          end_date?: string | null
+          frequency?: string
+          id?: string
+          interval_count?: number
+          next_run?: string
+          notes?: string | null
+          project_id?: string | null
+          start_date?: string
+          type?: Database["public"]["Enums"]["transaction_type"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_recurrences_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financial_recurrences_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       financial_transactions: {
         Row: {
           amount: number
@@ -377,6 +452,7 @@ export type Database = {
           date: string
           description: string
           due_date: string | null
+          financial_recurrence_id: string | null
           id: string
           notes: string | null
           project_id: string | null
@@ -393,6 +469,7 @@ export type Database = {
           date?: string
           description: string
           due_date?: string | null
+          financial_recurrence_id?: string | null
           id?: string
           notes?: string | null
           project_id?: string | null
@@ -409,6 +486,7 @@ export type Database = {
           date?: string
           description?: string
           due_date?: string | null
+          financial_recurrence_id?: string | null
           id?: string
           notes?: string | null
           project_id?: string | null
@@ -423,6 +501,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financial_transactions_financial_recurrence_id_fkey"
+            columns: ["financial_recurrence_id"]
+            isOneToOne: false
+            referencedRelation: "financial_recurrences"
             referencedColumns: ["id"]
           },
           {

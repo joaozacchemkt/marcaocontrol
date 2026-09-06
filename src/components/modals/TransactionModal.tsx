@@ -15,6 +15,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activity";
+import { useGuardedSubmit } from "@/lib/use-guarded-submit";
+import { FINANCE_CATEGORIES } from "@/lib/finance-categories";
+import { FINANCIAL_FREQUENCY_LABELS, type FinancialFrequency } from "@/lib/financial-recurrence";
 
 interface TransactionModalProps {
   open: boolean;
@@ -26,24 +29,23 @@ interface TransactionModalProps {
 }
 
 
-const REVENUE_CATEGORIES = ["Venda", "Consultoria", "Honorário", "Dividendos", "Aporte", "Outros"];
-const EXPENSE_CATEGORIES = ["Obra", "Manutenção", "Imposto", "Marketing", "Administrativo", "Pessoal", "Viagem", "Outros"];
-
 export function TransactionModal({ open, onOpenChange, type, initialProjectId, transaction }: TransactionModalProps) {
   const queryClient = useQueryClient();
   const isEditing = Boolean(transaction?.id);
-  
-  const [formData, setFormData] = useState({
+
+  const emptyForm = {
     description: "",
     amount: "",
-    date: new Date().toISOString().split('T')[0],
+    date: new Date().toISOString().split('T')[0]!,
     due_date: "",
     category: "Outros",
     project_id: initialProjectId || "none",
     contact_id: "none",
     status: "pendente" as 'pendente' | 'pago',
-    notes: ""
-  });
+    notes: "",
+    repete: "nao" as FinancialFrequency | "nao",
+  };
+  const [formData, setFormData] = useState(emptyForm);
 
   useEffect(() => {
     if (!open) return;
@@ -58,13 +60,12 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
         contact_id: transaction.contact_id ?? "none",
         status: (transaction.status ?? "pendente") as 'pendente' | 'pago',
         notes: transaction.notes ?? "",
+        repete: "nao",
       });
       return;
     }
-    setFormData(prev => ({
-      ...prev,
-      project_id: initialProjectId || "none"
-    }));
+    setFormData({ ...emptyForm, project_id: initialProjectId || "none" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialProjectId, transaction]);
 
 
@@ -115,6 +116,30 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
         return;
       }
 
+      let recurrenceId: string | null = null;
+      // "Repete": cria a regra de recorrência e amarra a este 1º lançamento.
+      if (data.repete !== "nao") {
+        const { data: rec, error: recErr } = await supabase
+          .from("financial_recurrences")
+          .insert({
+            user_id: userData.user.id,
+            project_id: insertData.project_id,
+            contact_id: insertData.contact_id,
+            description: insertData.description,
+            type,
+            amount: insertData.amount,
+            category: insertData.category,
+            frequency: data.repete,
+            start_date: data.date || new Date().toISOString().split("T")[0],
+            next_run: data.due_date || data.date || new Date().toISOString().split("T")[0],
+          } as never)
+          .select()
+          .single();
+        if (recErr) throw recErr;
+        recurrenceId = (rec as { id: string } | null)?.id ?? null;
+        insertData.financial_recurrence_id = recurrenceId;
+      }
+
       const { data: created, error } = await supabase.from('financial_transactions').insert(insertData).select().single();
 
       if (error) throw error;
@@ -131,41 +156,38 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['financial_transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['financial_pendentes'] });
+      queryClient.invalidateQueries({ queryKey: ['financial_recurrences'] });
       queryClient.invalidateQueries({ queryKey: ['financial_totals'] });
-      queryClient.invalidateQueries({ queryKey: ['project'] }); // Para atualizar o financeiro do projeto
+      queryClient.invalidateQueries({ queryKey: ['project'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-transactions'] });
       toast.success(
         isEditing
           ? "Lançamento atualizado!"
           : `${type === 'receita' ? 'Receita' : 'Despesa'} registrada com sucesso!`,
       );
       onOpenChange(false);
-      setFormData({
-        description: "",
-        amount: "",
-        date: new Date().toISOString().split('T')[0],
-        due_date: "",
-        category: "Outros",
-        project_id: "none",
-        contact_id: "none",
-        status: "pendente",
-        notes: ""
-      });
+      setFormData({ ...emptyForm, project_id: initialProjectId || "none" });
     },
     onError: (error) => {
       toast.error("Erro ao registrar: " + error.message);
     }
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const submit = useGuardedSubmit(() => {
     if (!formData.description || !formData.amount) {
       toast.error("Descrição e valor são obrigatórios");
       return;
     }
     createTransaction.mutate(formData);
+  }, createTransaction.isPending);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    submit();
   };
 
-  const categories = type === 'receita' ? REVENUE_CATEGORIES : EXPENSE_CATEGORIES;
+  const categories = FINANCE_CATEGORIES;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -241,8 +263,8 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
             </div>
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
-              <Select 
-                value={formData.status} 
+              <Select
+                value={formData.status}
                 onValueChange={(v: any) => setFormData(prev => ({ ...prev, status: v }))}
               >
                 <SelectTrigger id="status">
@@ -255,6 +277,35 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
               </Select>
             </div>
           </div>
+
+          {!isEditing && (
+            <div className="space-y-2">
+              <Label htmlFor="repete">Repete?</Label>
+              <Select
+                value={formData.repete}
+                onValueChange={(v: any) => setFormData(prev => ({ ...prev, repete: v }))}
+              >
+                <SelectTrigger id="repete">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="nao">Não — lançamento único</SelectItem>
+                  {(Object.entries(FINANCIAL_FREQUENCY_LABELS) as [FinancialFrequency, string][]).map(
+                    ([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ),
+                  )}
+                </SelectContent>
+              </Select>
+              {formData.repete !== "nao" && (
+                <p className="text-[11px] text-muted-foreground">
+                  Ao quitar este lançamento, o próximo é criado sozinho na data seguinte.
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
