@@ -24,14 +24,12 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ProjectOverview } from "./workspace/common/ProjectOverview";
+import { ProjectPainel } from "./workspace/common/ProjectPainel";
 import { ProjectFinance } from "./workspace/common/ProjectFinance";
 import { ProjectNotes } from "./workspace/common/ProjectNotes";
 import { ProjectFiles } from "./workspace/common/ProjectFiles";
 import { ProjectTeam } from "./workspace/common/ProjectTeam";
 import { ProjectTimeline } from "./workspace/common/ProjectTimeline";
-import { ProjectRelations } from "./workspace/common/ProjectRelations";
-import { ExecutiveSummary } from "./workspace/common/ExecutiveSummary";
 import { ProjectModal } from "@/components/modals/ProjectModal";
 import { ProjectBoard } from "./workspace/board/ProjectBoard";
 import { FaculdadeWorkspace } from "./workspace/faculdade/FaculdadeWorkspace";
@@ -168,11 +166,7 @@ export function ProjectDetail() {
         </div>
 
         <TabsContent value="painel" className="mt-0 focus-visible:outline-none">
-          <div className="space-y-6">
-            <ExecutiveSummary project={project as never} />
-            <ProjectOverview project={project} />
-            <ProjectRelations projectId={projectId} />
-          </div>
+          <ProjectPainel project={project} />
         </TabsContent>
 
         <TabsContent value="tarefas" className="mt-0 focus-visible:outline-none">
