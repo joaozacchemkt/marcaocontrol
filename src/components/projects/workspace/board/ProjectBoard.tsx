@@ -29,6 +29,7 @@ import {
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activity";
 import { advanceRecurrence } from "@/lib/recurrence";
+import { invalidateReminders } from "@/lib/reminders";
 import { parseLocalDate } from "@/lib/dates";
 import { BoardCard } from "./BoardCard";
 import { BoardColumn } from "./BoardColumn";
@@ -75,13 +76,18 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
     },
   });
 
+  // Sinos do quadro: todo lembrete de tarefa pendente. O escopo do projeto vem
+  // de graça — o card só existe se a tarefa for deste projeto (allTasks já é
+  // filtrado), então basta cruzar entity_id com os ids das tarefas visíveis.
   const { data: reminderIds = [] } = useQuery({
-    queryKey: ["board-reminders", projectId ?? "all"],
+    queryKey: ["board-reminders", "all"],
     queryFn: async () => {
-      let query = supabase.from("reminders").select("entity_id").eq("status", "pendente");
-      if (projectId) query = query.eq("project_id", projectId);
-      const { data } = await query;
-      return (data ?? []).map((row) => row.entity_id as string);
+      const { data } = await supabase
+        .from("reminders")
+        .select("entity_id")
+        .eq("status", "pendente")
+        .eq("entity_type", "task");
+      return (data ?? []).map((row) => row.entity_id as string).filter(Boolean);
     },
   });
 
@@ -151,6 +157,8 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
   const deleteTasks = useMutation({
     mutationFn: async (ids: string[]) => {
       if (ids.length === 0) return;
+      // Limpa lembretes ligados às tarefas antes de removê-las.
+      await supabase.from("reminders").delete().eq("entity_type", "task").in("entity_id", ids);
       const { error } = await supabase.from("tasks").delete().in("id", ids);
       if (error) throw error;
     },
@@ -158,6 +166,7 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
       setSelectedIds(new Set());
       toast.success(ids.length > 1 ? `${ids.length} cards excluídos` : "Card excluído");
       invalidate();
+      invalidateReminders(queryClient);
     },
     onError: (error: Error) => toast.error(error.message),
   });

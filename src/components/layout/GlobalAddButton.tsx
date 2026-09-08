@@ -1,13 +1,14 @@
 import { useState } from "react";
-import { 
-  Plus, 
-  CheckSquare, 
-  Calendar, 
-  Briefcase, 
-  Users, 
-  ArrowUpRight, 
-  ArrowDownLeft, 
-  Lightbulb 
+import {
+  Plus,
+  CheckSquare,
+  Calendar,
+  Bell,
+  Briefcase,
+  Users,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Lightbulb
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -22,6 +23,7 @@ import { ContactModal } from "../modals/ContactModal";
 import { TransactionModal } from "../modals/TransactionModal";
 import { EventModal } from "../modals/EventModal";
 import { IdeaModal } from "../modals/IdeaModal";
+import { ReminderModal } from "../modals/ReminderModal";
 
 export function GlobalAddButton() {
   const [open, setOpen] = useState(false);
@@ -29,6 +31,7 @@ export function GlobalAddButton() {
 
   const actions = [
     { label: "Nova Pendência", icon: CheckSquare, onClick: () => setActiveModal("task") },
+    { label: "Novo Lembrete", icon: Bell, onClick: () => setActiveModal("reminder") },
     { label: "Novo Compromisso", icon: Calendar, onClick: () => setActiveModal("event") },
     { label: "Novo Projeto", icon: Briefcase, onClick: () => setActiveModal("project") },
     { label: "Novo Contato", icon: Users, onClick: () => setActiveModal("contact") },
@@ -88,6 +91,10 @@ export function GlobalAddButton() {
       />
       <IdeaModal
         open={activeModal === "idea"}
+        onOpenChange={() => setActiveModal(null)}
+      />
+      <ReminderModal
+        open={activeModal === "reminder"}
         onOpenChange={() => setActiveModal(null)}
       />
     </div>

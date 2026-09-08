@@ -34,6 +34,8 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { logActivity } from "@/lib/activity";
 import { advanceRecurrence } from "@/lib/recurrence";
+import { invalidateReminders } from "@/lib/reminders";
+import { ReminderModal } from "@/components/modals/ReminderModal";
 import { toast } from "sonner";
 import { SUGGESTED_TAGS } from "@/lib/task-tags";
 import { BOARD_COLUMNS, type BoardStatus, type BoardTask } from "./board-types";
@@ -63,6 +65,7 @@ export function TaskDetailSheet({ task, projectId, open, onOpenChange }: TaskDet
   const [subtaskTitle, setSubtaskTitle] = useState("");
   const [observation, setObservation] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [reminderOpen, setReminderOpen] = useState(false);
 
   useEffect(() => {
     if (!task) return;
@@ -117,9 +120,12 @@ export function TaskDetailSheet({ task, projectId, open, onOpenChange }: TaskDet
     queryFn: async () => {
       const { data } = await supabase
         .from("reminders")
-        .select("id")
+        .select("id, remind_at")
         .eq("entity_id", task!.id)
+        .eq("entity_type", "task")
         .eq("status", "pendente")
+        .order("remind_at", { ascending: true })
+        .limit(1)
         .maybeSingle();
       return data;
     },
@@ -241,37 +247,15 @@ export function TaskDetailSheet({ task, projectId, open, onOpenChange }: TaskDet
     },
   });
 
-  const toggleReminder = useMutation({
+  const removeReminder = useMutation({
     mutationFn: async () => {
-      if (!task) return;
-      if (reminder) {
-        const { error } = await supabase.from("reminders").delete().eq("id", reminder.id);
-        if (error) throw error;
-        return;
-      }
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error("Sessão expirada.");
-      const remindAt = form.deadline
-        ? new Date(`${form.deadline}T09:00:00`).toISOString()
-        : new Date(Date.now() + 86400000).toISOString();
-      const { error } = await supabase.from("reminders").insert({
-        user_id: user.id,
-        project_id: taskProjectId,
-        entity_type: "task",
-        entity_id: task.id,
-        title: form.title || task.title,
-        remind_at: remindAt,
-        channel: "sistema",
-        status: "pendente",
-      } as never);
+      if (!reminder) return;
+      const { error } = await supabase.from("reminders").delete().eq("id", reminder.id);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["task-reminder", task?.id] });
-      queryClient.invalidateQueries({ queryKey: ["board-reminders"] });
-      queryClient.invalidateQueries({ queryKey: ["today-reminders"] });
+      invalidateReminders(queryClient);
+      toast.success("Lembrete removido");
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -298,13 +282,17 @@ export function TaskDetailSheet({ task, projectId, open, onOpenChange }: TaskDet
   const removeTask = useMutation({
     mutationFn: async () => {
       if (!task) return;
+      // Não deixa lembrete órfão apontando para uma tarefa que sumiu.
+      await supabase.from("reminders").delete().eq("entity_type", "task").eq("entity_id", task.id);
       const { error } = await supabase.from("tasks").delete().eq("id", task.id);
       if (error) throw error;
     },
     onSuccess: () => {
       invalidate();
+      invalidateReminders(queryClient);
       onOpenChange(false);
     },
+    onError: (error: Error) => toast.error(error.message),
   });
 
   return (
@@ -598,17 +586,21 @@ export function TaskDetailSheet({ task, projectId, open, onOpenChange }: TaskDet
           </div>
 
           <div className="flex flex-wrap items-center gap-2 pt-2">
-            <Button variant="outline" size="sm" onClick={() => toggleReminder.mutate()}>
-              {reminder ? (
-                <>
-                  <BellOff className="mr-2 h-4 w-4" /> Remover lembrete
-                </>
-              ) : (
-                <>
-                  <Bell className="mr-2 h-4 w-4" /> Marcar lembrete
-                </>
-              )}
-            </Button>
+            {reminder ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => removeReminder.mutate()}
+                disabled={removeReminder.isPending}
+              >
+                <BellOff className="mr-2 h-4 w-4" />
+                Lembrete: {format(new Date(reminder.remind_at), "dd/MM HH:mm")}
+              </Button>
+            ) : (
+              <Button variant="outline" size="sm" onClick={() => setReminderOpen(true)}>
+                <Bell className="mr-2 h-4 w-4" /> Adicionar lembrete
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={() => complete.mutate()}>
               <Check className="mr-2 h-4 w-4" /> Concluir
             </Button>
@@ -643,6 +635,17 @@ export function TaskDetailSheet({ task, projectId, open, onOpenChange }: TaskDet
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {task && (
+        <ReminderModal
+          open={reminderOpen}
+          onOpenChange={setReminderOpen}
+          entityType="task"
+          entityId={task.id}
+          defaultTitle={form.title || task.title}
+          defaultProjectId={taskProjectId}
+        />
+      )}
     </Sheet>
   );
 }

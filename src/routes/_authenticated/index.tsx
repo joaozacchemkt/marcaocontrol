@@ -1,8 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { invalidateReminders } from "@/lib/reminders";
 import {
+  Check,
   CheckCircle2,
   MessageSquare,
   TrendingDown,
@@ -36,6 +39,20 @@ const currency = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(value);
 
 function Dashboard() {
+  const queryClient = useQueryClient();
+
+  const concluirLembrete = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("reminders").update({ status: "enviado" }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      invalidateReminders(queryClient);
+      toast.success("Lembrete concluído");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const { data: projects = [] } = useQuery({
     queryKey: ['dashboard-projects'],
     queryFn: async () => {
@@ -223,30 +240,60 @@ function Dashboard() {
 
       {reminders.length > 0 && (
         <section className="mb-8">
-          <h3 className="text-lg font-bold tracking-tight mb-4 flex items-center gap-2">
-            <Bell className="h-4 w-4 text-primary" /> Lembretes
-          </h3>
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="flex items-center gap-2 text-lg font-bold tracking-tight">
+              <Bell className="h-4 w-4 text-primary" /> Lembretes
+            </h3>
+            <Link
+              to="/lembretes"
+              className="text-xs font-bold uppercase tracking-wide text-muted-foreground transition-colors hover:text-primary"
+            >
+              Ver todos
+            </Link>
+          </div>
           <div className="space-y-2">
             {reminders.map((r) => {
-              const row = (
-                <div className="flex items-center justify-between gap-3 p-3 rounded-xl border bg-card transition-colors hover:border-primary/30">
-                  <p className="text-sm font-medium truncate">{r.title}</p>
-                  <span className="shrink-0 text-[11px] font-bold text-muted-foreground">
-                    {format(new Date(r.remind_at), "HH:mm")}
+              const overdue = isPast(new Date(r.remind_at)) && !isToday(new Date(r.remind_at));
+              return (
+                <div
+                  key={r.id}
+                  className={cn(
+                    "flex items-center gap-3 rounded-xl border bg-card p-3 transition-colors hover:border-primary/30",
+                    overdue && "border-destructive/30 bg-destructive/5",
+                  )}
+                >
+                  <button
+                    type="button"
+                    aria-label="Concluir lembrete"
+                    title="Concluir"
+                    onClick={() => concluirLembrete.mutate(r.id)}
+                    disabled={concluirLembrete.isPending}
+                    className="shrink-0 rounded-full p-1 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                  >
+                    <Check className="h-4 w-4" />
+                  </button>
+                  {r.project_id ? (
+                    <Link
+                      to="/projetos/$projectId"
+                      params={{ projectId: r.project_id }}
+                      className="min-w-0 flex-1 truncate text-sm font-medium hover:text-primary"
+                    >
+                      {r.title}
+                    </Link>
+                  ) : (
+                    <p className="min-w-0 flex-1 truncate text-sm font-medium">{r.title}</p>
+                  )}
+                  <span
+                    className={cn(
+                      "shrink-0 text-[11px] font-bold",
+                      overdue ? "text-destructive" : "text-muted-foreground",
+                    )}
+                  >
+                    {overdue
+                      ? format(new Date(r.remind_at), "dd/MM HH:mm")
+                      : format(new Date(r.remind_at), "HH:mm")}
                   </span>
                 </div>
-              );
-              return r.project_id ? (
-                <Link
-                  key={r.id}
-                  to="/projetos/$projectId"
-                  params={{ projectId: r.project_id }}
-                  className="block"
-                >
-                  {row}
-                </Link>
-              ) : (
-                <div key={r.id}>{row}</div>
               );
             })}
           </div>

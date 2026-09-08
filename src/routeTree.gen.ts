@@ -17,6 +17,7 @@ import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authen
 import { Route as AuthenticatedContatosRouteImport } from './routes/_authenticated/contatos'
 import { Route as AuthenticatedFinanceiroRouteImport } from './routes/_authenticated/financeiro'
 import { Route as AuthenticatedIdeiasRouteImport } from './routes/_authenticated/ideias'
+import { Route as AuthenticatedLembretesRouteImport } from './routes/_authenticated/lembretes'
 import { Route as AuthenticatedTarefasRouteImport } from './routes/_authenticated/tarefas'
 import { Route as AuthenticatedProjetosIndexRouteImport } from './routes/_authenticated/projetos.index'
 import { Route as AuthenticatedProjetosProjectIdRouteImport } from './routes/_authenticated/projetos.$projectId'
@@ -61,6 +62,11 @@ const AuthenticatedIdeiasRoute = AuthenticatedIdeiasRouteImport.update({
   path: '/ideias',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedLembretesRoute = AuthenticatedLembretesRouteImport.update({
+  id: '/lembretes',
+  path: '/lembretes',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedTarefasRoute = AuthenticatedTarefasRouteImport.update({
   id: '/tarefas',
   path: '/tarefas',
@@ -87,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/contatos': typeof AuthenticatedContatosRoute
   '/financeiro': typeof AuthenticatedFinanceiroRoute
   '/ideias': typeof AuthenticatedIdeiasRoute
+  '/lembretes': typeof AuthenticatedLembretesRoute
   '/tarefas': typeof AuthenticatedTarefasRoute
   '/projetos/$projectId': typeof AuthenticatedProjetosProjectIdRoute
   '/projetos/': typeof AuthenticatedProjetosIndexRoute
@@ -98,6 +105,7 @@ export interface FileRoutesByTo {
   '/contatos': typeof AuthenticatedContatosRoute
   '/financeiro': typeof AuthenticatedFinanceiroRoute
   '/ideias': typeof AuthenticatedIdeiasRoute
+  '/lembretes': typeof AuthenticatedLembretesRoute
   '/tarefas': typeof AuthenticatedTarefasRoute
   '/': typeof AuthenticatedIndexRoute
   '/projetos/$projectId': typeof AuthenticatedProjetosProjectIdRoute
@@ -112,6 +120,7 @@ export interface FileRoutesById {
   '/_authenticated/contatos': typeof AuthenticatedContatosRoute
   '/_authenticated/financeiro': typeof AuthenticatedFinanceiroRoute
   '/_authenticated/ideias': typeof AuthenticatedIdeiasRoute
+  '/_authenticated/lembretes': typeof AuthenticatedLembretesRoute
   '/_authenticated/tarefas': typeof AuthenticatedTarefasRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/projetos/$projectId': typeof AuthenticatedProjetosProjectIdRoute
@@ -127,6 +136,7 @@ export interface FileRouteTypes {
     | '/contatos'
     | '/financeiro'
     | '/ideias'
+    | '/lembretes'
     | '/tarefas'
     | '/projetos/$projectId'
     | '/projetos/'
@@ -138,6 +148,7 @@ export interface FileRouteTypes {
     | '/contatos'
     | '/financeiro'
     | '/ideias'
+    | '/lembretes'
     | '/tarefas'
     | '/'
     | '/projetos/$projectId'
@@ -151,6 +162,7 @@ export interface FileRouteTypes {
     | '/_authenticated/contatos'
     | '/_authenticated/financeiro'
     | '/_authenticated/ideias'
+    | '/_authenticated/lembretes'
     | '/_authenticated/tarefas'
     | '/_authenticated/'
     | '/_authenticated/projetos/$projectId'
@@ -220,6 +232,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedIdeiasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/lembretes': {
+      id: '/_authenticated/lembretes'
+      path: '/lembretes'
+      fullPath: '/lembretes'
+      preLoaderRoute: typeof AuthenticatedLembretesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/tarefas': {
       id: '/_authenticated/tarefas'
       path: '/tarefas'
@@ -250,6 +269,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedContatosRoute: typeof AuthenticatedContatosRoute
   AuthenticatedFinanceiroRoute: typeof AuthenticatedFinanceiroRoute
   AuthenticatedIdeiasRoute: typeof AuthenticatedIdeiasRoute
+  AuthenticatedLembretesRoute: typeof AuthenticatedLembretesRoute
   AuthenticatedTarefasRoute: typeof AuthenticatedTarefasRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedProjetosProjectIdRoute: typeof AuthenticatedProjetosProjectIdRoute
@@ -262,6 +282,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedContatosRoute: AuthenticatedContatosRoute,
   AuthenticatedFinanceiroRoute: AuthenticatedFinanceiroRoute,
   AuthenticatedIdeiasRoute: AuthenticatedIdeiasRoute,
+  AuthenticatedLembretesRoute: AuthenticatedLembretesRoute,
   AuthenticatedTarefasRoute: AuthenticatedTarefasRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedProjetosProjectIdRoute: AuthenticatedProjetosProjectIdRoute,
