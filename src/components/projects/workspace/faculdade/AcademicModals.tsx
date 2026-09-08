@@ -10,7 +10,19 @@ import {
   DialogTitle,
   DialogFooter
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,6 +36,67 @@ interface AcademicModalProps {
   projectId: string;
   /** Quando presente, o modal entra em modo edição. */
   item?: any | null;
+}
+
+/**
+ * Botão de excluir (com confirmação) para os itens acadêmicos. Aparece só em
+ * modo edição. Invalida todas as listas relevantes e fecha o modal.
+ */
+function DeleteAcademicButton({
+  table,
+  id,
+  title,
+  warning,
+  onDone,
+}: {
+  table: "academic_subjects" | "academic_exams" | "academic_assignments";
+  id: string;
+  title: string;
+  warning?: string;
+  onDone: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const del = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from(table).delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      for (const key of [
+        "academic-subjects",
+        "academic-subjects-select",
+        "academic-exams",
+        "academic-assignments",
+      ]) {
+        queryClient.invalidateQueries({ queryKey: [key] });
+      }
+      toast.success("Excluído.");
+      onDone();
+    },
+    onError: (e: Error) => toast.error("Erro ao excluir: " + e.message),
+  });
+
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button type="button" variant="ghost" className="mr-auto text-destructive hover:bg-destructive/10">
+          <Trash2 className="mr-2 h-4 w-4" /> Excluir
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Excluir “{title}”?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {warning ?? "A ação não pode ser desfeita."}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={() => del.mutate()}>Excluir</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
 }
 
 /** Hook compartilhado: matérias do projeto para os selects. */
@@ -207,6 +280,15 @@ export function SubjectModal({ open, onOpenChange, projectId, item }: AcademicMo
             />
           </div>
           <DialogFooter>
+            {isEditing && (
+              <DeleteAcademicButton
+                table="academic_subjects"
+                id={item.id}
+                title={item.name || "matéria"}
+                warning="As provas e trabalhos desta matéria também serão excluídos. A ação não pode ser desfeita."
+                onDone={() => onOpenChange(false)}
+              />
+            )}
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button type="submit" disabled={save.isPending}>
               {save.isPending ? "Salvando..." : isEditing ? "Salvar Alterações" : "Cadastrar"}
@@ -362,6 +444,14 @@ export function ExamModal({ open, onOpenChange, projectId, item }: AcademicModal
             <Textarea value={formData.notes} onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))} />
           </div>
           <DialogFooter>
+            {isEditing && (
+              <DeleteAcademicButton
+                table="academic_exams"
+                id={item.id}
+                title={item.title || "prova"}
+                onDone={() => onOpenChange(false)}
+              />
+            )}
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button type="submit" disabled={save.isPending}>
               {save.isPending ? "Salvando..." : isEditing ? "Salvar Alterações" : "Agendar"}
@@ -503,6 +593,14 @@ export function AssignmentModal({ open, onOpenChange, projectId, item }: Academi
             <Textarea value={formData.description} onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))} />
           </div>
           <DialogFooter>
+            {isEditing && (
+              <DeleteAcademicButton
+                table="academic_assignments"
+                id={item.id}
+                title={item.title || "trabalho"}
+                onDone={() => onOpenChange(false)}
+              />
+            )}
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button type="submit" disabled={save.isPending}>
               {save.isPending ? "Salvando..." : isEditing ? "Salvar Alterações" : "Cadastrar"}

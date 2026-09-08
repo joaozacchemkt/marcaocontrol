@@ -3,12 +3,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
 import {
   ArrowRight,
   AlertTriangle,
   MessageSquare,
   ListTodo,
   CalendarClock,
+  Bell,
   Target,
 } from "lucide-react";
 import { format, isPast, isToday, isThisWeek } from "date-fns";
@@ -19,18 +21,28 @@ import { ProjectRelations } from "./ProjectRelations";
 
 interface ProjectPainelProps {
   project: any;
+  /** Troca a aba do projeto (ex.: "tarefas"). Opcional. */
+  onNavigate?: (tab: string) => void;
 }
 
 const brl = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
 
-export function ProjectPainel({ project }: ProjectPainelProps) {
+export function ProjectPainel({ project, onNavigate }: ProjectPainelProps) {
   // Só cards de topo — subtarefas não contam nos números do painel
   // (a aba Tarefas também conta só os pais).
   const tasks: any[] = (project.tasks ?? []).filter((t: any) => !t.parent_task_id);
   const tx: any[] = project.financial_transactions ?? [];
 
   const open = tasks.filter((t) => t.status !== "concluido");
+  // Pendências em aberto ordenadas: com prazo primeiro (mais próximo antes),
+  // depois as sem prazo. Mostra as 6 primeiras no painel.
+  const openSorted = [...open].sort((a, b) => {
+    const da = a.deadline ? parseLocalDate(a.deadline)!.getTime() : Infinity;
+    const db = b.deadline ? parseLocalDate(b.deadline)!.getTime() : Infinity;
+    return da - db;
+  });
+  const topOpen = openSorted.slice(0, 6);
   const overdue = open.filter(
     (t) => t.deadline && isPast(parseLocalDate(t.deadline)!) && !isToday(parseLocalDate(t.deadline)!),
   );
@@ -67,6 +79,21 @@ export function ProjectPainel({ project }: ProjectPainelProps) {
         .gte("start_time", new Date().toISOString())
         .order("start_time", { ascending: true })
         .limit(3);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const { data: projectReminders = [] } = useQuery({
+    queryKey: ["today-reminders", "project", project.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("reminders")
+        .select("id, title, remind_at")
+        .eq("project_id", project.id)
+        .eq("status", "pendente")
+        .order("remind_at", { ascending: true })
+        .limit(6);
       if (error) throw error;
       return data ?? [];
     },
@@ -125,6 +152,84 @@ export function ProjectPainel({ project }: ProjectPainelProps) {
           </Card>
 
           <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <ListTodo className="h-4 w-4 text-primary" /> Pendências em aberto
+                <Badge variant="secondary" className="ml-1 text-[10px]">
+                  {open.length}
+                </Badge>
+              </CardTitle>
+              {onNavigate && open.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => onNavigate("tarefas")}
+                >
+                  Ver todas <ArrowRight className="ml-1 h-3 w-3" />
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent>
+              {topOpen.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nenhuma pendência em aberto.</p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {topOpen.map((t) => {
+                    const dl = parseLocalDate(t.deadline);
+                    const late =
+                      dl && isPast(dl) && !isToday(dl) && t.status !== "concluido";
+                    const rowInner = (
+                      <>
+                        <span className="min-w-0 flex-1 truncate">
+                          {t.title}
+                          {t.status === "aguardando_terceiro" && (
+                            <span className="ml-1.5 text-[10px] font-medium uppercase text-amber-600 dark:text-amber-400">
+                              · aguardando
+                            </span>
+                          )}
+                        </span>
+                        {t.priority === "alta" && (
+                          <span className="shrink-0 rounded bg-destructive/10 px-1.5 py-0.5 text-[9px] font-bold uppercase text-destructive">
+                            alta
+                          </span>
+                        )}
+                        {dl && (
+                          <span
+                            className={cn(
+                              "shrink-0 text-xs",
+                              late ? "font-semibold text-destructive" : "text-muted-foreground",
+                            )}
+                          >
+                            {format(dl, "dd MMM", { locale: ptBR })}
+                          </span>
+                        )}
+                      </>
+                    );
+                    return (
+                      <li key={t.id}>
+                        {onNavigate ? (
+                          <button
+                            type="button"
+                            onClick={() => onNavigate("tarefas")}
+                            className="flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors hover:border-primary/40 hover:bg-accent/40"
+                          >
+                            {rowInner}
+                          </button>
+                        ) : (
+                          <div className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm">
+                            {rowInner}
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base">
                 <CalendarClock className="h-4 w-4 text-primary" /> Próximos compromissos
@@ -160,6 +265,43 @@ export function ProjectPainel({ project }: ProjectPainelProps) {
               )}
             </CardContent>
           </Card>
+
+          {projectReminders.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Bell className="h-4 w-4 text-primary" /> Lembretes deste projeto
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2">
+                  {projectReminders.map((r) => {
+                    const d = new Date(r.remind_at);
+                    const late = isPast(d) && !isToday(d);
+                    return (
+                      <li
+                        key={r.id}
+                        className={cn(
+                          "flex items-center justify-between gap-3 rounded-lg border px-3 py-2",
+                          late && "border-destructive/30 bg-destructive/5",
+                        )}
+                      >
+                        <p className="min-w-0 flex-1 truncate text-sm font-medium">{r.title}</p>
+                        <span
+                          className={cn(
+                            "shrink-0 text-[11px] font-bold",
+                            late ? "text-destructive" : "text-muted-foreground",
+                          )}
+                        >
+                          {format(d, "dd/MM HH:mm")}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
 
           {project.description && (
             <Card>

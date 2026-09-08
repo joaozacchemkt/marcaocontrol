@@ -165,7 +165,7 @@ export function ProjectDetail() {
         </div>
 
         <TabsContent value="painel" className="mt-0 focus-visible:outline-none">
-          <ProjectPainel project={project} />
+          <ProjectPainel project={project} onNavigate={setActiveTab} />
         </TabsContent>
 
         <TabsContent value="tarefas" className="mt-0 focus-visible:outline-none">
