@@ -197,13 +197,6 @@ export function ProjectTeam({ project }: ProjectTeamProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <div className="bg-accent/50 rounded-xl p-4 border border-dashed">
-        <div className="flex items-center justify-between mb-2">
-          <h4 className="text-sm font-bold">Links Úteis / Stakeholders</h4>
-        </div>
-        <p className="text-[10px] text-muted-foreground">Repositórios, docs de terceiros ou dashboards externos.</p>
-      </div>
     </div>
   );
 }

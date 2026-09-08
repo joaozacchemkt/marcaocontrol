@@ -11,6 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { logActivity } from "@/lib/activity";
+import { useGuardedSubmit } from "@/lib/use-guarded-submit";
 
 interface ProjectNotesProps {
   project: any;
@@ -37,30 +39,52 @@ export function ProjectNotes({ project }: ProjectNotesProps) {
   });
 
   const saveNote = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: { title: string; content: string; category: string }) => {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) throw new Error("Não autenticado");
+      const title = data.title.trim() || "Sem título";
+      const payload = { title, content: data.content, category: data.category || null };
 
       if (editingNote) {
         const { error } = await supabase
           .from('project_notes')
-          .update(data)
+          .update(payload)
           .eq('id', editingNote.id);
         if (error) throw error;
+        await logActivity({
+          projectId: project.id,
+          type: 'note_edited',
+          description: `Nota editada: "${title}"`,
+          entityType: 'project_note',
+          entityId: editingNote.id,
+        });
       } else {
-        const { error } = await supabase
+        const { data: created, error } = await supabase
           .from('project_notes')
-          .insert({ ...data, project_id: project.id, user_id: userData.user.id });
+          .insert({ ...payload, project_id: project.id, user_id: userData.user.id })
+          .select()
+          .single();
         if (error) throw error;
+        if (created) {
+          await logActivity({
+            projectId: project.id,
+            type: 'note_created',
+            description: `Nova nota: "${title}"`,
+            entityType: 'project_note',
+            entityId: created.id,
+          });
+        }
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project-notes', project.id] });
+      queryClient.invalidateQueries({ queryKey: ['activity-history', project.id] });
       toast.success(editingNote ? "Nota atualizada" : "Nota criada");
       setShowModal(false);
       setEditingNote(null);
       setFormData({ title: "", content: "", category: "" });
-    }
+    },
+    onError: (error: Error) => toast.error("Erro ao salvar a nota: " + error.message),
   });
 
   const deleteNote = useMutation({
@@ -77,7 +101,9 @@ export function ProjectNotes({ project }: ProjectNotesProps) {
     }
   });
 
-  const filteredNotes = notes.filter(n => 
+  const submitNote = useGuardedSubmit(() => saveNote.mutate(formData), saveNote.isPending);
+
+  const filteredNotes = notes.filter(n =>
     n.title.toLowerCase().includes(search.toLowerCase()) || 
     n.content.toLowerCase().includes(search.toLowerCase())
   );
@@ -174,7 +200,9 @@ export function ProjectNotes({ project }: ProjectNotesProps) {
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setShowModal(false)}>Cancelar</Button>
-            <Button onClick={() => saveNote.mutate(formData)}>Salvar Nota</Button>
+            <Button onClick={submitNote} disabled={saveNote.isPending}>
+              {saveNote.isPending ? "Salvando..." : "Salvar Nota"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

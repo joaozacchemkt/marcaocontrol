@@ -3,16 +3,13 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { 
-  CheckCircle2, 
-  Circle, 
-  Clock, 
-  AlertCircle, 
-  TrendingUp, 
-  TrendingDown, 
-  MessageSquare,
+import {
+  CheckCircle2,
+  Circle,
+  AlertCircle,
+  TrendingUp,
   PlusCircle,
-  FileText
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -91,17 +88,6 @@ export function ProjectTimeline({ project }: ProjectTimelineProps) {
           ))}
         </div>
       )}
-
-      {/* Sugestão de Meta Futura */}
-      <div className="mt-8 p-4 bg-primary/5 rounded-xl border border-primary/10 flex gap-4">
-        <div className="p-2 bg-primary/10 rounded-lg h-fit">
-          <Clock className="h-5 w-5 text-primary" />
-        </div>
-        <div>
-          <h4 className="text-sm font-bold text-primary">Próximo Marco Estimado</h4>
-          <p className="text-xs text-muted-foreground">Com base na velocidade atual, o projeto deve atingir 80% de conclusão em aproximadamente 12 dias.</p>
-        </div>
-      </div>
     </div>
   );
 }
