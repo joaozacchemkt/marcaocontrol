@@ -282,8 +282,7 @@ export function TaskDetailSheet({ task, projectId, open, onOpenChange }: TaskDet
   const removeTask = useMutation({
     mutationFn: async () => {
       if (!task) return;
-      // Não deixa lembrete órfão apontando para uma tarefa que sumiu.
-      await supabase.from("reminders").delete().eq("entity_type", "task").eq("entity_id", task.id);
+      // Lembretes ligados somem por trigger no banco (trg_delete_task_reminders).
       const { error } = await supabase.from("tasks").delete().eq("id", task.id);
       if (error) throw error;
     },

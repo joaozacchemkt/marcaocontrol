@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -67,9 +67,19 @@ export function ReminderModal({
   const queryClient = useQueryClient();
   const isEditing = Boolean(reminder?.id);
   const [form, setForm] = useState(emptyForm);
+  // Preenche o formulário só na abertura — mudanças de props enquanto o modal
+  // está aberto (ex.: refetch do quadro trocando defaultTitle) não apagam o
+  // que o usuário está digitando.
+  const initialized = useRef(false);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      initialized.current = false;
+      return;
+    }
+    if (initialized.current) return;
+    initialized.current = true;
+
     if (reminder?.id) {
       const d = new Date(reminder.remind_at);
       const valid = !Number.isNaN(d.getTime());

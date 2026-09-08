@@ -14,7 +14,8 @@ export const REMINDER_QUERY_KEYS: readonly (readonly string[])[] = [
   ["reminders-alerts"], // hook use-alerts
   ["board-reminders"], // sino nos cards do quadro
   ["task-reminder"], // painel de detalhe da tarefa
-  ["reminders-all"], // página /lembretes
+  ["reminders-all"], // página /lembretes — pendentes
+  ["reminders-resolved"], // página /lembretes — resolvidos recentes
 ];
 
 export function invalidateReminders(queryClient: QueryClient): void {

@@ -76,17 +76,20 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
     },
   });
 
-  // Sinos do quadro: todo lembrete de tarefa pendente. O escopo do projeto vem
-  // de graça — o card só existe se a tarefa for deste projeto (allTasks já é
-  // filtrado), então basta cruzar entity_id com os ids das tarefas visíveis.
+  const taskIds = useMemo(() => allTasks.map((t) => t.id), [allTasks]);
+
+  // Sinos do quadro: lembretes de tarefa pendentes, restritos às tarefas deste
+  // quadro — nada de puxar lembrete de projeto que não está na tela.
   const { data: reminderIds = [] } = useQuery({
-    queryKey: ["board-reminders", "all"],
+    queryKey: ["board-reminders", projectId ?? "all", taskIds],
+    enabled: taskIds.length > 0,
     queryFn: async () => {
       const { data } = await supabase
         .from("reminders")
         .select("entity_id")
         .eq("status", "pendente")
-        .eq("entity_type", "task");
+        .eq("entity_type", "task")
+        .in("entity_id", taskIds);
       return (data ?? []).map((row) => row.entity_id as string).filter(Boolean);
     },
   });
@@ -157,8 +160,7 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
   const deleteTasks = useMutation({
     mutationFn: async (ids: string[]) => {
       if (ids.length === 0) return;
-      // Limpa lembretes ligados às tarefas antes de removê-las.
-      await supabase.from("reminders").delete().eq("entity_type", "task").in("entity_id", ids);
+      // Lembretes ligados às tarefas somem por trigger no banco (trg_delete_task_reminders).
       const { error } = await supabase.from("tasks").delete().in("id", ids);
       if (error) throw error;
     },

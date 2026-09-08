@@ -48,18 +48,39 @@ function LembretesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Row | null>(null);
 
-  const { data: reminders = [], isLoading } = useQuery({
+  const SEL = "id, title, remind_at, project_id, notes, entity_type, entity_id, status, projects(name)";
+
+  const { data: pending = [], isLoading } = useQuery({
     queryKey: ["reminders-all"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("reminders")
-        .select("id, title, remind_at, project_id, notes, entity_type, entity_id, status, projects(name)")
-        .neq("status", "cancelado")
+        .select(SEL)
+        .eq("status", "pendente")
         .order("remind_at", { ascending: true });
       if (error) throw error;
       return (data ?? []) as unknown as Row[];
     },
   });
+
+  // Resolvidos: só os últimos 60 dias e no máximo 50 — não cresce sem limite.
+  const { data: resolved = [] } = useQuery({
+    queryKey: ["reminders-resolved"],
+    queryFn: async () => {
+      const cutoff = new Date(Date.now() - 60 * 86400000).toISOString();
+      const { data, error } = await supabase
+        .from("reminders")
+        .select(SEL)
+        .eq("status", "enviado")
+        .gte("updated_at", cutoff)
+        .order("updated_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return (data ?? []) as unknown as Row[];
+    },
+  });
+
+  const reminders = useMemo(() => [...pending, ...resolved], [pending, resolved]);
 
   const setStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: "pendente" | "enviado" }) => {
