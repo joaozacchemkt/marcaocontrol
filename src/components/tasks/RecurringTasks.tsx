@@ -125,6 +125,8 @@ export function RecurringTasks() {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["board-tasks"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks-calendar"] });
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
       toast.success("Recorrência criada");
     },
     onError: (error: Error) => toast.error(error.message),

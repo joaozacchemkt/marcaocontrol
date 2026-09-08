@@ -41,7 +41,9 @@ export function ContactModal({ open, onOpenChange, contact }: ContactModalProps)
     email: "",
     city: "",
     category: "Outros",
-    notes: ""
+    notes: "",
+    last_contact: "",
+    next_contact: "",
   });
 
   useEffect(() => {
@@ -56,6 +58,8 @@ export function ContactModal({ open, onOpenChange, contact }: ContactModalProps)
       city: contact?.city ?? "",
       category: contact?.category ?? "Outros",
       notes: contact?.notes ?? "",
+      last_contact: contact?.last_contact ? String(contact.last_contact).slice(0, 10) : "",
+      next_contact: contact?.next_contact ? String(contact.next_contact).slice(0, 10) : "",
     });
   }, [open, contact]);
 
@@ -64,17 +68,24 @@ export function ContactModal({ open, onOpenChange, contact }: ContactModalProps)
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) throw new Error("Usuário não autenticado");
 
+      // Datas vazias viram null (colunas timestamptz não aceitam "").
+      const payload = {
+        ...data,
+        last_contact: data.last_contact || null,
+        next_contact: data.next_contact || null,
+      };
+
       if (isEditing) {
         const { error } = await supabase
           .from('contacts')
-          .update({ ...data })
+          .update(payload)
           .eq('id', contact.id);
         if (error) throw error;
         return;
       }
 
       const { error } = await supabase.from('contacts').insert({
-        ...data,
+        ...payload,
         user_id: userData.user.id
       });
 
@@ -94,7 +105,9 @@ export function ContactModal({ open, onOpenChange, contact }: ContactModalProps)
         email: "",
         city: "",
         category: "Outros",
-        notes: ""
+        notes: "",
+        last_contact: "",
+        next_contact: "",
       });
     },
     onError: (error) => {
@@ -204,10 +217,31 @@ export function ContactModal({ open, onOpenChange, contact }: ContactModalProps)
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="last_contact">Último contato</Label>
+              <Input
+                id="last_contact"
+                type="date"
+                value={formData.last_contact}
+                onChange={e => setFormData(prev => ({ ...prev, last_contact: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="next_contact">Retornar em</Label>
+              <Input
+                id="next_contact"
+                type="date"
+                value={formData.next_contact}
+                onChange={e => setFormData(prev => ({ ...prev, next_contact: e.target.value }))}
+              />
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="notes">Observações</Label>
-            <Textarea 
-              id="notes" 
+            <Textarea
+              id="notes"
               value={formData.notes}
               onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))}
               className="h-20"
