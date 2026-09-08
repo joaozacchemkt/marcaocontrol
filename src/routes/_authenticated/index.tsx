@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   MessageSquare,
   TrendingDown,
+  TrendingUp,
   AlertTriangle,
   ArrowRight,
   Bell,
@@ -72,7 +73,9 @@ function Dashboard() {
   const { data: transactions = [] } = useQuery({
     queryKey: ['dashboard-transactions'],
     queryFn: async () => {
-      const { data } = await supabase.from('financial_transactions').select('*');
+      const { data } = await supabase
+        .from('financial_transactions')
+        .select('*, projects(name)');
       return data || [];
     }
   });
@@ -120,13 +123,36 @@ function Dashboard() {
   const activeProjectsCount = projects.filter(p => p.status !== 'concluido' && p.status !== 'pausado').length;
   const pendingTasksCount = tasks.filter(t => t.status !== 'concluido').length;
 
-  const aReceber = transactions
-    .filter(t => t.type === 'receita' && t.status === 'pendente')
-    .reduce((acc, t) => acc + t.amount, 0);
+  const pendentesReceita = transactions.filter(t => t.type === 'receita' && t.status === 'pendente');
+  const pendentesDespesa = transactions.filter(t => t.type === 'despesa' && t.status === 'pendente');
 
-  const aPagar = transactions
-    .filter(t => t.type === 'despesa' && t.status === 'pendente')
-    .reduce((acc, t) => acc + t.amount, 0);
+  const aReceber = pendentesReceita.reduce((acc, t) => acc + t.amount, 0);
+  const aPagar = pendentesDespesa.reduce((acc, t) => acc + t.amount, 0);
+
+  // Ordena pendentes por vencimento (sem data vai pro fim).
+  const byDue = (a: any, b: any) => {
+    const da = a.due_date ? parseLocalDate(a.due_date)!.getTime() : Infinity;
+    const db = b.due_date ? parseLocalDate(b.due_date)!.getTime() : Infinity;
+    return da - db;
+  };
+  const contasAPagar = [...pendentesDespesa].sort(byDue);
+  const contasAReceber = [...pendentesReceita].sort(byDue);
+  const isBillLate = (t: any) =>
+    t.due_date && isPast(parseLocalDate(t.due_date)!) && !isToday(parseLocalDate(t.due_date)!);
+  const pagarVencido = contasAPagar.filter(isBillLate).reduce((a, t) => a + t.amount, 0);
+
+  // Realizado no mês corrente (o que efetivamente entrou/saiu).
+  const now = new Date();
+  const inThisMonth = (t: any) => {
+    const d = parseLocalDate(t.date ?? t.due_date);
+    return d && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  };
+  const entrouMes = transactions
+    .filter(t => t.type === 'receita' && t.status === 'pago' && inThisMonth(t))
+    .reduce((a, t) => a + t.amount, 0);
+  const saiuMes = transactions
+    .filter(t => t.type === 'despesa' && t.status === 'pago' && inThisMonth(t))
+    .reduce((a, t) => a + t.amount, 0);
 
   // O que fazer agora: tarefas + provas + trabalhos, tudo na mesma régua de prioridade.
   const allPriorities = ([
@@ -210,6 +236,11 @@ function Dashboard() {
         <span className="text-muted-foreground/40">·</span>
         <Link to="/financeiro" className="text-muted-foreground hover:text-foreground transition-colors">
           <span className="font-bold text-destructive">{currency(aPagar)}</span> a pagar
+          {pagarVencido > 0 && (
+            <span className="ml-1 font-bold text-destructive">
+              ({currency(pagarVencido)} vencido)
+            </span>
+          )}
         </Link>
       </div>
 
@@ -300,6 +331,49 @@ function Dashboard() {
         </section>
       )}
 
+      {/* Financeiro — o que entra, o que sai, o que está vencendo */}
+      {transactions.length > 0 && (
+        <section className="mb-8">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-lg font-bold tracking-tight">Financeiro</h3>
+            <Link
+              to="/financeiro"
+              className="text-xs font-bold uppercase tracking-wide text-muted-foreground transition-colors hover:text-primary"
+            >
+              Abrir financeiro
+            </Link>
+          </div>
+
+          <div className="mb-4 grid grid-cols-3 gap-3">
+            <MoneyTile label="Entrou no mês" value={currency(entrouMes)} tone="in" />
+            <MoneyTile label="Saiu no mês" value={currency(saiuMes)} tone="out" />
+            <MoneyTile
+              label="Saldo do mês"
+              value={currency(entrouMes - saiuMes)}
+              tone={entrouMes - saiuMes < 0 ? "out" : "in"}
+            />
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <BillList
+              title="Contas a pagar"
+              icon={TrendingDown}
+              accent="text-destructive"
+              total={aPagar}
+              lateTotal={pagarVencido}
+              items={contasAPagar}
+            />
+            <BillList
+              title="A receber"
+              icon={TrendingUp}
+              accent="text-emerald-600"
+              total={aReceber}
+              items={contasAReceber}
+            />
+          </div>
+        </section>
+      )}
+
       {/* Sinais secundários — quem está travando você, e o que está silenciosamente atrasando */}
       <div className="grid gap-6 md:grid-cols-2">
         <MiniSection title="Aguardando resposta" icon={MessageSquare} emptyText="Ninguém te atrasando hoje.">
@@ -325,6 +399,100 @@ function Dashboard() {
         <EstudarAgora projectId="" />
       </div>
     </AppLayout>
+  );
+}
+
+function MoneyTile({ label, value, tone }: { label: string; value: string; tone: "in" | "out" }) {
+  return (
+    <div className="rounded-xl border bg-card p-3">
+      <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p
+        className={cn(
+          "mt-1 text-base font-black tabular-nums sm:text-lg",
+          tone === "in" ? "text-emerald-600" : "text-destructive",
+        )}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function BillList({
+  title,
+  icon: Icon,
+  accent,
+  total,
+  lateTotal,
+  items,
+}: {
+  title: string;
+  icon: any;
+  accent: string;
+  total: number;
+  lateTotal?: number;
+  items: any[];
+}) {
+  const shown = items.slice(0, 6);
+  return (
+    <div className="rounded-xl border bg-card p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <h4 className="flex items-center gap-2 text-sm font-bold">
+          <Icon className={cn("h-4 w-4", accent)} /> {title}
+        </h4>
+        <span className={cn("text-sm font-black tabular-nums", accent)}>{currency(total)}</span>
+      </div>
+      {lateTotal !== undefined && lateTotal > 0 && (
+        <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-destructive">
+          {currency(lateTotal)} vencido
+        </p>
+      )}
+      {shown.length === 0 ? (
+        <p className="py-4 text-center text-xs text-muted-foreground">Nada pendente.</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {shown.map((t) => {
+            const due = parseLocalDate(t.due_date);
+            const late = due && isPast(due) && !isToday(due);
+            return (
+              <li
+                key={t.id}
+                className={cn(
+                  "flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-sm",
+                  late && "border-destructive/30 bg-destructive/5",
+                )}
+              >
+                <span className="min-w-0 flex-1 truncate">
+                  {t.description}
+                  {t.projects?.name && (
+                    <span className="ml-1.5 text-[10px] uppercase text-muted-foreground">
+                      · {t.projects.name}
+                    </span>
+                  )}
+                </span>
+                <span
+                  className={cn(
+                    "shrink-0 text-[11px] font-bold",
+                    late ? "text-destructive" : "text-muted-foreground",
+                  )}
+                >
+                  {due ? format(due, "dd/MM") : "s/ data"}
+                </span>
+                <span className="shrink-0 text-xs font-black tabular-nums">{currency(t.amount)}</span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {items.length > shown.length && (
+        <Link
+          to="/financeiro"
+          className="mt-2 block text-center text-[11px] font-bold uppercase tracking-wide text-muted-foreground hover:text-primary"
+        >
+          + {items.length - shown.length} lançamento(s)
+        </Link>
+      )}
+    </div>
   );
 }
 
