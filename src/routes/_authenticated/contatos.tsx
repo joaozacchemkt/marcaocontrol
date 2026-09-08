@@ -18,8 +18,11 @@ export const Route = createFileRoute("/_authenticated/contatos")({
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Plus, Building2, Phone, Mail, CheckSquare, Calendar, Pencil, Trash2, MessageCircle } from "lucide-react";
+import { Search, Plus, Building2, Phone, Mail, CheckSquare, Calendar, Pencil, Trash2, MessageCircle, PhoneCall } from "lucide-react";
 import { toast } from "sonner";
+import { format, isPast, isToday } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog,
@@ -60,16 +63,31 @@ function ContatosPage() {
     new Set(contacts.map(c => c.category).filter(Boolean) as string[]),
   ).sort();
 
-  const filteredContacts = contacts.filter(c => {
-    const term = search.toLowerCase();
-    const matchesSearch =
-      c.name.toLowerCase().includes(term) ||
-      Boolean(c.company?.toLowerCase().includes(term)) ||
-      Boolean(c.email?.toLowerCase().includes(term)) ||
-      Boolean(c.phone?.toLowerCase().includes(term));
-    const matchesCategory = categoryFilter === "todas" || c.category === categoryFilter;
-    return matchesSearch && matchesCategory;
-  });
+  const filteredContacts = contacts
+    .filter(c => {
+      const term = search.toLowerCase();
+      const matchesSearch =
+        c.name.toLowerCase().includes(term) ||
+        Boolean(c.company?.toLowerCase().includes(term)) ||
+        Boolean(c.email?.toLowerCase().includes(term)) ||
+        Boolean(c.phone?.toLowerCase().includes(term));
+      const matchesCategory = categoryFilter === "todas" || c.category === categoryFilter;
+      return matchesSearch && matchesCategory;
+    })
+    // Quem precisa de retorno primeiro (por data de retorno mais próxima).
+    .sort((a, b) => {
+      const ra = a.next_contact ? new Date(a.next_contact).getTime() : Infinity;
+      const rb = b.next_contact ? new Date(b.next_contact).getTime() : Infinity;
+      if (ra !== rb) return ra - rb;
+      return a.name.localeCompare(b.name, "pt-BR");
+    });
+
+  const needsReturn = (c: any) => {
+    if (!c.next_contact) return false;
+    const d = new Date(c.next_contact);
+    return isToday(d) || isPast(d);
+  };
+  const pendingReturns = contacts.filter(needsReturn).length;
 
   return (
     <AppLayout>
@@ -77,7 +95,14 @@ function ContatosPage() {
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h2 className="text-2xl font-bold tracking-tight">Contatos</h2>
-            <p className="text-muted-foreground">Gestão estratégica de stakeholders.</p>
+            {pendingReturns > 0 ? (
+              <p className="flex items-center gap-1.5 text-sm font-medium text-amber-600 dark:text-amber-400">
+                <PhoneCall className="h-3.5 w-3.5" />
+                {pendingReturns} {pendingReturns === 1 ? "pessoa para retornar" : "pessoas para retornar"}
+              </p>
+            ) : (
+              <p className="text-muted-foreground">Parceiros, clientes e fornecedores.</p>
+            )}
           </div>
           <Button onClick={() => setShowModal(true)}>
             <Plus className="h-4 w-4 mr-2" /> Novo Contato
@@ -141,6 +166,10 @@ function ContactCard({ contact, onEdit }: { contact: any; onEdit: () => void }) 
   const [activeModal, setActiveModal] = useState<'task' | 'event' | null>(null);
   const queryClient = useQueryClient();
 
+  const nextContact = contact.next_contact ? new Date(contact.next_contact) : null;
+  const returnDue = nextContact ? isToday(nextContact) || isPast(nextContact) : false;
+  const lastContact = contact.last_contact ? new Date(contact.last_contact) : null;
+
   const deleteContact = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.from('contacts').delete().eq('id', contact.id);
@@ -155,7 +184,34 @@ function ContactCard({ contact, onEdit }: { contact: any; onEdit: () => void }) 
   });
 
   return (
-    <div className="group rounded-xl border bg-card p-5 shadow-sm hover:shadow-md hover:border-primary/50 transition-all">
+    <div
+      className={cn(
+        "group rounded-xl border bg-card p-5 shadow-sm transition-all hover:shadow-md hover:border-primary/50",
+        returnDue && "border-amber-500/40 bg-amber-500/[0.04]",
+      )}
+    >
+      {(nextContact || lastContact) && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px]">
+          {nextContact && (
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-bold uppercase tracking-wide",
+                returnDue
+                  ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+                  : "bg-muted text-muted-foreground",
+              )}
+            >
+              <PhoneCall className="h-3 w-3" />
+              {returnDue ? "Retornar" : "Retorno"} · {format(nextContact, "dd MMM", { locale: ptBR })}
+            </span>
+          )}
+          {lastContact && (
+            <span className="text-muted-foreground">
+              Último contato: {format(lastContact, "dd/MM/yyyy")}
+            </span>
+          )}
+        </div>
+      )}
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">

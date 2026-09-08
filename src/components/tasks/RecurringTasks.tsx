@@ -123,6 +123,8 @@ export function RecurringTasks() {
       setShowForm(false);
       queryClient.invalidateQueries({ queryKey: ["task_recurrences"] });
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["board-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-tasks"] });
       toast.success("Recorrência criada");
     },
     onError: (error: Error) => toast.error(error.message),

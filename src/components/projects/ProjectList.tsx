@@ -169,7 +169,7 @@ export function ProjectList() {
           ) : filteredProjects.map(project => {
             const StatusIcon = statusIcons[project.status] || Briefcase;
             return (
-              <div key={project.id} className="relative">
+              <div key={project.id} className="group/card relative">
                 <div className="absolute right-3 top-3 z-10 flex items-center gap-1 opacity-0 transition-opacity group-hover/card:opacity-100 focus-within:opacity-100">
                   <Button
                     variant="ghost"
@@ -203,7 +203,7 @@ export function ProjectList() {
               <Link
                 to="/projetos/$projectId"
                 params={{ projectId: project.id }}
-                className="group/card group block rounded-xl border bg-card p-6 shadow-sm hover:shadow-md hover:border-primary/50 transition-all"
+                className="group block rounded-xl border bg-card p-6 shadow-sm hover:shadow-md hover:border-primary/50 transition-all"
               >
                 <div className="flex items-start justify-between mb-4">
                   <div>
