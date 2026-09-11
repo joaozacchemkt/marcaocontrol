@@ -15,6 +15,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activity";
+import { combineDateTime } from "@/lib/reminders";
+import { format } from "date-fns";
 
 interface EventModalProps {
   open: boolean;
@@ -29,17 +31,18 @@ export function EventModal({ open, onOpenChange, initialContactId, initialProjec
   const queryClient = useQueryClient();
   const isEditing = Boolean(event?.id);
 
-  const toLocalInput = (value?: string | null) => {
-    if (!value) return "";
+  const toDateAndTime = (value?: string | null) => {
+    if (!value) return { date: "", time: "" };
     const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return "";
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    if (Number.isNaN(d.getTime())) return { date: "", time: "" };
+    return { date: format(d, "yyyy-MM-dd"), time: format(d, "HH:mm") };
   };
   const [formData, setFormData] = useState({
     title: "",
     description: "",
+    start_date: "",
     start_time: "",
+    end_date: "",
     end_time: "",
     location: "",
     objective: "",
@@ -50,11 +53,15 @@ export function EventModal({ open, onOpenChange, initialContactId, initialProjec
 
   useEffect(() => {
     if (!open) return;
+    const start = toDateAndTime(event?.start_time);
+    const end = toDateAndTime(event?.end_time);
     setFormData({
       title: event?.title ?? "",
       description: event?.description ?? "",
-      start_time: toLocalInput(event?.start_time),
-      end_time: toLocalInput(event?.end_time),
+      start_date: start.date,
+      start_time: start.time || "09:00",
+      end_date: end.date,
+      end_time: end.time,
       location: event?.location ?? "",
       objective: event?.objective ?? "",
       project_id: event?.project_id ?? initialProjectId ?? "",
@@ -84,28 +91,36 @@ export function EventModal({ open, onOpenChange, initialContactId, initialProjec
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) throw new Error("Usuário não autenticado");
 
+      const start = combineDateTime(data.start_date, data.start_time);
+      if (Number.isNaN(start.getTime())) throw new Error("Data/hora de início inválida");
+      const end = data.end_date
+        ? combineDateTime(data.end_date, data.end_time || data.start_time)
+        : null;
+      if (end && Number.isNaN(end.getTime())) throw new Error("Data/hora de término inválida");
+
+      const { start_date, start_time, end_date, end_time, ...rest } = data;
+      const payload = {
+        ...rest,
+        start_time: start.toISOString(),
+        end_time: end ? end.toISOString() : null,
+        project_id: data.project_id || null,
+        contact_id: data.contact_id || null,
+      };
+
       if (isEditing) {
         const { error: updateError } = await supabase
           .from('events')
-          .update({
-            ...data,
-            project_id: data.project_id || null,
-            contact_id: data.contact_id || null,
-            end_time: data.end_time || null,
-          })
+          .update(payload)
           .eq('id', event.id);
         if (updateError) throw updateError;
         return;
       }
 
       const { data: created, error } = await supabase.from('events').insert({
-        ...data,
+        ...payload,
         user_id: userData.user.id,
-        project_id: data.project_id || null,
-        contact_id: data.contact_id || null,
-        end_time: data.end_time || null
       }).select().single();
-      
+
       if (error) throw error;
       
       if (created && created.project_id) {
@@ -126,7 +141,9 @@ export function EventModal({ open, onOpenChange, initialContactId, initialProjec
       setFormData({
         title: "",
         description: "",
-        start_time: "",
+        start_date: "",
+        start_time: "09:00",
+        end_date: "",
         end_time: "",
         location: "",
         objective: "",
@@ -142,8 +159,8 @@ export function EventModal({ open, onOpenChange, initialContactId, initialProjec
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.title || !formData.start_time) {
-      toast.error("Título e horário de início são obrigatórios");
+    if (!formData.title || !formData.start_date) {
+      toast.error("Título e data de início são obrigatórios");
       return;
     }
     createEvent.mutate(formData);
@@ -169,20 +186,41 @@ export function EventModal({ open, onOpenChange, initialContactId, initialProjec
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="start">Início *</Label>
-              <Input 
-                id="start" 
-                type="datetime-local"
-                value={formData.start_time}
-                onChange={e => setFormData(prev => ({ ...prev, start_time: e.target.value }))}
+              <Label htmlFor="start-date">Data de início *</Label>
+              <Input
+                id="start-date"
+                type="date"
+                value={formData.start_date}
+                onChange={e => setFormData(prev => ({ ...prev, start_date: e.target.value }))}
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="end">Término (Opcional)</Label>
-              <Input 
-                id="end" 
-                type="datetime-local"
+              <Label htmlFor="start-time">Hora de início</Label>
+              <Input
+                id="start-time"
+                type="time"
+                value={formData.start_time}
+                onChange={e => setFormData(prev => ({ ...prev, start_time: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="end-date">Data de término (opcional)</Label>
+              <Input
+                id="end-date"
+                type="date"
+                value={formData.end_date}
+                onChange={e => setFormData(prev => ({ ...prev, end_date: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="end-time">Hora de término</Label>
+              <Input
+                id="end-time"
+                type="time"
                 value={formData.end_time}
                 onChange={e => setFormData(prev => ({ ...prev, end_time: e.target.value }))}
               />
