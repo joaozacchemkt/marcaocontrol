@@ -65,6 +65,7 @@ export function TaskDetailSheet({ task, projectId, open, onOpenChange }: TaskDet
   const [subtaskTitle, setSubtaskTitle] = useState("");
   const [observation, setObservation] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmComplete, setConfirmComplete] = useState(false);
   const [reminderOpen, setReminderOpen] = useState(false);
 
   useEffect(() => {
@@ -167,23 +168,28 @@ export function TaskDetailSheet({ task, projectId, open, onOpenChange }: TaskDet
     onError: (error: Error) => toast.error(error.message),
   });
 
+  /** Payload completo do formulário — usado tanto pelo Salvar quanto pelo
+   * atalho Concluir, pra um clique em "Concluir" nunca jogar fora o que
+   * ficou digitado nos outros campos (ex.: descrição) sem salvar. */
+  const buildTaskPayload = (status: BoardStatus) => ({
+    title: form.title.trim() || "Sem título",
+    description: form.description || null,
+    notes: form.notes || null,
+    responsible: form.responsible || null,
+    category: form.category || null,
+    waiting_for: form.waiting_for || null,
+    deadline: form.deadline ? new Date(`${form.deadline}T12:00:00`).toISOString() : null,
+    priority: form.priority as "baixa" | "media" | "alta",
+    status: status as never,
+    contact_id: form.contact_id === "none" ? null : form.contact_id,
+  });
+
   const save = useMutation({
     mutationFn: async () => {
       if (!task) return;
       const { error } = await supabase
         .from("tasks")
-        .update({
-          title: form.title.trim() || "Sem título",
-          description: form.description || null,
-          notes: form.notes || null,
-          responsible: form.responsible || null,
-          category: form.category || null,
-          waiting_for: form.waiting_for || null,
-          deadline: form.deadline ? new Date(`${form.deadline}T12:00:00`).toISOString() : null,
-          priority: form.priority as "baixa" | "media" | "alta",
-          status: form.status as never,
-          contact_id: form.contact_id === "none" ? null : form.contact_id,
-        })
+        .update(buildTaskPayload(form.status))
         .eq("id", task.id);
       if (error) throw error;
       if (
@@ -265,7 +271,7 @@ export function TaskDetailSheet({ task, projectId, open, onOpenChange }: TaskDet
       if (!task) return;
       const { error } = await supabase
         .from("tasks")
-        .update({ status: "concluido" })
+        .update(buildTaskPayload("concluido"))
         .eq("id", task.id);
       if (error) throw error;
       if ((task as { recurrence_id?: string | null }).recurrence_id) {
@@ -277,6 +283,7 @@ export function TaskDetailSheet({ task, projectId, open, onOpenChange }: TaskDet
       toast.success("Card concluído");
       onOpenChange(false);
     },
+    onError: (error: Error) => toast.error(error.message),
   });
 
   const removeTask = useMutation({
@@ -600,7 +607,7 @@ export function TaskDetailSheet({ task, projectId, open, onOpenChange }: TaskDet
                 <Bell className="mr-2 h-4 w-4" /> Adicionar lembrete
               </Button>
             )}
-            <Button variant="outline" size="sm" onClick={() => complete.mutate()}>
+            <Button variant="outline" size="sm" onClick={() => setConfirmComplete(true)}>
               <Check className="mr-2 h-4 w-4" /> Concluir
             </Button>
             <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(true)}>
@@ -612,6 +619,29 @@ export function TaskDetailSheet({ task, projectId, open, onOpenChange }: TaskDet
           </div>
         </div>
       </SheetContent>
+
+      <AlertDialog open={confirmComplete} onOpenChange={setConfirmComplete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Concluir “{form.title || task?.title}”?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O card vai para a coluna Concluído e o painel fecha. As alterações feitas aqui
+              (descrição, observações etc.) são salvas junto.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmComplete(false);
+                complete.mutate();
+              }}
+            >
+              Concluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>
