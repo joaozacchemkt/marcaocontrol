@@ -14,6 +14,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Link2, Plus, X } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const RELATION_TYPES = [
   { value: "relacionado", label: "Relacionado" },
@@ -196,15 +207,32 @@ export function ProjectRelations({ projectId }: ProjectRelationsProps) {
                   {label}
                 </Badge>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 shrink-0"
-                aria-label="Remover relação"
-                onClick={() => removeRelation.mutate(relation.id)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0"
+                    aria-label="Remover relação"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Remover relação com "{nameOf(otherId)}"?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      O vínculo entre os dois projetos é removido. Nenhum projeto é excluído.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => removeRelation.mutate(relation.id)}>
+                      Remover
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           );
         })}

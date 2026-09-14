@@ -28,6 +28,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Bell, BellOff, Check, History, Plus, Trash2 } from "lucide-react";
 import { format } from "date-fns";
@@ -492,15 +493,30 @@ export function TaskDetailSheet({ task, projectId, open, onOpenChange }: TaskDet
                   >
                     {subtask.title}
                   </span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6"
-                    aria-label="Remover subtarefa"
-                    onClick={() => removeSubtask.mutate(subtask.id)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        aria-label="Remover subtarefa"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Remover subtarefa "{subtask.title}"?</AlertDialogTitle>
+                        <AlertDialogDescription>A ação não pode ser desfeita.</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => removeSubtask.mutate(subtask.id)}>
+                          Remover
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               ))}
             </div>
