@@ -18,6 +18,8 @@ import { cn } from "@/lib/utils";
 
 export interface DayCounts {
   events: number;
+  /** Quantos dos `events` já estão com status "concluido". */
+  eventsDone: number;
   tasks: number;
   finances: number;
 }
@@ -140,8 +142,20 @@ export function MonthGrid({
               {hasActivity && (
                 <div className="mt-auto flex min-w-0 flex-wrap items-center gap-1">
                   {counts.events > 0 && (
-                    <span className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground">
-                      <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    <span
+                      className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground"
+                      title={
+                        counts.eventsDone === counts.events
+                          ? "Todos os compromissos concluídos"
+                          : undefined
+                      }
+                    >
+                      <span
+                        className={cn(
+                          "h-1.5 w-1.5 rounded-full",
+                          counts.eventsDone === counts.events ? "bg-emerald-500" : "bg-primary",
+                        )}
+                      />
                       {counts.events}
                     </span>
                   )}

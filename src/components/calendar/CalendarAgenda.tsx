@@ -167,13 +167,17 @@ export function CalendarAgenda() {
   const selectedDateFinances =
     finances?.filter((t) => t.due_date && isSameDay(parseLocalDate(t.due_date)!, date || new Date())) || [];
 
-  const getCounts = (day: Date): DayCounts => ({
-    events: events?.filter((e) => isSameDay(parseISO(e.start_time), day)).length || 0,
-    tasks: (tasks?.filter((t) => t.deadline && isSameDay(parseLocalDate(t.deadline)!, day)).length || 0) +
-           (academicExams?.filter((e) => e.date && isSameDay(parseLocalDate(e.date)!, day)).length || 0) +
-           (academicAssignments?.filter((a) => a.deadline && isSameDay(parseLocalDate(a.deadline)!, day)).length || 0),
-    finances: finances?.filter((t) => t.due_date && isSameDay(parseLocalDate(t.due_date)!, day)).length || 0,
-  });
+  const getCounts = (day: Date): DayCounts => {
+    const dayEvents = events?.filter((e) => isSameDay(parseISO(e.start_time), day)) || [];
+    return {
+      events: dayEvents.length,
+      eventsDone: dayEvents.filter((e) => e.status === "concluido").length,
+      tasks: (tasks?.filter((t) => t.deadline && isSameDay(parseLocalDate(t.deadline)!, day)).length || 0) +
+             (academicExams?.filter((e) => e.date && isSameDay(parseLocalDate(e.date)!, day)).length || 0) +
+             (academicAssignments?.filter((a) => a.deadline && isSameDay(parseLocalDate(a.deadline)!, day)).length || 0),
+      finances: finances?.filter((t) => t.due_date && isSameDay(parseLocalDate(t.due_date)!, day)).length || 0,
+    };
+  };
 
   const settings = (
     <Popover>
