@@ -54,6 +54,23 @@ function Dashboard() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const toggleTask = useMutation({
+    mutationFn: async (task: { id: string; status: string }) => {
+      const nextStatus = task.status === "concluido" ? "a_fazer" : "concluido";
+      const { error } = await supabase.from("tasks").update({ status: nextStatus }).eq("id", task.id);
+      if (error) throw error;
+      return nextStatus;
+    },
+    onSuccess: (nextStatus) => {
+      queryClient.invalidateQueries({ queryKey: ["dashboard-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["board-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks-calendar"] });
+      toast.success(nextStatus === "concluido" ? "Tarefa concluída" : "Tarefa reaberta");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const { data: projects = [] } = useQuery({
     queryKey: ['dashboard-projects'],
     queryFn: async () => {
@@ -255,7 +272,12 @@ function Dashboard() {
         ) : (
           <div className="space-y-2">
             {topPriorities.map(item => (
-              <PriorityCard key={`${item.type}-${item.id}`} item={item} />
+              <PriorityCard
+                key={`${item.type}-${item.id}`}
+                item={item}
+                onToggleTask={item.type === 'task' ? () => toggleTask.mutate(item) : undefined}
+                toggling={toggleTask.isPending}
+              />
             ))}
             {morePrioritiesCount > 0 && (
               <Link
@@ -496,7 +518,15 @@ function BillList({
   );
 }
 
-function PriorityCard({ item }: { item: any }) {
+function PriorityCard({
+  item,
+  onToggleTask,
+  toggling,
+}: {
+  item: any;
+  onToggleTask?: (() => void) | undefined;
+  toggling?: boolean;
+}) {
   const isOverdue = item.deadline && isPast(parseLocalDate(item.deadline)) && !isToday(parseLocalDate(item.deadline));
   const content = (
     <div
@@ -505,6 +535,22 @@ function PriorityCard({ item }: { item: any }) {
         isOverdue && "border-destructive/30 bg-destructive/5",
       )}
     >
+      {onToggleTask && (
+        <button
+          type="button"
+          aria-label="Concluir tarefa"
+          title="Concluir"
+          disabled={toggling}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onToggleTask();
+          }}
+          className="shrink-0 rounded-full border p-1.5 text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
+        >
+          <Check className="h-3.5 w-3.5" />
+        </button>
+      )}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-0.5">
           <p className="text-sm font-bold truncate">{item.title}</p>
