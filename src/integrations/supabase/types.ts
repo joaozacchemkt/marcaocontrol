@@ -313,6 +313,7 @@ export type Database = {
           pre_meeting_notes: string | null
           project_id: string | null
           start_time: string
+          status: string
           title: string
           updated_at: string | null
           user_id: string
@@ -330,6 +331,7 @@ export type Database = {
           pre_meeting_notes?: string | null
           project_id?: string | null
           start_time: string
+          status?: string
           title: string
           updated_at?: string | null
           user_id: string
@@ -347,6 +349,7 @@ export type Database = {
           pre_meeting_notes?: string | null
           project_id?: string | null
           start_time?: string
+          status?: string
           title?: string
           updated_at?: string | null
           user_id?: string

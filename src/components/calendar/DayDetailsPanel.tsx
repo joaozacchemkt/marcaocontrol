@@ -39,6 +39,7 @@ interface DayDetailsPanelProps {
   onCollapse?: (() => void) | undefined;
   onEditEvent?: ((event: any) => void) | undefined;
   onDeleteEvent?: ((event: any) => void) | undefined;
+  onToggleEvent?: ((event: any) => void) | undefined;
   onToggleTask?: ((task: any) => void) | undefined;
 }
 
@@ -52,6 +53,7 @@ export function DayDetailsPanel({
   onCollapse,
   onEditEvent,
   onDeleteEvent,
+  onToggleEvent,
   onToggleTask,
 }: DayDetailsPanelProps) {
   const total = events.length + tasks.length + finances.length;
@@ -108,14 +110,31 @@ export function DayDetailsPanel({
                   {events.map((event) => (
                     <article
                       key={event.id}
-                      className="rounded-xl border border-border/50 bg-background/40 p-3 transition-colors hover:bg-background/80"
+                      className={cn(
+                        "rounded-xl border border-border/50 bg-background/40 p-3 transition-colors hover:bg-background/80",
+                        event.status === "concluido" && "opacity-50",
+                      )}
                     >
                       <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3">
-                        <span className="shrink-0 rounded-md bg-primary/10 px-2 py-1 text-[11px] font-black text-primary">
+                        <span
+                          className={cn(
+                            "shrink-0 rounded-md px-2 py-1 text-[11px] font-black",
+                            event.status === "concluido"
+                              ? "bg-muted text-muted-foreground"
+                              : "bg-primary/10 text-primary",
+                          )}
+                        >
                           {format(new Date(event.start_time), "HH:mm")}
                         </span>
                         <div className="min-w-0 space-y-1">
-                          <p className="truncate text-sm font-semibold leading-tight">{event.title}</p>
+                          <p
+                            className={cn(
+                              "truncate text-sm font-semibold leading-tight",
+                              event.status === "concluido" && "text-muted-foreground line-through",
+                            )}
+                          >
+                            {event.title}
+                          </p>
                           {event.location && (
                             <p className="flex items-center gap-1 truncate text-[11px] text-muted-foreground">
                               <MapPin className="h-3 w-3 shrink-0 text-primary/60" />
@@ -127,8 +146,19 @@ export function DayDetailsPanel({
                               {event.description}
                             </p>
                           )}
-                          {(onEditEvent || onDeleteEvent) && (
+                          {(onEditEvent || onDeleteEvent || onToggleEvent) && (
                             <div className="flex items-center gap-1 pt-1">
+                              {onToggleEvent && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 px-2 text-[10px] font-bold uppercase"
+                                  onClick={() => onToggleEvent(event)}
+                                >
+                                  <CheckCircle className="mr-1 h-3 w-3" />
+                                  {event.status === "concluido" ? "Reabrir" : "Concluir"}
+                                </Button>
+                              )}
                               {onEditEvent && (
                                 <Button
                                   variant="ghost"

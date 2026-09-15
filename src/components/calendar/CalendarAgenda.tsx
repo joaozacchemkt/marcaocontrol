@@ -250,6 +250,16 @@ export function CalendarAgenda() {
         onAddEvent={() => setEventModal(true)}
         onAddTask={() => setTaskModal(true)}
         onEditEvent={(event) => setEditingEvent(event)}
+        onToggleEvent={async (event) => {
+          const nextStatus = event.status === "concluido" ? "agendado" : "concluido";
+          const { error } = await supabase.from("events").update({ status: nextStatus }).eq("id", event.id);
+          if (error) {
+            toast.error("Erro ao atualizar compromisso: " + error.message);
+            return;
+          }
+          queryClient.invalidateQueries({ queryKey: ["events-calendar"] });
+          toast.success(nextStatus === "concluido" ? "Compromisso concluído." : "Compromisso reaberto.");
+        }}
         onDeleteEvent={async (event) => {
           const { error } = await supabase.from("events").delete().eq("id", event.id);
           if (error) {
