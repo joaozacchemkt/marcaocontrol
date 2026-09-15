@@ -21,6 +21,8 @@ export interface DayCounts {
   /** Quantos dos `events` já estão com status "concluido". */
   eventsDone: number;
   tasks: number;
+  /** Quantos dos `tasks` já estão concluídos/corrigidos. */
+  tasksDone: number;
   finances: number;
 }
 
@@ -160,8 +162,20 @@ export function MonthGrid({
                     </span>
                   )}
                   {counts.tasks > 0 && (
-                    <span className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground">
-                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                    <span
+                      className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground"
+                      title={
+                        counts.tasksDone === counts.tasks
+                          ? "Todas as pendências concluídas"
+                          : undefined
+                      }
+                    >
+                      <span
+                        className={cn(
+                          "h-1.5 w-1.5 rounded-full",
+                          counts.tasksDone === counts.tasks ? "bg-emerald-500" : "bg-amber-500",
+                        )}
+                      />
                       {counts.tasks}
                     </span>
                   )}
