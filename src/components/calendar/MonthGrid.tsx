@@ -7,6 +7,7 @@ import {
   isSameDay,
   isSameMonth,
   isToday,
+  startOfDay,
   startOfMonth,
   startOfWeek,
   subMonths,
@@ -113,7 +114,10 @@ export function MonthGrid({
           const outside = !isSameMonth(day, month);
           const isSelected = selected ? isSameDay(day, selected) : false;
           const today = isToday(day);
+          const isPastDay = day < startOfDay(new Date());
           const hasActivity = counts.events + counts.tasks + counts.finances > 0;
+          const tasksAllDone = counts.tasksDone === counts.tasks;
+          const tasksOverdue = !tasksAllDone && isPastDay;
 
           return (
             <button
@@ -165,15 +169,17 @@ export function MonthGrid({
                     <span
                       className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground"
                       title={
-                        counts.tasksDone === counts.tasks
+                        tasksAllDone
                           ? "Todas as pendências concluídas"
-                          : undefined
+                          : tasksOverdue
+                            ? "Pendências atrasadas"
+                            : undefined
                       }
                     >
                       <span
                         className={cn(
                           "h-1.5 w-1.5 rounded-full",
-                          counts.tasksDone === counts.tasks ? "bg-emerald-500" : "bg-amber-500",
+                          tasksAllDone ? "bg-emerald-500" : tasksOverdue ? "bg-destructive" : "bg-amber-500",
                         )}
                       />
                       {counts.tasks}
