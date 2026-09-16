@@ -7,6 +7,7 @@ import {
   Users,
   DollarSign,
   Lightbulb,
+  NotebookPen,
   Settings,
 } from "lucide-react";
 import { Link, useLocation } from "@tanstack/react-router";
@@ -24,6 +25,7 @@ const menuItems = [
   { title: "Contatos", href: "/contatos", icon: Users },
   { title: "Financeiro", href: "/financeiro", icon: DollarSign },
   { title: "Ideias", href: "/ideias", icon: Lightbulb },
+  { title: "Diário", href: "/diario", icon: NotebookPen },
   { title: "Configurações", href: "/configuracoes", icon: Settings },
 ];
 
