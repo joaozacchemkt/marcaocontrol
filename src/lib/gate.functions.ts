@@ -19,49 +19,63 @@ export interface UnlockResult {
   tokenHash?: string;
 }
 
-/**
- * Cada pessoa com acesso tem seu próprio par (senha, e-mail da conta).
- * `SITE_PASSWORD`/`APP_ACCOUNT_EMAIL` é a conta original; `_PAI` é a
- * segunda pessoa. Novos pares seguem o mesmo padrão de nome de variável.
- */
-function accountPairs(): { password: string; email: string }[] {
-  const pairs: { password: string; email: string }[] = [];
-  const primary = process.env["SITE_PASSWORD"];
-  const primaryEmail = process.env["APP_ACCOUNT_EMAIL"];
-  if (primary && primaryEmail) pairs.push({ password: primary, email: primaryEmail });
-  const pai = process.env["SITE_PASSWORD_PAI"];
-  const paiEmail = process.env["APP_ACCOUNT_EMAIL_PAI"];
-  if (pai && paiEmail) pairs.push({ password: pai, email: paiEmail });
-  return pairs;
+interface Account {
+  username: string;
+  password: string;
+  email: string;
 }
 
 /**
- * Valida a senha digitada contra cada conta configurada no servidor e, se
- * alguma bater, emite um token de sessão pra ELA (não uma conta única mais
- * — cada pessoa tem a sua). A senha nunca chega ao cliente. Sempre checa
- * todos os pares (não retorna no primeiro match) pra não vazar por timing
- * qual conta existe.
+ * Cada pessoa com acesso tem seu próprio usuário/senha/e-mail de conta.
+ * `SITE_USERNAME`/`SITE_PASSWORD`/`APP_ACCOUNT_EMAIL` é a conta original;
+ * `_PAI` é a segunda pessoa. Duas contas podem até ter a mesma senha —
+ * quem decide qual conta abrir é o usuário, não a senha.
+ */
+function accounts(): Account[] {
+  const list: Account[] = [];
+  const primaryUser = process.env["SITE_USERNAME"];
+  const primaryPass = process.env["SITE_PASSWORD"];
+  const primaryEmail = process.env["APP_ACCOUNT_EMAIL"];
+  if (primaryUser && primaryPass && primaryEmail) {
+    list.push({ username: primaryUser, password: primaryPass, email: primaryEmail });
+  }
+  const paiUser = process.env["SITE_USERNAME_PAI"];
+  const paiPass = process.env["SITE_PASSWORD_PAI"];
+  const paiEmail = process.env["APP_ACCOUNT_EMAIL_PAI"];
+  if (paiUser && paiPass && paiEmail) {
+    list.push({ username: paiUser, password: paiPass, email: paiEmail });
+  }
+  return list;
+}
+
+/**
+ * Acha a conta pelo usuário (comparação exata, sem diferenciar
+ * maiúsculas/espaços nas pontas) e só então confere a senha dela em tempo
+ * constante — evita ficar testando a senha contra contas de outras
+ * pessoas.
  */
 export const unlockSite = createServerFn({ method: "POST" })
-  .inputValidator((data: { password: string }) => ({
+  .inputValidator((data: { username: string; password: string }) => ({
+    username: typeof data?.username === "string" ? data.username.trim().slice(0, 100) : "",
     password: typeof data?.password === "string" ? data.password.slice(0, 200) : "",
   }))
   .handler(async ({ data }): Promise<UnlockResult> => {
-    const pairs = accountPairs();
-    if (pairs.length === 0) throw new Error("Acesso não configurado no servidor.");
+    const accountList = accounts();
+    if (accountList.length === 0) throw new Error("Acesso não configurado no servidor.");
 
-    let matched: { password: string; email: string } | null = null;
-    for (const pair of pairs) {
-      if (data.password && passwordMatches(data.password, pair.password)) matched = pair;
+    const account = accountList.find(
+      (a) => a.username.toLowerCase() === data.username.toLowerCase(),
+    );
+    if (!account || !data.password || !passwordMatches(data.password, account.password)) {
+      return { ok: false };
     }
-    if (!matched) return { ok: false };
-    const email = matched.email;
+    const email = account.email;
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // Garante que a conta existe (criada apenas na primeira entrada dela).
-    const { data: list } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 200 });
-    const exists = list?.users?.some((u) => u.email?.toLowerCase() === email.toLowerCase());
+    const { data: userList } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 200 });
+    const exists = userList?.users?.some((u) => u.email?.toLowerCase() === email.toLowerCase());
     if (!exists) {
       const { error: createError } = await supabaseAdmin.auth.admin.createUser({
         email,

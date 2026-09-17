@@ -29,6 +29,7 @@ export const Route = createFileRoute("/auth")({
 function AccessPage() {
   const navigate = useNavigate();
   const unlock = useServerFn(unlockSite);
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -44,9 +45,9 @@ function AccessPage() {
     setLoading(true);
     setError(null);
     try {
-      const result = await unlock({ data: { password } });
+      const result = await unlock({ data: { username, password } });
       if (!result.ok || !result.tokenHash || !result.email) {
-        setError("Senha incorreta.");
+        setError("Usuário ou senha incorretos.");
         return;
       }
       const { error: otpError } = await supabase.auth.verifyOtp({
@@ -76,12 +77,22 @@ function AccessPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
+            <Label htmlFor="username">Usuário</Label>
+            <Input
+              id="username"
+              type="text"
+              value={username}
+              autoFocus
+              autoComplete="username"
+              onChange={(e) => setUsername(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
             <Label htmlFor="password">Senha</Label>
             <Input
               id="password"
               type="password"
               value={password}
-              autoFocus
               autoComplete="current-password"
               onChange={(e) => setPassword(e.target.value)}
             />
