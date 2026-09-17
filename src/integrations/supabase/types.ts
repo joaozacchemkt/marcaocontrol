@@ -970,6 +970,7 @@ export type Database = {
       tasks: {
         Row: {
           actual_minutes: number | null
+          assigned_to: string | null
           category: string | null
           contact_id: string | null
           created_at: string | null
@@ -991,6 +992,7 @@ export type Database = {
         }
         Insert: {
           actual_minutes?: number | null
+          assigned_to?: string | null
           category?: string | null
           contact_id?: string | null
           created_at?: string | null
@@ -1012,6 +1014,7 @@ export type Database = {
         }
         Update: {
           actual_minutes?: number | null
+          assigned_to?: string | null
           category?: string | null
           contact_id?: string | null
           created_at?: string | null
@@ -1112,6 +1115,21 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      workspace_members: {
+        Row: {
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {

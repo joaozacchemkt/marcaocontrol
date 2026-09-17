@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { parseLocalDate } from "@/lib/dates";
+import { useWorkspaceMembers } from "@/lib/workspace";
 import { isOverdue, type BoardTask } from "./board-types";
 
 export interface BoardCardProps {
@@ -40,6 +41,8 @@ export function BoardCard({
     useSortable({ id: task.id });
 
   const overdue = isOverdue(task);
+  const { data: members = [] } = useWorkspaceMembers();
+  const assignee = task.assigned_to ? members.find((m) => m.id === task.assigned_to) : undefined;
 
   return (
     <div
@@ -131,6 +134,12 @@ export function BoardCard({
             <CalendarDays className="h-3 w-3" />
             {format(parseLocalDate(task.deadline)!, "dd MMM", { locale: ptBR })}
           </span>
+        )}
+        {assignee && (
+          <Badge variant="outline" className="h-4 gap-1 px-1.5 py-0 text-[9px]">
+            <User className="h-2.5 w-2.5" />
+            {assignee.name}
+          </Badge>
         )}
         {task.responsible && (
           <span className="inline-flex items-center gap-1">

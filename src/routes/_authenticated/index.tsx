@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Link } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 import { parseLocalDate, localDateTime } from "@/lib/dates";
+import { useCurrentUserId } from "@/lib/workspace";
 import { EstudarAgora } from "@/components/projects/workspace/faculdade/EstudarAgora";
 
 export const Route = createFileRoute("/_authenticated/")({
@@ -41,6 +42,7 @@ const currency = (value: number) =>
 
 function Dashboard() {
   const queryClient = useQueryClient();
+  const { data: currentUserId } = useCurrentUserId();
 
   const concluirLembrete = useMutation({
     mutationFn: async (id: string) => {
@@ -172,8 +174,13 @@ function Dashboard() {
     .reduce((a, t) => a + t.amount, 0);
 
   // O que fazer agora: tarefas + provas + trabalhos, tudo na mesma régua de prioridade.
+  // Com a área de trabalho compartilhada, prioriza o que é meu (atribuído a
+  // mim ou sem responsável ainda) — senão a lista vira a mistura dos dois.
+  const myTasks = tasks.filter(
+    (t: any) => t.status !== 'concluido' && (!t.assigned_to || t.assigned_to === currentUserId),
+  );
   const allPriorities = ([
-    ...tasks.filter(t => t.status !== 'concluido').map(t => ({ ...t, type: 'task', projectId: t.project_id })),
+    ...myTasks.map(t => ({ ...t, type: 'task', projectId: t.project_id })),
     ...academicExams.filter(e => e.status !== 'corrigida').map(e => ({
       ...e,
       id: e.id,

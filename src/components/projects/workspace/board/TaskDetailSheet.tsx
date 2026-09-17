@@ -39,6 +39,7 @@ import { invalidateReminders } from "@/lib/reminders";
 import { ReminderModal } from "@/components/modals/ReminderModal";
 import { toast } from "sonner";
 import { SUGGESTED_TAGS } from "@/lib/task-tags";
+import { useWorkspaceMembers } from "@/lib/workspace";
 import { BOARD_COLUMNS, type BoardStatus, type BoardTask } from "./board-types";
 
 export interface TaskDetailSheetProps {
@@ -62,6 +63,7 @@ export function TaskDetailSheet({ task, projectId, open, onOpenChange }: TaskDet
     priority: "media",
     status: "a_fazer" as BoardStatus,
     contact_id: "none",
+    assigned_to: "none",
   });
   const [subtaskTitle, setSubtaskTitle] = useState("");
   const [observation, setObservation] = useState("");
@@ -82,6 +84,7 @@ export function TaskDetailSheet({ task, projectId, open, onOpenChange }: TaskDet
       priority: task.priority ?? "media",
       status: task.status,
       contact_id: task.contact_id ?? "none",
+      assigned_to: (task as { assigned_to?: string | null }).assigned_to ?? "none",
     });
   }, [task]);
 
@@ -101,6 +104,8 @@ export function TaskDetailSheet({ task, projectId, open, onOpenChange }: TaskDet
       return data ?? [];
     },
   });
+
+  const { data: members = [] } = useWorkspaceMembers();
 
   const { data: subtasks = [] } = useQuery({
     queryKey: ["subtasks", task?.id],
@@ -183,6 +188,7 @@ export function TaskDetailSheet({ task, projectId, open, onOpenChange }: TaskDet
     priority: form.priority as "baixa" | "media" | "alta",
     status: status as never,
     contact_id: form.contact_id === "none" ? null : form.contact_id,
+    assigned_to: form.assigned_to === "none" ? null : form.assigned_to,
   });
 
   const save = useMutation({
@@ -395,6 +401,26 @@ export function TaskDetailSheet({ task, projectId, open, onOpenChange }: TaskDet
                 {tag}
               </button>
             ))}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="detail-assigned">Atribuído a</Label>
+            <Select
+              value={form.assigned_to}
+              onValueChange={(v) => setForm((p) => ({ ...p, assigned_to: v }))}
+            >
+              <SelectTrigger id="detail-assigned">
+                <SelectValue placeholder="Ninguém" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Ninguém</SelectItem>
+                {members.map((member) => (
+                  <SelectItem key={member.id} value={member.id}>
+                    {member.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

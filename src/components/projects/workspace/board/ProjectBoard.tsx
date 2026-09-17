@@ -16,6 +16,8 @@ import { endOfWeek, isToday, startOfWeek } from "date-fns";
 import { CheckCircle2, KanbanSquare, List, Plus, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useCurrentUserId, useWorkspaceMembers } from "@/lib/workspace";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -59,6 +61,9 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [pendingDelete, setPendingDelete] = useState<{ ids: string[]; label: string } | null>(null);
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("todos");
+  const { data: members = [] } = useWorkspaceMembers();
+  const { data: currentUserId } = useCurrentUserId();
 
   const queryKey = ["board-tasks", projectId ?? "all"];
 
@@ -198,6 +203,10 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
   const visible = useMemo(() => {
     const now = new Date();
     return parents.filter((task) => {
+      if (assigneeFilter === "ninguem" && task.assigned_to) return false;
+      if (assigneeFilter !== "todos" && assigneeFilter !== "ninguem" && task.assigned_to !== assigneeFilter) {
+        return false;
+      }
       const deadline = parseLocalDate(task.deadline);
       switch (filter) {
         case "hoje":
@@ -221,7 +230,7 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
           return true;
       }
     });
-  }, [parents, filter]);
+  }, [parents, filter, assigneeFilter]);
 
   const overdueCount = useMemo(() => parents.filter(isOverdue).length, [parents]);
 
@@ -357,6 +366,22 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
             {option.value === "atrasadas" && overdueCount > 0 && ` (${overdueCount})`}
           </Button>
         ))}
+        {members.length > 1 && (
+          <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
+            <SelectTrigger className="h-8 w-[160px] text-xs">
+              <SelectValue placeholder="Responsável" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos os responsáveis</SelectItem>
+              {members.map((member) => (
+                <SelectItem key={member.id} value={member.id}>
+                  {member.id === currentUserId ? "Minhas" : member.name}
+                </SelectItem>
+              ))}
+              <SelectItem value="ninguem">Sem responsável</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       <section className="rounded-xl border bg-card p-4">
