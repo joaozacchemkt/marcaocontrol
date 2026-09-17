@@ -6,6 +6,7 @@ import {
   KeyboardSensor,
   PointerSensor,
   closestCorners,
+  useDroppable,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -17,7 +18,7 @@ import { CheckCircle2, KanbanSquare, List, Plus, Trash2, Users } from "lucide-re
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useCurrentUserId, useWorkspaceMembers } from "@/lib/workspace";
+import { useCurrentUserId, useWorkspaceMembers, type WorkspaceMember } from "@/lib/workspace";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,6 +34,7 @@ import { logActivity } from "@/lib/activity";
 import { advanceRecurrence } from "@/lib/recurrence";
 import { invalidateReminders } from "@/lib/reminders";
 import { parseLocalDate } from "@/lib/dates";
+import { cn } from "@/lib/utils";
 import { BoardCard } from "./BoardCard";
 import { BoardColumn } from "./BoardColumn";
 import { TaskDetailSheet } from "./TaskDetailSheet";
@@ -132,6 +134,42 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
       const previous = queryClient.getQueryData<BoardTask[]>(queryKey);
       queryClient.setQueryData<BoardTask[]>(queryKey, (old) =>
         (old ?? []).map((task) => (task.id === id ? { ...task, status } : task)),
+      );
+      return { previous };
+    },
+    onError: (error: Error, _vars, context) => {
+      if (context?.previous) queryClient.setQueryData(queryKey, context.previous);
+      toast.error(error.message);
+    },
+    onSettled: invalidate,
+  });
+
+  const reassignTask = useMutation({
+    mutationFn: async ({ id, assignedTo }: { id: string; assignedTo: string | null }) => {
+      const { data, error } = await supabase
+        .from("tasks")
+        .update({ assigned_to: assignedTo } as never)
+        .eq("id", id)
+        .select()
+        .single();
+      if (error) throw error;
+      const logProjectId = (data as { project_id?: string | null })?.project_id ?? projectId;
+      if (data && logProjectId) {
+        const assigneeName = assignedTo ? members.find((m) => m.id === assignedTo)?.name || "alguém" : "ninguém";
+        await logActivity({
+          projectId: logProjectId,
+          type: "task_assigned",
+          description: `"${(data as { title: string }).title}" atribuída a ${assigneeName}`,
+          entityType: "task",
+          entityId: (data as { id: string }).id,
+        });
+      }
+    },
+    onMutate: async ({ id, assignedTo }) => {
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient.getQueryData<BoardTask[]>(queryKey);
+      queryClient.setQueryData<BoardTask[]>(queryKey, (old) =>
+        (old ?? []).map((task) => (task.id === id ? { ...task, assigned_to: assignedTo } : task)),
       );
       return { previous };
     },
@@ -276,6 +314,17 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
     const { active, over } = event;
     if (!over) return;
     const overId = over.id as string;
+
+    if (overId.startsWith("assignee:")) {
+      const assignedTo = overId.slice("assignee:".length);
+      const task = parents.find((t) => t.id === active.id);
+      const next = assignedTo === "none" ? null : assignedTo;
+      if (task && (task.assigned_to ?? null) !== next) {
+        reassignTask.mutate({ id: active.id as string, assignedTo: next });
+      }
+      return;
+    }
+
     const target =
       BOARD_COLUMNS.find((column) => column.id === overId)?.id ??
       parents.find((task) => task.id === overId)?.status;
@@ -452,9 +501,11 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
                       key={task.id}
                       task={task}
                       globalMode={globalMode}
+                      members={members}
                       onOpen={openTask}
                       onComplete={() => changeStatus.mutate({ id: task.id, status: "concluido" })}
                       onDelete={() => setPendingDelete({ ids: [task.id], label: `"${task.title}"` })}
+                      onReassign={(assignedTo) => reassignTask.mutate({ id: task.id, assignedTo })}
                     />
                   ))}
                 </ul>
@@ -499,9 +550,11 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
                         key={task.id}
                         task={task}
                         globalMode={globalMode}
+                        members={members}
                         onOpen={openTask}
                         onComplete={() => changeStatus.mutate({ id: task.id, status: "concluido" })}
                         onDelete={() => setPendingDelete({ ids: [task.id], label: `"${task.title}"` })}
+                        onReassign={(assignedTo) => reassignTask.mutate({ id: task.id, assignedTo })}
                       />
                     ))}
                   </ul>
@@ -517,6 +570,17 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
+          {members.length > 1 && (
+            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-dashed bg-card/50 p-2">
+              <span className="px-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                Arraste um card aqui pra atribuir
+              </span>
+              {members.map((member) => (
+                <AssigneeDropTarget key={member.id} id={`assignee:${member.id}`} label={member.name} />
+              ))}
+              <AssigneeDropTarget id="assignee:none" label="Ninguém" />
+            </div>
+          )}
           <div className="flex items-start gap-4 overflow-x-auto pb-4">
             {BOARD_COLUMNS.map((column) => (
               <BoardColumn
@@ -583,18 +647,40 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
   );
 }
 
+function AssigneeDropTarget({ id, label }: { id: string; label: string }) {
+  const { isOver, setNodeRef } = useDroppable({ id });
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "flex items-center gap-1.5 rounded-lg border-2 border-dashed px-2.5 py-1 text-xs font-medium transition-colors",
+        isOver ? "border-primary bg-primary/10 text-primary" : "border-transparent bg-muted/50 text-muted-foreground",
+      )}
+    >
+      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/15 text-[10px] font-bold text-primary">
+        {label === "Ninguém" ? "—" : label.charAt(0).toUpperCase()}
+      </span>
+      {label}
+    </div>
+  );
+}
+
 function TaskRow({
   task,
   globalMode,
+  members,
   onOpen,
   onComplete,
   onDelete,
+  onReassign,
 }: {
   task: BoardTask;
   globalMode: boolean;
+  members: WorkspaceMember[];
   onOpen: (task: BoardTask) => void;
   onComplete: () => void;
   onDelete: () => void;
+  onReassign: (assignedTo: string | null) => void;
 }) {
   const overdue = isOverdue(task);
   return (
@@ -642,6 +728,32 @@ function TaskRow({
               month: "short",
             })}
           </span>
+        )}
+        {members.length > 1 && (
+          <Select
+            value={task.assigned_to ?? "none"}
+            onValueChange={(v) => onReassign(v === "none" ? null : v)}
+          >
+            <SelectTrigger
+              className="h-6 w-6 shrink-0 justify-center border-none bg-transparent p-0 [&>svg]:hidden"
+              aria-label="Reatribuir"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/15 text-[10px] font-bold text-primary">
+                {task.assigned_to
+                  ? members.find((m) => m.id === task.assigned_to)?.name.charAt(0).toUpperCase() || "?"
+                  : "—"}
+              </span>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Ninguém</SelectItem>
+              {members.map((member) => (
+                <SelectItem key={member.id} value={member.id}>
+                  {member.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         )}
         <button
           type="button"
