@@ -30,6 +30,7 @@ import { Plus, Repeat, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { FREQUENCY_LABELS, type Frequency } from "@/lib/recurrence";
+import { todayLocalStr } from "@/lib/dates";
 
 interface RecurrenceRow {
   id: string;
@@ -47,7 +48,7 @@ const EMPTY_FORM = {
   project_id: "none",
   frequency: "semanal" as Frequency,
   interval_count: "1",
-  start_date: format(new Date(), "yyyy-MM-dd"),
+  start_date: "",
   end_date: "",
 };
 
@@ -178,7 +179,15 @@ export function RecurringTasks() {
             Ao concluir a tarefa, a próxima ocorrência é criada automaticamente.
           </p>
         </div>
-        <Button size="sm" onClick={() => setShowForm((v) => !v)}>
+        <Button
+          size="sm"
+          onClick={() =>
+            setShowForm((v) => {
+              if (!v) setForm((f) => ({ ...f, start_date: todayLocalStr() }));
+              return !v;
+            })
+          }
+        >
           <Plus className="h-4 w-4 mr-2" /> Nova recorrência
         </Button>
       </div>

@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activity";
 import { combineDateTime } from "@/lib/reminders";
+import { todayLocalStr } from "@/lib/dates";
 import { format } from "date-fns";
 
 interface EventModalProps {
@@ -58,7 +59,7 @@ export function EventModal({ open, onOpenChange, initialContactId, initialProjec
     setFormData({
       title: event?.title ?? "",
       description: event?.description ?? "",
-      start_date: start.date,
+      start_date: start.date || todayLocalStr(),
       start_time: start.time || "09:00",
       end_date: end.date,
       end_time: end.time,

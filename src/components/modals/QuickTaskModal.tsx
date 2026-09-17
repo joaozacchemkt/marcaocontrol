@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { logActivity } from "@/lib/activity";
 import { useGuardedSubmit } from "@/lib/use-guarded-submit";
 import { SUGGESTED_TAGS } from "@/lib/task-tags";
+import { todayLocalStr } from "@/lib/dates";
 
 interface QuickTaskModalProps {
   open: boolean;
@@ -60,6 +61,7 @@ export function QuickTaskModal({
     if (!open) return;
     setForm({
       ...emptyForm,
+      deadline: todayLocalStr(),
       project_id: initialProjectId || "none",
       contact_id: initialContactId || "none",
     });

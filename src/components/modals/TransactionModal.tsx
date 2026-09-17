@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { logActivity } from "@/lib/activity";
 import { useGuardedSubmit } from "@/lib/use-guarded-submit";
 import { FINANCE_CATEGORIES } from "@/lib/finance-categories";
+import { todayLocalStr } from "@/lib/dates";
 import {
   FINANCIAL_FREQUENCY_LABELS,
   advanceFinancialRecurrence,
@@ -40,7 +41,7 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
   const emptyForm = {
     description: "",
     amount: "",
-    date: new Date().toISOString().split('T')[0]!,
+    date: todayLocalStr(),
     due_date: "",
     category: "Outros",
     project_id: initialProjectId || "none",

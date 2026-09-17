@@ -22,6 +22,7 @@ import {
 import { toast } from "sonner";
 import { useGuardedSubmit } from "@/lib/use-guarded-submit";
 import { combineDateTime, invalidateReminders } from "@/lib/reminders";
+import { todayLocalStr } from "@/lib/dates";
 import { format } from "date-fns";
 
 export interface ReminderRow {
@@ -94,6 +95,7 @@ export function ReminderModal({
     }
     setForm({
       ...emptyForm,
+      date: todayLocalStr(),
       title: defaultTitle ?? "",
       project_id: defaultProjectId ?? "none",
     });

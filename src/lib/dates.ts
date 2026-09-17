@@ -52,3 +52,15 @@ export function parseLocalDate(value: string | null | undefined): Date | null {
 export function localDateTime(value: string | null | undefined): number {
   return parseLocalDate(value)?.getTime() ?? NaN;
 }
+
+/**
+ * "Hoje" em "YYYY-MM-DD", no fuso local — pra pré-preencher `<input
+ * type="date">` com o dia atual em vez de vazio. NÃO usar
+ * `new Date().toISOString().split('T')[0]`: isso lê o dia em UTC, então
+ * depois das 21h em Brasília (UTC-3) já devolve o dia seguinte.
+ */
+export function todayLocalStr(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}

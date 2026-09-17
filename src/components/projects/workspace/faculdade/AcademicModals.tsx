@@ -29,6 +29,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activity";
+import { todayLocalStr } from "@/lib/dates";
 
 interface AcademicModalProps {
   open: boolean;
@@ -305,7 +306,7 @@ export function SubjectModal({ open, onOpenChange, projectId, item }: AcademicMo
 export function ExamModal({ open, onOpenChange, projectId, item }: AcademicModalProps) {
   const queryClient = useQueryClient();
   const isEditing = Boolean(item?.id);
-  const empty = { title: "", subject_id: "", date: "", exam_time: "", weight: "", grade: "", status: "a_estudar", notes: "" };
+  const empty = { title: "", subject_id: "", date: todayLocalStr(), exam_time: "", weight: "", grade: "", status: "a_estudar", notes: "" };
   const [formData, setFormData] = useState(empty);
 
   useEffect(() => {
@@ -468,7 +469,7 @@ export function ExamModal({ open, onOpenChange, projectId, item }: AcademicModal
 export function AssignmentModal({ open, onOpenChange, projectId, item }: AcademicModalProps) {
   const queryClient = useQueryClient();
   const isEditing = Boolean(item?.id);
-  const empty = { title: "", subject_id: "", deadline: "", weight: "", grade: "", status: "nao_iniciado", description: "" };
+  const empty = { title: "", subject_id: "", deadline: todayLocalStr(), weight: "", grade: "", status: "nao_iniciado", description: "" };
   const [formData, setFormData] = useState(empty);
 
   useEffect(() => {

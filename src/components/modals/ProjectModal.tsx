@@ -18,6 +18,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Database } from "@/integrations/supabase/types";
 import { logActivity } from "@/lib/activity";
 import { templateFor } from "@/lib/project-templates";
+import { todayLocalStr } from "@/lib/dates";
 
 type ProjectCategory = Database["public"]["Enums"]["project_status"] | string;
 
@@ -110,8 +111,16 @@ export function ProjectModal({ open, onOpenChange, initialData, project }: Proje
         description: initialData.description || "",
         category: initialData.category || "Outros",
         notes: initialData.notes || "",
-        status: "em_analise"
+        status: "em_analise",
+        start_date: todayLocalStr(),
       }));
+      return;
+    }
+    if (open && !project?.id) {
+      // Projeto novo do zero (sem vir de uma ideia) — começa com a data de
+      // início preenchida; prazo final fica em aberto (não faz sentido um
+      // projeto nascer já "vencido").
+      setFormData(prev => ({ ...prev, start_date: todayLocalStr() }));
     }
   }, [open, initialData, project]);
 
