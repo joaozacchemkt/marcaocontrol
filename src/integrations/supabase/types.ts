@@ -854,14 +854,18 @@ export type Database = {
       }
       reminders: {
         Row: {
+          category: string | null
           channel: string
           created_at: string
           entity_id: string | null
           entity_type: string | null
           id: string
           notes: string | null
+          priority: Database["public"]["Enums"]["task_priority"]
           project_id: string | null
-          recurrence: string | null
+          recurrence_end_date: string | null
+          recurrence_frequency: string | null
+          recurrence_interval: number
           remind_at: string
           status: string
           title: string
@@ -869,14 +873,18 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          category?: string | null
           channel?: string
           created_at?: string
           entity_id?: string | null
           entity_type?: string | null
           id?: string
           notes?: string | null
+          priority?: Database["public"]["Enums"]["task_priority"]
           project_id?: string | null
-          recurrence?: string | null
+          recurrence_end_date?: string | null
+          recurrence_frequency?: string | null
+          recurrence_interval?: number
           remind_at: string
           status?: string
           title: string
@@ -884,14 +892,18 @@ export type Database = {
           user_id: string
         }
         Update: {
+          category?: string | null
           channel?: string
           created_at?: string
           entity_id?: string | null
           entity_type?: string | null
           id?: string
           notes?: string | null
+          priority?: Database["public"]["Enums"]["task_priority"]
           project_id?: string | null
-          recurrence?: string | null
+          recurrence_end_date?: string | null
+          recurrence_frequency?: string | null
+          recurrence_interval?: number
           remind_at?: string
           status?: string
           title?: string

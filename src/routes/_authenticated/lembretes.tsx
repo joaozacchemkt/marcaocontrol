@@ -6,6 +6,20 @@ import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,9 +32,9 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { ReminderModal, type ReminderRow } from "@/components/modals/ReminderModal";
-import { invalidateReminders } from "@/lib/reminders";
-import { Bell, Check, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
-import { format, isPast, isToday, startOfDay, endOfDay, addDays } from "date-fns";
+import { advanceReminderRecurrence, invalidateReminders } from "@/lib/reminders";
+import { Bell, Check, Clock, Pencil, Plus, Repeat, RotateCcw, Search, Trash2 } from "lucide-react";
+import { format, isPast, isToday, startOfDay, endOfDay, addDays, addHours, addWeeks } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -40,15 +54,23 @@ export const Route = createFileRoute("/_authenticated/lembretes")({
 });
 
 interface Row extends ReminderRow {
+  user_id: string;
+  channel: string;
   projects?: { name: string } | null;
 }
+
+const SEL =
+  "id, title, remind_at, project_id, notes, entity_type, entity_id, status, user_id, channel, priority, category, recurrence_frequency, recurrence_interval, recurrence_end_date, projects(name)";
+
+const PRIORITY_LABEL: Record<Row["priority"], string> = { alta: "Alta", media: "Média", baixa: "Baixa" };
 
 function LembretesPage() {
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Row | null>(null);
-
-  const SEL = "id, title, remind_at, project_id, notes, entity_type, entity_id, status, projects(name)";
+  const [search, setSearch] = useState("");
+  const [priorityFilter, setPriorityFilter] = useState<"todas" | "alta" | "media" | "baixa">("todas");
+  const [categoryFilter, setCategoryFilter] = useState("todas");
 
   const { data: pending = [], isLoading } = useQuery({
     queryKey: ["reminders-all"],
@@ -63,8 +85,9 @@ function LembretesPage() {
     },
   });
 
-  // Resolvidos: só os últimos 60 dias e no máximo 50 — não cresce sem limite.
-  const { data: resolved = [] } = useQuery({
+  // Resolvidos recentes: só os últimos 60 dias e no máximo 50 — não cresce sem limite.
+  // Buscar mais que isso é papel da busca (histórico completo, sem esse corte).
+  const { data: resolvedRecent = [] } = useQuery({
     queryKey: ["reminders-resolved"],
     queryFn: async () => {
       const cutoff = new Date(Date.now() - 60 * 86400000).toISOString();
@@ -80,16 +103,69 @@ function LembretesPage() {
     },
   });
 
-  const reminders = useMemo(() => [...pending, ...resolved], [pending, resolved]);
+  const trimmedSearch = search.trim();
+
+  const { data: historySearch = [] } = useQuery({
+    queryKey: ["reminders-history-search", trimmedSearch],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("reminders")
+        .select(SEL)
+        .eq("status", "enviado")
+        .ilike("title", `%${trimmedSearch}%`)
+        .order("updated_at", { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return (data ?? []) as unknown as Row[];
+    },
+    enabled: trimmedSearch.length > 0,
+  });
+
+  const resolved = trimmedSearch ? historySearch : resolvedRecent;
+
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of [...pending, ...resolvedRecent]) if (r.category) set.add(r.category);
+    return Array.from(set).sort();
+  }, [pending, resolvedRecent]);
+
+  const reminders = useMemo(() => {
+    const term = trimmedSearch.toLowerCase();
+    return [...pending, ...resolved].filter((r) => {
+      if (priorityFilter !== "todas" && r.priority !== priorityFilter) return false;
+      if (categoryFilter !== "todas" && r.category !== categoryFilter) return false;
+      if (!term) return true;
+      return r.title.toLowerCase().includes(term) || (r.notes ?? "").toLowerCase().includes(term);
+    });
+  }, [pending, resolved, trimmedSearch, priorityFilter, categoryFilter]);
 
   const setStatus = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: "pendente" | "enviado" }) => {
-      const { error } = await supabase.from("reminders").update({ status }).eq("id", id);
+    mutationFn: async ({ row, status }: { row: Row; status: "pendente" | "enviado" }) => {
+      const { error } = await supabase.from("reminders").update({ status }).eq("id", row.id);
       if (error) throw error;
+      if (status === "enviado" && row.recurrence_frequency) {
+        await advanceReminderRecurrence(row);
+      }
     },
     onSuccess: (_d, v) => {
       invalidateReminders(queryClient);
+      queryClient.invalidateQueries({ queryKey: ["reminders-history-search"] });
       toast.success(v.status === "enviado" ? "Lembrete concluído" : "Lembrete reaberto");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const snooze = useMutation({
+    mutationFn: async ({ id, remindAt }: { id: string; remindAt: Date }) => {
+      const { error } = await supabase
+        .from("reminders")
+        .update({ remind_at: remindAt.toISOString() })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      invalidateReminders(queryClient);
+      toast.success("Lembrete adiado");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -145,6 +221,7 @@ function LembretesPage() {
 
   const pendingCount =
     groups.atrasados.length + groups.hoje.length + groups.semana.length + groups.depois.length;
+  const filtersActive = trimmedSearch !== "" || priorityFilter !== "todas" || categoryFilter !== "todas";
 
   return (
     <AppLayout>
@@ -170,6 +247,44 @@ function LembretesPage() {
           </Button>
         </div>
 
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por título ou observação (inclui histórico inteiro)…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8"
+            />
+          </div>
+          <Select value={priorityFilter} onValueChange={(v) => setPriorityFilter(v as typeof priorityFilter)}>
+            <SelectTrigger className="sm:w-[140px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Toda prioridade</SelectItem>
+              <SelectItem value="alta">Alta</SelectItem>
+              <SelectItem value="media">Média</SelectItem>
+              <SelectItem value="baixa">Baixa</SelectItem>
+            </SelectContent>
+          </Select>
+          {categories.length > 0 && (
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="sm:w-[160px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todas">Toda categoria</SelectItem>
+                {categories.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+
         {isLoading ? (
           <div className="space-y-2">
             {[1, 2, 3].map((i) => (
@@ -178,15 +293,26 @@ function LembretesPage() {
           </div>
         ) : pendingCount === 0 && groups.resolvidos.length === 0 ? (
           <div className="rounded-xl border-2 border-dashed py-16 text-center text-muted-foreground">
-            Nenhum lembrete ainda. Crie um com data e hora — avulso ou ligado a um projeto.
+            {filtersActive
+              ? "Nenhum lembrete encontrado com esses filtros."
+              : "Nenhum lembrete ainda. Crie um com data e hora — avulso ou ligado a um projeto."}
           </div>
         ) : (
           <div className="space-y-6">
-            <Section title="Atrasados" tone="bad" rows={groups.atrasados} onDone={setStatus} onEdit={openEdit} onRemove={remove} />
-            <Section title="Hoje" tone="warn" rows={groups.hoje} onDone={setStatus} onEdit={openEdit} onRemove={remove} />
-            <Section title="Próximos 7 dias" tone="neutral" rows={groups.semana} onDone={setStatus} onEdit={openEdit} onRemove={remove} />
-            <Section title="Depois" tone="neutral" rows={groups.depois} onDone={setStatus} onEdit={openEdit} onRemove={remove} />
-            <Section title="Resolvidos" tone="muted" rows={groups.resolvidos} onDone={setStatus} onEdit={openEdit} onRemove={remove} resolved />
+            <Section title="Atrasados" tone="bad" rows={groups.atrasados} onDone={setStatus} onSnooze={snooze} onEdit={openEdit} onRemove={remove} />
+            <Section title="Hoje" tone="warn" rows={groups.hoje} onDone={setStatus} onSnooze={snooze} onEdit={openEdit} onRemove={remove} />
+            <Section title="Próximos 7 dias" tone="neutral" rows={groups.semana} onDone={setStatus} onSnooze={snooze} onEdit={openEdit} onRemove={remove} />
+            <Section title="Depois" tone="neutral" rows={groups.depois} onDone={setStatus} onSnooze={snooze} onEdit={openEdit} onRemove={remove} />
+            <Section
+              title={trimmedSearch ? "Histórico (resultado da busca)" : "Resolvidos"}
+              tone="muted"
+              rows={groups.resolvidos}
+              onDone={setStatus}
+              onSnooze={snooze}
+              onEdit={openEdit}
+              onRemove={remove}
+              resolved
+            />
           </div>
         )}
       </div>
@@ -209,6 +335,7 @@ function Section({
   rows,
   resolved = false,
   onDone,
+  onSnooze,
   onEdit,
   onRemove,
 }: {
@@ -216,7 +343,8 @@ function Section({
   tone: "bad" | "warn" | "neutral" | "muted";
   rows: Row[];
   resolved?: boolean;
-  onDone: { mutate: (v: { id: string; status: "pendente" | "enviado" }) => void };
+  onDone: { mutate: (v: { row: Row; status: "pendente" | "enviado" }) => void };
+  onSnooze: { mutate: (v: { id: string; remindAt: Date }) => void };
   onEdit: (row: Row) => void;
   onRemove: { mutate: (id: string) => void };
 }) {
@@ -248,7 +376,7 @@ function Section({
                 aria-label={resolved ? "Reabrir lembrete" : "Concluir lembrete"}
                 title={resolved ? "Reabrir" : "Concluir"}
                 onClick={() =>
-                  onDone.mutate({ id: r.id, status: resolved ? "pendente" : "enviado" })
+                  onDone.mutate({ row: r, status: resolved ? "pendente" : "enviado" })
                 }
                 className={cn(
                   "shrink-0 rounded-full p-1 transition-colors",
@@ -264,10 +392,28 @@ function Section({
                 <p className={cn("truncate text-sm font-medium", resolved && "text-muted-foreground line-through")}>
                   {r.title}
                 </p>
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-0.5 text-[11px] text-muted-foreground">
                   <span className={cn(overdue && "font-semibold text-destructive")}>
                     {valid ? format(d, "dd MMM yyyy · HH:mm", { locale: ptBR }) : "Sem data"}
                   </span>
+                  {r.priority !== "media" && (
+                    <Badge
+                      variant={r.priority === "alta" ? "destructive" : "outline"}
+                      className="h-4 px-1.5 py-0 text-[9px]"
+                    >
+                      {PRIORITY_LABEL[r.priority]}
+                    </Badge>
+                  )}
+                  {r.category && (
+                    <Badge variant="secondary" className="h-4 px-1.5 py-0 text-[9px]">
+                      {r.category}
+                    </Badge>
+                  )}
+                  {r.recurrence_frequency && (
+                    <span className="flex items-center gap-0.5" title="Lembrete recorrente">
+                      <Repeat className="h-3 w-3" />
+                    </span>
+                  )}
                   {r.projects?.name && r.project_id && (
                     <Link
                       to="/projetos/$projectId"
@@ -284,6 +430,32 @@ function Section({
                   )}
                 </div>
               </div>
+
+              {!resolved && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label="Adiar lembrete"
+                      title="Adiar"
+                      className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    >
+                      <Clock className="h-3.5 w-3.5" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => onSnooze.mutate({ id: r.id, remindAt: addHours(new Date(), 1) })}>
+                      +1 hora
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onSnooze.mutate({ id: r.id, remindAt: addDays(d, 1) })}>
+                      Amanhã (mesma hora)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onSnooze.mutate({ id: r.id, remindAt: addWeeks(d, 1) })}>
+                      Próxima semana
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
 
               {!resolved && (
                 <button

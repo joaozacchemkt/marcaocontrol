@@ -21,9 +21,16 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useGuardedSubmit } from "@/lib/use-guarded-submit";
-import { combineDateTime, invalidateReminders } from "@/lib/reminders";
+import {
+  combineDateTime,
+  invalidateReminders,
+  REMINDER_FREQUENCY_LABELS,
+  type ReminderFrequency,
+} from "@/lib/reminders";
 import { todayLocalStr } from "@/lib/dates";
+import { SUGGESTED_TAGS } from "@/lib/task-tags";
 import { format } from "date-fns";
+import { Repeat } from "lucide-react";
 
 export interface ReminderRow {
   id: string;
@@ -34,6 +41,11 @@ export interface ReminderRow {
   entity_type: string | null;
   entity_id: string | null;
   status: string;
+  priority: "baixa" | "media" | "alta";
+  category: string | null;
+  recurrence_frequency: string | null;
+  recurrence_interval: number;
+  recurrence_end_date: string | null;
 }
 
 interface ReminderModalProps {
@@ -54,6 +66,11 @@ const emptyForm = {
   time: "09:00",
   project_id: "none",
   notes: "",
+  priority: "media" as "baixa" | "media" | "alta",
+  category: "",
+  recurrence_frequency: "none" as ReminderFrequency | "none",
+  recurrence_interval: "1",
+  recurrence_end_date: "",
 };
 
 export function ReminderModal({
@@ -90,6 +107,11 @@ export function ReminderModal({
         time: valid ? format(d, "HH:mm") : "09:00",
         project_id: reminder.project_id ?? "none",
         notes: reminder.notes ?? "",
+        priority: reminder.priority ?? "media",
+        category: reminder.category ?? "",
+        recurrence_frequency: (reminder.recurrence_frequency as ReminderFrequency | null) ?? "none",
+        recurrence_interval: String(reminder.recurrence_interval ?? 1),
+        recurrence_end_date: reminder.recurrence_end_date ?? "",
       });
       return;
     }
@@ -121,34 +143,40 @@ export function ReminderModal({
       if (!form.date) throw new Error("Escolha a data do lembrete.");
       const when = combineDateTime(form.date, form.time);
       if (Number.isNaN(when.getTime())) throw new Error("Data ou hora inválida.");
+      if (form.recurrence_end_date && form.recurrence_end_date < form.date) {
+        throw new Error("A data final da recorrência não pode ser antes da data do lembrete.");
+      }
 
       const projectId = form.project_id !== "none" ? form.project_id : null;
+      const recurrenceFrequency = form.recurrence_frequency !== "none" ? form.recurrence_frequency : null;
+      const recurrenceInterval = Math.max(1, Number.parseInt(form.recurrence_interval, 10) || 1);
+
+      const shared = {
+        title,
+        remind_at: when.toISOString(),
+        project_id: projectId,
+        notes: form.notes.trim() || null,
+        priority: form.priority,
+        category: form.category.trim() || null,
+        recurrence_frequency: recurrenceFrequency,
+        recurrence_interval: recurrenceInterval,
+        recurrence_end_date: recurrenceFrequency ? form.recurrence_end_date || null : null,
+      };
 
       if (isEditing && reminder) {
-        const { error } = await supabase
-          .from("reminders")
-          .update({
-            title,
-            remind_at: when.toISOString(),
-            project_id: projectId,
-            notes: form.notes.trim() || null,
-          })
-          .eq("id", reminder.id);
+        const { error } = await supabase.from("reminders").update(shared).eq("id", reminder.id);
         if (error) throw error;
         return;
       }
 
       const { error } = await supabase.from("reminders").insert({
+        ...shared,
         user_id: user.id,
-        title,
-        remind_at: when.toISOString(),
-        project_id: projectId,
-        notes: form.notes.trim() || null,
         entity_type: entityType ?? null,
         entity_id: entityId ?? null,
         channel: "sistema",
         status: "pendente",
-      } as never);
+      });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -208,24 +236,128 @@ export function ReminderModal({
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="reminder-project">Projeto</Label>
+              <Select
+                value={form.project_id}
+                onValueChange={(v) => setForm((p) => ({ ...p, project_id: v }))}
+              >
+                <SelectTrigger id="reminder-project">
+                  <SelectValue placeholder="Nenhum" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhum</SelectItem>
+                  {projects.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="reminder-priority">Prioridade</Label>
+              <Select
+                value={form.priority}
+                onValueChange={(v) =>
+                  setForm((p) => ({ ...p, priority: v as "baixa" | "media" | "alta" }))
+                }
+              >
+                <SelectTrigger id="reminder-priority">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="baixa">Baixa</SelectItem>
+                  <SelectItem value="media">Média</SelectItem>
+                  <SelectItem value="alta">Alta</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           <div className="space-y-2">
-            <Label htmlFor="reminder-project">Projeto</Label>
+            <Label htmlFor="reminder-category">Categoria</Label>
+            <Input
+              id="reminder-category"
+              placeholder="Ex.: Financeiro"
+              value={form.category}
+              onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))}
+            />
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {SUGGESTED_TAGS.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() =>
+                    setForm((p) => ({ ...p, category: p.category === tag ? "" : tag }))
+                  }
+                  className={
+                    "rounded-full border px-2.5 py-0.5 text-xs transition-colors " +
+                    (form.category === tag
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-input hover:bg-muted")
+                  }
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2 rounded-lg border p-3">
+            <Label htmlFor="reminder-recurrence" className="flex items-center gap-1.5">
+              <Repeat className="h-3.5 w-3.5" /> Repetir
+            </Label>
             <Select
-              value={form.project_id}
-              onValueChange={(v) => setForm((p) => ({ ...p, project_id: v }))}
+              value={form.recurrence_frequency}
+              onValueChange={(v) =>
+                setForm((p) => ({ ...p, recurrence_frequency: v as ReminderFrequency | "none" }))
+              }
             >
-              <SelectTrigger id="reminder-project">
-                <SelectValue placeholder="Nenhum" />
+              <SelectTrigger id="reminder-recurrence">
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">Nenhum</SelectItem>
-                {projects.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name}
+                <SelectItem value="none">Não repetir</SelectItem>
+                {Object.entries(REMINDER_FREQUENCY_LABELS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+
+            {form.recurrence_frequency !== "none" && (
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <div className="space-y-2">
+                  <Label htmlFor="reminder-recurrence-interval">A cada</Label>
+                  <Input
+                    id="reminder-recurrence-interval"
+                    type="number"
+                    min={1}
+                    value={form.recurrence_interval}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, recurrence_interval: e.target.value }))
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="reminder-recurrence-end">Até (opcional)</Label>
+                  <Input
+                    id="reminder-recurrence-end"
+                    type="date"
+                    value={form.recurrence_end_date}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, recurrence_end_date: e.target.value }))
+                    }
+                  />
+                </div>
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Ao concluir, o próximo lembrete é criado automaticamente.
+            </p>
           </div>
 
           <div className="space-y-2">
