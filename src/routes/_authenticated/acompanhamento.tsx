@@ -1,18 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppLayout } from "@/components/layout/AppLayout";
 
-export const Route = createFileRoute("/_authenticated/diario")({
+export const Route = createFileRoute("/_authenticated/acompanhamento")({
   head: () => ({
     meta: [
-      { title: "Diário — Marcão Control" },
+      { title: "Acompanhamento — Marcão Control" },
       { name: "description", content: "O que foi feito, dia a dia — pra acompanhar de fora." },
-      { property: "og:title", content: "Diário — Marcão Control" },
+      { property: "og:title", content: "Acompanhamento — Marcão Control" },
       { property: "og:description", content: "O que foi feito, dia a dia — pra acompanhar de fora." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: DiarioPage,
+  component: AcompanhamentoPage,
 });
 
 import { useMemo, useState } from "react";
@@ -47,7 +47,7 @@ const dayLabel = (key: string) => {
   return format(d, "EEEE, dd 'de' MMMM", { locale: ptBR });
 };
 
-function DiarioPage() {
+function AcompanhamentoPage() {
   const queryClient = useQueryClient();
   const [note, setNote] = useState("");
 
@@ -69,7 +69,7 @@ function DiarioPage() {
   });
 
   const { data: doneTasks = [] } = useQuery({
-    queryKey: ["diario-tasks"],
+    queryKey: ["acompanhamento-tasks"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tasks")
@@ -83,7 +83,7 @@ function DiarioPage() {
   });
 
   const { data: doneEvents = [] } = useQuery({
-    queryKey: ["diario-events"],
+    queryKey: ["acompanhamento-events"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("events")
@@ -165,7 +165,7 @@ function DiarioPage() {
     <AppLayout>
       <div className="space-y-6">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Diário</h2>
+          <h2 className="text-2xl font-bold tracking-tight">Acompanhamento</h2>
           <p className="text-muted-foreground">
             O que foi feito, dia a dia. Tarefas e compromissos concluídos entram sozinhos — complemente com uma
             anotação quando quiser.
@@ -235,7 +235,7 @@ function DiarioPage() {
                             <AlertDialogContent>
                               <AlertDialogHeader>
                                 <AlertDialogTitle>Excluir anotação?</AlertDialogTitle>
-                                <AlertDialogDescription>Some do diário. Não dá pra desfazer.</AlertDialogDescription>
+                                <AlertDialogDescription>Some do acompanhamento. Não dá pra desfazer.</AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>

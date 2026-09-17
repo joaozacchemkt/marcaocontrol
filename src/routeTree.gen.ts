@@ -12,10 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedAcompanhamentoRouteImport } from './routes/_authenticated/acompanhamento'
 import { Route as AuthenticatedAgendaRouteImport } from './routes/_authenticated/agenda'
 import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authenticated/configuracoes'
 import { Route as AuthenticatedContatosRouteImport } from './routes/_authenticated/contatos'
-import { Route as AuthenticatedDiarioRouteImport } from './routes/_authenticated/diario'
 import { Route as AuthenticatedFinanceiroRouteImport } from './routes/_authenticated/financeiro'
 import { Route as AuthenticatedIdeiasRouteImport } from './routes/_authenticated/ideias'
 import { Route as AuthenticatedLembretesRouteImport } from './routes/_authenticated/lembretes'
@@ -37,6 +37,12 @@ const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAcompanhamentoRoute =
+  AuthenticatedAcompanhamentoRouteImport.update({
+    id: '/acompanhamento',
+    path: '/acompanhamento',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAgendaRoute = AuthenticatedAgendaRouteImport.update({
   id: '/agenda',
   path: '/agenda',
@@ -51,11 +57,6 @@ const AuthenticatedConfiguracoesRoute =
 const AuthenticatedContatosRoute = AuthenticatedContatosRouteImport.update({
   id: '/contatos',
   path: '/contatos',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedDiarioRoute = AuthenticatedDiarioRouteImport.update({
-  id: '/diario',
-  path: '/diario',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedFinanceiroRoute = AuthenticatedFinanceiroRouteImport.update({
@@ -94,10 +95,10 @@ const AuthenticatedProjetosProjectIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/auth': typeof AuthRoute
+  '/acompanhamento': typeof AuthenticatedAcompanhamentoRoute
   '/agenda': typeof AuthenticatedAgendaRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/contatos': typeof AuthenticatedContatosRoute
-  '/diario': typeof AuthenticatedDiarioRoute
   '/financeiro': typeof AuthenticatedFinanceiroRoute
   '/ideias': typeof AuthenticatedIdeiasRoute
   '/lembretes': typeof AuthenticatedLembretesRoute
@@ -107,10 +108,10 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
+  '/acompanhamento': typeof AuthenticatedAcompanhamentoRoute
   '/agenda': typeof AuthenticatedAgendaRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/contatos': typeof AuthenticatedContatosRoute
-  '/diario': typeof AuthenticatedDiarioRoute
   '/financeiro': typeof AuthenticatedFinanceiroRoute
   '/ideias': typeof AuthenticatedIdeiasRoute
   '/lembretes': typeof AuthenticatedLembretesRoute
@@ -123,10 +124,10 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/acompanhamento': typeof AuthenticatedAcompanhamentoRoute
   '/_authenticated/agenda': typeof AuthenticatedAgendaRoute
   '/_authenticated/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/_authenticated/contatos': typeof AuthenticatedContatosRoute
-  '/_authenticated/diario': typeof AuthenticatedDiarioRoute
   '/_authenticated/financeiro': typeof AuthenticatedFinanceiroRoute
   '/_authenticated/ideias': typeof AuthenticatedIdeiasRoute
   '/_authenticated/lembretes': typeof AuthenticatedLembretesRoute
@@ -140,10 +141,10 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/acompanhamento'
     | '/agenda'
     | '/configuracoes'
     | '/contatos'
-    | '/diario'
     | '/financeiro'
     | '/ideias'
     | '/lembretes'
@@ -153,10 +154,10 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
+    | '/acompanhamento'
     | '/agenda'
     | '/configuracoes'
     | '/contatos'
-    | '/diario'
     | '/financeiro'
     | '/ideias'
     | '/lembretes'
@@ -168,10 +169,10 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_authenticated'
     | '/auth'
+    | '/_authenticated/acompanhamento'
     | '/_authenticated/agenda'
     | '/_authenticated/configuracoes'
     | '/_authenticated/contatos'
-    | '/_authenticated/diario'
     | '/_authenticated/financeiro'
     | '/_authenticated/ideias'
     | '/_authenticated/lembretes'
@@ -209,6 +210,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/acompanhamento': {
+      id: '/_authenticated/acompanhamento'
+      path: '/acompanhamento'
+      fullPath: '/acompanhamento'
+      preLoaderRoute: typeof AuthenticatedAcompanhamentoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/agenda': {
       id: '/_authenticated/agenda'
       path: '/agenda'
@@ -228,13 +236,6 @@ declare module '@tanstack/react-router' {
       path: '/contatos'
       fullPath: '/contatos'
       preLoaderRoute: typeof AuthenticatedContatosRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/diario': {
-      id: '/_authenticated/diario'
-      path: '/diario'
-      fullPath: '/diario'
-      preLoaderRoute: typeof AuthenticatedDiarioRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/financeiro': {
@@ -283,10 +284,10 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAcompanhamentoRoute: typeof AuthenticatedAcompanhamentoRoute
   AuthenticatedAgendaRoute: typeof AuthenticatedAgendaRoute
   AuthenticatedConfiguracoesRoute: typeof AuthenticatedConfiguracoesRoute
   AuthenticatedContatosRoute: typeof AuthenticatedContatosRoute
-  AuthenticatedDiarioRoute: typeof AuthenticatedDiarioRoute
   AuthenticatedFinanceiroRoute: typeof AuthenticatedFinanceiroRoute
   AuthenticatedIdeiasRoute: typeof AuthenticatedIdeiasRoute
   AuthenticatedLembretesRoute: typeof AuthenticatedLembretesRoute
@@ -297,10 +298,10 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAcompanhamentoRoute: AuthenticatedAcompanhamentoRoute,
   AuthenticatedAgendaRoute: AuthenticatedAgendaRoute,
   AuthenticatedConfiguracoesRoute: AuthenticatedConfiguracoesRoute,
   AuthenticatedContatosRoute: AuthenticatedContatosRoute,
-  AuthenticatedDiarioRoute: AuthenticatedDiarioRoute,
   AuthenticatedFinanceiroRoute: AuthenticatedFinanceiroRoute,
   AuthenticatedIdeiasRoute: AuthenticatedIdeiasRoute,
   AuthenticatedLembretesRoute: AuthenticatedLembretesRoute,
