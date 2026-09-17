@@ -179,6 +179,11 @@ function Dashboard() {
   const myTasks = tasks.filter(
     (t: any) => t.status !== 'concluido' && (!t.assigned_to || t.assigned_to === currentUserId),
   );
+  // Diferente de "sem responsável" — isso é o que alguém especificamente te
+  // delegou, o gatilho pra avisar "olha, isso é seu agora".
+  const assignedToMeCount = currentUserId
+    ? tasks.filter((t: any) => t.status !== 'concluido' && t.assigned_to === currentUserId).length
+    : 0;
   const allPriorities = ([
     ...myTasks.map(t => ({ ...t, type: 'task', projectId: t.project_id })),
     ...academicExams.filter(e => e.status !== 'corrigida').map(e => ({
@@ -267,6 +272,19 @@ function Dashboard() {
           )}
         </Link>
       </div>
+
+      {assignedToMeCount > 0 && (
+        <Link
+          to="/tarefas"
+          className="mb-6 flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm transition-colors hover:bg-primary/10"
+        >
+          <Bell className="h-4 w-4 shrink-0 text-primary" />
+          <span>
+            <span className="font-bold text-primary">{assignedToMeCount}</span>{" "}
+            {assignedToMeCount === 1 ? "tarefa atribuída a você" : "tarefas atribuídas a você"}
+          </span>
+        </Link>
+      )}
 
       {/* O que fazer agora — a pergunta que o dashboard existe pra responder */}
       <section className="mb-8">

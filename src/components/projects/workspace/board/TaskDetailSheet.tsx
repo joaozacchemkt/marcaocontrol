@@ -206,6 +206,20 @@ export function TaskDetailSheet({ task, projectId, open, onOpenChange }: TaskDet
       ) {
         await advanceRecurrence((task as { recurrence_id: string }).recurrence_id);
       }
+      const previousAssignee = (task as { assigned_to?: string | null }).assigned_to ?? "none";
+      if (taskProjectId && form.assigned_to !== previousAssignee) {
+        const assigneeName =
+          form.assigned_to === "none"
+            ? "ninguém"
+            : members.find((m) => m.id === form.assigned_to)?.name || "alguém";
+        await logActivity({
+          projectId: taskProjectId,
+          type: "task_assigned",
+          description: `"${form.title || task.title}" atribuída a ${assigneeName}`,
+          entityType: "task",
+          entityId: task.id,
+        });
+      }
     },
     onSuccess: () => {
       invalidate();

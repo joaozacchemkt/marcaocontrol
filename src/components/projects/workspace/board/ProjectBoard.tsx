@@ -12,8 +12,8 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { endOfWeek, isToday, startOfWeek } from "date-fns";
-import { CheckCircle2, KanbanSquare, List, Plus, Trash2 } from "lucide-react";
+import { endOfWeek, isThisWeek, isToday, startOfWeek } from "date-fns";
+import { CheckCircle2, KanbanSquare, List, Plus, Trash2, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -55,7 +55,7 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
   const queryClient = useQueryClient();
   const globalMode = !projectId;
   const [filter, setFilter] = useState<BoardFilter>("todas");
-  const [view, setView] = useState<"quadro" | "lista">(globalMode ? "lista" : "quadro");
+  const [view, setView] = useState<"quadro" | "lista" | "equipe">(globalMode ? "lista" : "quadro");
   const [activeTask, setActiveTask] = useState<BoardTask | null>(null);
   const [selected, setSelected] = useState<BoardTask | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -321,6 +321,16 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
             >
               <KanbanSquare className="mr-1 h-3.5 w-3.5" /> Quadro
             </Button>
+            {members.length > 1 && (
+              <Button
+                size="sm"
+                variant={view === "equipe" ? "default" : "ghost"}
+                className="h-7 px-2 text-xs"
+                onClick={() => setView("equipe")}
+              >
+                <Users className="mr-1 h-3.5 w-3.5" /> Equipe
+              </Button>
+            )}
           </div>
           {selectedIds.size > 0 && (
             <>
@@ -437,74 +447,68 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
                   <span className="text-xs text-muted-foreground">{groupTasks.length}</span>
                 </div>
                 <ul className="divide-y rounded-xl border bg-card">
-                  {groupTasks.map((task) => {
-                    const overdue = isOverdue(task);
-                    return (
-                      <li key={task.id}>
-                        <div className="flex items-center gap-3 px-3 py-2.5 text-sm">
-                          <button
-                            type="button"
-                            aria-label="Concluir tarefa"
-                            className="shrink-0 rounded-full text-muted-foreground transition-colors hover:text-primary"
-                            onClick={() =>
-                              changeStatus.mutate({ id: task.id, status: "concluido" })
-                            }
-                          >
-                            <CheckCircle2 className="h-4 w-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => openTask(task)}
-                            className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 text-left"
-                          >
-                            <span className="truncate font-medium">{task.title}</span>
-                            {globalMode && task.projects?.name && (
-                              <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold uppercase text-muted-foreground">
-                                {task.projects.name}
-                              </span>
-                            )}
-                            {task.priority === "alta" && (
-                              <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] font-bold uppercase text-destructive">
-                                Alta
-                              </span>
-                            )}
-                            {task.status === "aguardando_terceiro" && (
-                              <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
-                                Aguardando{task.waiting_for ? `: ${task.waiting_for}` : ""}
-                              </span>
-                            )}
-                          </button>
-                          {task.deadline && (
-                            <span
-                              className={
-                                "shrink-0 text-xs " +
-                                (overdue ? "font-semibold text-destructive" : "text-muted-foreground")
-                              }
-                            >
-                              {parseLocalDate(task.deadline)!.toLocaleDateString("pt-BR", {
-                                day: "2-digit",
-                                month: "short",
-                              })}
-                            </span>
-                          )}
-                          <button
-                            type="button"
-                            aria-label="Excluir tarefa"
-                            className="shrink-0 rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                            onClick={() => {
-                              setPendingDelete({ ids: [task.id], label: `"${task.title}"` });
-                            }}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </li>
-                    );
-                  })}
+                  {groupTasks.map((task) => (
+                    <TaskRow
+                      key={task.id}
+                      task={task}
+                      globalMode={globalMode}
+                      onOpen={openTask}
+                      onComplete={() => changeStatus.mutate({ id: task.id, status: "concluido" })}
+                      onDelete={() => setPendingDelete({ ids: [task.id], label: `"${task.title}"` })}
+                    />
+                  ))}
                 </ul>
               </div>
             ))
           )}
+        </div>
+      ) : view === "equipe" ? (
+        <div className="space-y-5">
+          {[...members, { id: "ninguem", name: "Sem responsável" }].map((member) => {
+            const memberTasks = visible.filter((t) =>
+              member.id === "ninguem" ? !t.assigned_to : t.assigned_to === member.id,
+            );
+            const open = memberTasks.filter((t) => t.status !== "concluido");
+            const overdueForMember = open.filter(isOverdue).length;
+            const doneThisWeek = parents.filter(
+              (t) =>
+                (member.id === "ninguem" ? !t.assigned_to : t.assigned_to === member.id) &&
+                t.status === "concluido" &&
+                t.updated_at &&
+                isThisWeek(new Date(t.updated_at), { weekStartsOn: 1 }),
+            ).length;
+            if (member.id === "ninguem" && open.length === 0) return null;
+            return (
+              <div key={member.id} className="rounded-xl border bg-card">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
+                  <h4 className="text-sm font-bold">{member.name}</h4>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <span>{open.length} pendente{open.length === 1 ? "" : "s"}</span>
+                    {overdueForMember > 0 && (
+                      <span className="font-semibold text-destructive">{overdueForMember} atrasada{overdueForMember === 1 ? "" : "s"}</span>
+                    )}
+                    <span>{doneThisWeek} concluída{doneThisWeek === 1 ? "" : "s"} essa semana</span>
+                  </div>
+                </div>
+                {open.length === 0 ? (
+                  <p className="p-4 text-sm text-muted-foreground">Fila vazia.</p>
+                ) : (
+                  <ul className="divide-y">
+                    {open.map((task) => (
+                      <TaskRow
+                        key={task.id}
+                        task={task}
+                        globalMode={globalMode}
+                        onOpen={openTask}
+                        onComplete={() => changeStatus.mutate({ id: task.id, status: "concluido" })}
+                        onDelete={() => setPendingDelete({ ids: [task.id], label: `"${task.title}"` })}
+                      />
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
         </div>
       ) : (
         <DndContext
@@ -576,5 +580,78 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+function TaskRow({
+  task,
+  globalMode,
+  onOpen,
+  onComplete,
+  onDelete,
+}: {
+  task: BoardTask;
+  globalMode: boolean;
+  onOpen: (task: BoardTask) => void;
+  onComplete: () => void;
+  onDelete: () => void;
+}) {
+  const overdue = isOverdue(task);
+  return (
+    <li>
+      <div className="flex items-center gap-3 px-3 py-2.5 text-sm">
+        <button
+          type="button"
+          aria-label="Concluir tarefa"
+          className="shrink-0 rounded-full text-muted-foreground transition-colors hover:text-primary"
+          onClick={onComplete}
+        >
+          <CheckCircle2 className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => onOpen(task)}
+          className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 text-left"
+        >
+          <span className="truncate font-medium">{task.title}</span>
+          {globalMode && task.projects?.name && (
+            <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold uppercase text-muted-foreground">
+              {task.projects.name}
+            </span>
+          )}
+          {task.priority === "alta" && (
+            <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] font-bold uppercase text-destructive">
+              Alta
+            </span>
+          )}
+          {task.status === "aguardando_terceiro" && (
+            <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
+              Aguardando{task.waiting_for ? `: ${task.waiting_for}` : ""}
+            </span>
+          )}
+        </button>
+        {task.deadline && (
+          <span
+            className={
+              "shrink-0 text-xs " +
+              (overdue ? "font-semibold text-destructive" : "text-muted-foreground")
+            }
+          >
+            {parseLocalDate(task.deadline)!.toLocaleDateString("pt-BR", {
+              day: "2-digit",
+              month: "short",
+            })}
+          </span>
+        )}
+        <button
+          type="button"
+          aria-label="Excluir tarefa"
+          className="shrink-0 rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+          onClick={onDelete}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </li>
   );
 }
