@@ -369,8 +369,17 @@ function Section({
           const d = new Date(r.remind_at);
           const valid = !Number.isNaN(d.getTime());
           const overdue = valid && isPast(d) && !isToday(d) && !resolved;
+          const dueToday = valid && isToday(d) && !resolved;
           return (
-            <li key={r.id} className="flex items-center gap-3 px-3 py-2.5">
+            <li
+              key={r.id}
+              className={cn(
+                "flex items-center gap-3 border-l-4 border-l-transparent px-3 py-2.5",
+                resolved && "border-l-emerald-500 bg-emerald-500/5",
+                overdue && "border-l-destructive bg-destructive/5",
+                dueToday && "border-l-amber-500 bg-amber-500/5",
+              )}
+            >
               <button
                 type="button"
                 aria-label={resolved ? "Reabrir lembrete" : "Concluir lembrete"}
@@ -381,7 +390,7 @@ function Section({
                 className={cn(
                   "shrink-0 rounded-full p-1 transition-colors",
                   resolved
-                    ? "text-muted-foreground hover:text-foreground"
+                    ? "text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
                     : "text-muted-foreground hover:bg-primary/10 hover:text-primary",
                 )}
               >
@@ -393,7 +402,13 @@ function Section({
                   {r.title}
                 </p>
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-0.5 text-[11px] text-muted-foreground">
-                  <span className={cn(overdue && "font-semibold text-destructive")}>
+                  <span
+                    className={cn(
+                      overdue && "font-semibold text-destructive",
+                      dueToday && "font-semibold text-amber-600 dark:text-amber-400",
+                      resolved && "text-emerald-600 dark:text-emerald-400",
+                    )}
+                  >
                     {valid ? format(d, "dd MMM yyyy · HH:mm", { locale: ptBR }) : "Sem data"}
                   </span>
                   {r.priority !== "media" && (

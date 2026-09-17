@@ -337,7 +337,7 @@ function Dashboard() {
                   key={r.id}
                   className={cn(
                     "flex items-center gap-3 rounded-xl border bg-card p-3 transition-colors hover:border-primary/30",
-                    overdue && "border-destructive/30 bg-destructive/5",
+                    overdue ? "border-destructive/30 bg-destructive/5" : "border-amber-500/30 bg-amber-500/5",
                   )}
                 >
                   <button
@@ -364,7 +364,7 @@ function Dashboard() {
                   <span
                     className={cn(
                       "shrink-0 text-[11px] font-bold",
-                      overdue ? "text-destructive" : "text-muted-foreground",
+                      overdue ? "text-destructive" : "text-amber-600 dark:text-amber-400",
                     )}
                   >
                     {overdue
