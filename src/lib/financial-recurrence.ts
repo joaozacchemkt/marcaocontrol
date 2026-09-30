@@ -74,6 +74,7 @@ interface RecurrenceRow {
   type: "receita" | "despesa";
   amount: number;
   category: string | null;
+  payment_method: string | null;
   frequency: FinancialFrequency;
   interval_count: number;
   start_date: string;
@@ -170,6 +171,7 @@ export async function advanceFinancialRecurrence(
           type: rec.type,
           amount: rec.amount,
           category: rec.category,
+          payment_method: rec.payment_method,
           date: nextStr,
           due_date: nextStr,
           status: "pendente",

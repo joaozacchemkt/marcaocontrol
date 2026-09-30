@@ -162,8 +162,9 @@ function Dashboard() {
 
   // Realizado no mês corrente (o que efetivamente entrou/saiu).
   const now = new Date();
+  // Entrou/saiu no mês = quitado neste mês (data do pagamento).
   const inThisMonth = (t: any) => {
-    const d = parseLocalDate(t.date ?? t.due_date);
+    const d = parseLocalDate(t.paid_date ?? t.date ?? t.due_date);
     return d && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   };
   const entrouMes = transactions

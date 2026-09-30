@@ -419,6 +419,7 @@ export type Database = {
           id: string
           interval_count: number
           next_run: string
+          payment_method: string | null
           notes: string | null
           project_id: string | null
           start_date: string
@@ -438,6 +439,7 @@ export type Database = {
           id?: string
           interval_count?: number
           next_run?: string
+          payment_method?: string | null
           notes?: string | null
           project_id?: string | null
           start_date?: string
@@ -457,6 +459,7 @@ export type Database = {
           id?: string
           interval_count?: number
           next_run?: string
+          payment_method?: string | null
           notes?: string | null
           project_id?: string | null
           start_date?: string
@@ -492,6 +495,8 @@ export type Database = {
           due_date: string | null
           financial_recurrence_id: string | null
           id: string
+          paid_date: string | null
+          payment_method: string | null
           notes: string | null
           project_id: string | null
           status: Database["public"]["Enums"]["transaction_status"] | null
@@ -509,6 +514,8 @@ export type Database = {
           due_date?: string | null
           financial_recurrence_id?: string | null
           id?: string
+          paid_date?: string | null
+          payment_method?: string | null
           notes?: string | null
           project_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"] | null
@@ -526,6 +533,8 @@ export type Database = {
           due_date?: string | null
           financial_recurrence_id?: string | null
           id?: string
+          paid_date?: string | null
+          payment_method?: string | null
           notes?: string | null
           project_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"] | null

@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activity";
 import { useGuardedSubmit } from "@/lib/use-guarded-submit";
-import { FINANCE_CATEGORIES } from "@/lib/finance-categories";
+import { FINANCE_CATEGORIES, PAYMENT_METHODS, amountToBRL, maskBRL, parseBRL } from "@/lib/finance-categories";
 import { todayLocalStr } from "@/lib/dates";
 import {
   FINANCIAL_FREQUENCY_LABELS,
@@ -41,8 +41,9 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
   const emptyForm = {
     description: "",
     amount: "",
-    date: todayLocalStr(),
-    due_date: "",
+    due_date: todayLocalStr(),
+    paid_date: "",
+    payment_method: "none",
     category: "Outros",
     project_id: initialProjectId || "none",
     contact_id: "none",
@@ -57,9 +58,10 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
     if (transaction?.id) {
       setFormData({
         description: transaction.description ?? "",
-        amount: transaction.amount != null ? String(transaction.amount) : "",
-        date: transaction.date ? String(transaction.date).split('T')[0]! : new Date().toISOString().split('T')[0]!,
-        due_date: transaction.due_date ? String(transaction.due_date).split('T')[0]! : "",
+        amount: amountToBRL(transaction.amount),
+        due_date: String(transaction.due_date ?? transaction.date ?? todayLocalStr()).split('T')[0]!,
+        paid_date: transaction.paid_date ? String(transaction.paid_date).split('T')[0]! : "",
+        payment_method: transaction.payment_method ?? "none",
         category: transaction.category ?? "Outros",
         project_id: transaction.project_id ?? "none",
         contact_id: transaction.contact_id ?? "none",
@@ -97,8 +99,13 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
 
       const insertData: any = {
         description: data.description,
-        amount: parseFloat(data.amount),
-        due_date: data.due_date || null,
+        amount: parseBRL(data.amount),
+        // "Data do lançamento" saiu do formulário: `date` acompanha o
+        // vencimento, que é o que define o mês em que o lançamento aparece.
+        date: data.due_date,
+        due_date: data.due_date,
+        paid_date: data.status === 'pago' ? data.paid_date || todayLocalStr() : null,
+        payment_method: data.payment_method === 'none' ? null : data.payment_method,
         category: data.category,
         project_id: data.project_id === 'none' ? null : data.project_id,
         contact_id: data.contact_id === 'none' ? null : data.contact_id,
@@ -107,10 +114,6 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
         type: type,
         user_id: userData.user.id
       };
-      
-      if (data.date) {
-        insertData.date = data.date;
-      }
 
       if (isEditing) {
         const { error: updateError } = await supabase
@@ -129,6 +132,7 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
               category: insertData.category,
               project_id: insertData.project_id,
               contact_id: insertData.contact_id,
+              payment_method: insertData.payment_method,
             })
             .eq('id', transaction.financial_recurrence_id);
         }
@@ -148,10 +152,11 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
             type,
             amount: insertData.amount,
             category: insertData.category,
+            payment_method: insertData.payment_method,
             frequency: data.repete,
             // start_date = vencimento original: é o dia-âncora da série.
-            start_date: data.due_date || data.date || new Date().toISOString().split("T")[0],
-            next_run: data.due_date || data.date || new Date().toISOString().split("T")[0],
+            start_date: data.due_date,
+            next_run: data.due_date,
           } as never)
           .select()
           .single();
@@ -174,7 +179,7 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
         await logActivity({
           projectId: created.project_id,
           type: 'transaction_created',
-          description: `Nova ${type}: "${created.description}" (R$ ${created.amount})`,
+          description: `Nova ${type}: "${created.description}" (R$ ${amountToBRL(created.amount)})`,
           entityType: 'transaction',
           entityId: created.id
         });
@@ -210,8 +215,12 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
   });
 
   const submit = useGuardedSubmit(() => {
-    if (!formData.description || !formData.amount) {
+    if (!formData.description || !parseBRL(formData.amount)) {
       toast.error("Descrição e valor são obrigatórios");
+      return;
+    }
+    if (!formData.due_date) {
+      toast.error("Informe a data do vencimento");
       return;
     }
     createTransaction.mutate(formData);
@@ -246,13 +255,13 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
             </div>
             <div className="space-y-2">
               <Label htmlFor="amount">Valor (R$) *</Label>
-              <Input 
-                id="amount" 
-                type="number"
-                step="0.01"
+              <Input
+                id="amount"
+                inputMode="numeric"
                 placeholder="0,00"
+                className="text-right tabular-nums"
                 value={formData.amount}
-                onChange={e => setFormData(prev => ({ ...prev, amount: e.target.value }))}
+                onChange={e => setFormData(prev => ({ ...prev, amount: maskBRL(e.target.value) }))}
                 required
               />
             </div>
@@ -260,47 +269,26 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="date">Data do Lançamento</Label>
-              <Input 
-                id="date" 
-                type="date"
-                value={formData.date}
-                onChange={e => setFormData(prev => ({ ...prev, date: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="due_date">Vencimento</Label>
-              <Input 
-                id="due_date" 
+              <Label htmlFor="due_date">Data do Vencimento *</Label>
+              <Input
+                id="due_date"
                 type="date"
                 value={formData.due_date}
                 onChange={e => setFormData(prev => ({ ...prev, due_date: e.target.value }))}
+                required
               />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="category">Categoria</Label>
-              <Select 
-                value={formData.category} 
-                onValueChange={v => setFormData(prev => ({ ...prev, category: v }))}
-              >
-                <SelectTrigger id="category">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map(cat => (
-                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
               <Select
                 value={formData.status}
-                onValueChange={(v: any) => setFormData(prev => ({ ...prev, status: v }))}
+                onValueChange={(v: 'pendente' | 'pago') =>
+                  setFormData(prev => ({
+                    ...prev,
+                    status: v,
+                    paid_date: v === 'pago' ? prev.paid_date || todayLocalStr() : "",
+                  }))
+                }
               >
                 <SelectTrigger id="status">
                   <SelectValue />
@@ -311,6 +299,63 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="paid_date">Data do Pagamento</Label>
+              <Input
+                id="paid_date"
+                type="date"
+                value={formData.paid_date}
+                // Preencher a data de pagamento já marca como pago; apagar reabre.
+                onChange={e =>
+                  setFormData(prev => ({
+                    ...prev,
+                    paid_date: e.target.value,
+                    status: e.target.value ? 'pago' : 'pendente',
+                  }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="payment_method">Forma de Pagamento</Label>
+              <Select
+                value={formData.payment_method}
+                onValueChange={v => setFormData(prev => ({ ...prev, payment_method: v }))}
+              >
+                <SelectTrigger id="payment_method">
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Não informada</SelectItem>
+                  {PAYMENT_METHODS.map(m => (
+                    <SelectItem key={m} value={m}>{m}</SelectItem>
+                  ))}
+                  {formData.payment_method !== "none" &&
+                    !(PAYMENT_METHODS as readonly string[]).includes(formData.payment_method) && (
+                      <SelectItem value={formData.payment_method}>{formData.payment_method}</SelectItem>
+                    )}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="category">Categoria</Label>
+            <Select
+              value={formData.category}
+              onValueChange={v => setFormData(prev => ({ ...prev, category: v }))}
+            >
+              <SelectTrigger id="category">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map(cat => (
+                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {!isEditing && (

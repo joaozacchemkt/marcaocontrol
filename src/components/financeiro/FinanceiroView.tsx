@@ -37,7 +37,7 @@ import { Switch } from "@/components/ui/switch";
 import { format, startOfMonth, endOfMonth, subMonths, addMonths, isPast, isToday, differenceInCalendarDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { parseLocalDate } from "@/lib/dates";
+import { parseLocalDate, todayLocalStr } from "@/lib/dates";
 import {
   FINANCIAL_FREQUENCY_LABELS,
   MONTHLY_FACTOR,
@@ -129,7 +129,7 @@ export function FinanceiroView() {
       const next = t.status === "pago" ? "pendente" : "pago";
       const { error } = await supabase
         .from("financial_transactions")
-        .update({ status: next })
+        .update({ status: next, paid_date: next === "pago" ? todayLocalStr() : null })
         .eq("id", t.id);
       if (error) throw error;
       if (next === "pago" && t.financial_recurrence_id) {
@@ -629,12 +629,17 @@ function TxRow({
           {t.category && <span>{t.category}</span>}
           {t.contacts?.name && <span>· {t.contacts.name}</span>}
           {t.projects?.name && <span>· {t.projects.name}</span>}
-          {showDate && <span>· {format(parseLocalDate(t.date)!, "dd/MM")}</span>}
-          {showDue && t.due_date && (
+          {(showDate || showDue) && due && (
             <span className={cn(overdue && "font-bold text-destructive")}>
-              · vence {format(due!, "dd/MM/yyyy")}
+              · vence {format(due, showDue ? "dd/MM/yyyy" : "dd/MM")}
             </span>
           )}
+          {t.status === "pago" && t.paid_date && (
+            <span className="text-emerald-600">
+              · {t.type === "receita" ? "recebido" : "pago"} {format(parseLocalDate(t.paid_date)!, "dd/MM")}
+            </span>
+          )}
+          {t.payment_method && <span>· {t.payment_method}</span>}
         </div>
       </div>
       <span
