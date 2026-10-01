@@ -14,6 +14,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedAcompanhamentoRouteImport } from './routes/_authenticated/acompanhamento'
 import { Route as AuthenticatedAgendaRouteImport } from './routes/_authenticated/agenda'
+import { Route as AuthenticatedAssistenteRouteImport } from './routes/_authenticated/assistente'
 import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authenticated/configuracoes'
 import { Route as AuthenticatedContatosRouteImport } from './routes/_authenticated/contatos'
 import { Route as AuthenticatedFinanceiroRouteImport } from './routes/_authenticated/financeiro'
@@ -46,6 +47,11 @@ const AuthenticatedAcompanhamentoRoute =
 const AuthenticatedAgendaRoute = AuthenticatedAgendaRouteImport.update({
   id: '/agenda',
   path: '/agenda',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAssistenteRoute = AuthenticatedAssistenteRouteImport.update({
+  id: '/assistente',
+  path: '/assistente',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedConfiguracoesRoute =
@@ -97,6 +103,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/acompanhamento': typeof AuthenticatedAcompanhamentoRoute
   '/agenda': typeof AuthenticatedAgendaRoute
+  '/assistente': typeof AuthenticatedAssistenteRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/contatos': typeof AuthenticatedContatosRoute
   '/financeiro': typeof AuthenticatedFinanceiroRoute
@@ -110,6 +117,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/acompanhamento': typeof AuthenticatedAcompanhamentoRoute
   '/agenda': typeof AuthenticatedAgendaRoute
+  '/assistente': typeof AuthenticatedAssistenteRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/contatos': typeof AuthenticatedContatosRoute
   '/financeiro': typeof AuthenticatedFinanceiroRoute
@@ -126,6 +134,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/acompanhamento': typeof AuthenticatedAcompanhamentoRoute
   '/_authenticated/agenda': typeof AuthenticatedAgendaRoute
+  '/_authenticated/assistente': typeof AuthenticatedAssistenteRoute
   '/_authenticated/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/_authenticated/contatos': typeof AuthenticatedContatosRoute
   '/_authenticated/financeiro': typeof AuthenticatedFinanceiroRoute
@@ -143,6 +152,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/acompanhamento'
     | '/agenda'
+    | '/assistente'
     | '/configuracoes'
     | '/contatos'
     | '/financeiro'
@@ -156,6 +166,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/acompanhamento'
     | '/agenda'
+    | '/assistente'
     | '/configuracoes'
     | '/contatos'
     | '/financeiro'
@@ -171,6 +182,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/acompanhamento'
     | '/_authenticated/agenda'
+    | '/_authenticated/assistente'
     | '/_authenticated/configuracoes'
     | '/_authenticated/contatos'
     | '/_authenticated/financeiro'
@@ -222,6 +234,13 @@ declare module '@tanstack/react-router' {
       path: '/agenda'
       fullPath: '/agenda'
       preLoaderRoute: typeof AuthenticatedAgendaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/assistente': {
+      id: '/_authenticated/assistente'
+      path: '/assistente'
+      fullPath: '/assistente'
+      preLoaderRoute: typeof AuthenticatedAssistenteRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/configuracoes': {
@@ -286,6 +305,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAcompanhamentoRoute: typeof AuthenticatedAcompanhamentoRoute
   AuthenticatedAgendaRoute: typeof AuthenticatedAgendaRoute
+  AuthenticatedAssistenteRoute: typeof AuthenticatedAssistenteRoute
   AuthenticatedConfiguracoesRoute: typeof AuthenticatedConfiguracoesRoute
   AuthenticatedContatosRoute: typeof AuthenticatedContatosRoute
   AuthenticatedFinanceiroRoute: typeof AuthenticatedFinanceiroRoute
@@ -300,6 +320,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAcompanhamentoRoute: AuthenticatedAcompanhamentoRoute,
   AuthenticatedAgendaRoute: AuthenticatedAgendaRoute,
+  AuthenticatedAssistenteRoute: AuthenticatedAssistenteRoute,
   AuthenticatedConfiguracoesRoute: AuthenticatedConfiguracoesRoute,
   AuthenticatedContatosRoute: AuthenticatedContatosRoute,
   AuthenticatedFinanceiroRoute: AuthenticatedFinanceiroRoute,

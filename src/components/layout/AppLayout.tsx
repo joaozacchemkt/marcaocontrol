@@ -3,7 +3,7 @@ import { Menu } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { ReactNode } from "react";
 import { PageTransition } from "./PageTransition";
-import { AssistantPanel } from "@/components/assistant/AssistantPanel";
+import { AssistantLauncher } from "@/components/assistant/AssistantLauncher";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -35,7 +35,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         </div>
       </main>
 
-      <AssistantPanel />
+      <AssistantLauncher />
     </div>
   );
 }

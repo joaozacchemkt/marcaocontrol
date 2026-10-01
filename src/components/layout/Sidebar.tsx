@@ -9,6 +9,7 @@ import {
   Lightbulb,
   NotebookPen,
   Settings,
+  Sparkles,
 } from "lucide-react";
 import { Link, useLocation } from "@tanstack/react-router";
 import { motion } from "framer-motion";
@@ -18,6 +19,7 @@ import { GlobalSearch } from "../search/GlobalSearch";
 
 const menuItems = [
   { title: "Início", href: "/", icon: Home },
+  { title: "Assistente", href: "/assistente", icon: Sparkles },
   { title: "Pendências", href: "/tarefas", icon: CheckSquare },
   { title: "Agenda", href: "/agenda", icon: Calendar },
   { title: "Lembretes", href: "/lembretes", icon: Bell },
