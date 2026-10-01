@@ -1,5 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import type { Db } from "@/lib/db";
 
 export type ActivityType = 
   | 'project_created' 
@@ -31,12 +32,20 @@ export async function logActivity(params: {
   entityType: string;
   entityId: string;
   details?: any;
+  /** No servidor (assistente): cliente e usuário vindos do middleware. */
+  db?: Db;
+  userId?: string;
 }) {
-  const { data: userData } = await supabase.auth.getUser();
-  if (!userData.user) return;
+  const db = params.db ?? supabase;
+  let userId = params.userId;
+  if (!userId) {
+    const { data: userData } = await db.auth.getUser();
+    if (!userData.user) return;
+    userId = userData.user.id;
+  }
 
-  await supabase.from('activity_history').insert({
-    user_id: userData.user.id,
+  await db.from('activity_history').insert({
+    user_id: userId,
     project_id: params.projectId,
     action: params.type,
     entity_type: params.entityType,

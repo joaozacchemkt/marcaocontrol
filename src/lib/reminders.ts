@@ -1,5 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Db } from "@/lib/db";
 import { nextOccurrence, type Frequency } from "@/lib/recurrence";
 
 /**
@@ -67,7 +68,10 @@ interface RecurringReminderSource {
  * uma cópia com `remind_at` avançado). Falha silenciosa — recorrência é
  * acessória e nunca deve travar a conclusão do lembrete.
  */
-export async function advanceReminderRecurrence(reminder: RecurringReminderSource): Promise<void> {
+export async function advanceReminderRecurrence(
+  reminder: RecurringReminderSource,
+  db: Db = supabase,
+): Promise<void> {
   if (!reminder.recurrence_frequency) return;
   try {
     const from = new Date(reminder.remind_at);
@@ -84,7 +88,7 @@ export async function advanceReminderRecurrence(reminder: RecurringReminderSourc
     }
 
     // Idempotência: se a próxima ocorrência já existe (duplo clique), não duplica.
-    const { data: dupe } = await supabase
+    const { data: dupe } = await db
       .from("reminders")
       .select("id")
       .eq("title", reminder.title)
@@ -92,7 +96,7 @@ export async function advanceReminderRecurrence(reminder: RecurringReminderSourc
       .limit(1);
     if ((dupe?.length ?? 0) > 0) return;
 
-    await supabase.from("reminders").insert({
+    await db.from("reminders").insert({
       user_id: reminder.user_id,
       project_id: reminder.project_id,
       entity_type: reminder.entity_type,

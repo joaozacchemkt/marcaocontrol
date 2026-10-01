@@ -37,11 +37,11 @@ import { Switch } from "@/components/ui/switch";
 import { format, startOfMonth, endOfMonth, subMonths, addMonths, isPast, isToday, differenceInCalendarDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { parseLocalDate, todayLocalStr } from "@/lib/dates";
+import { parseLocalDate } from "@/lib/dates";
+import { setTransactionPaid } from "@/lib/finance-actions";
 import {
   FINANCIAL_FREQUENCY_LABELS,
   MONTHLY_FACTOR,
-  advanceFinancialRecurrence,
   type FinancialFrequency,
 } from "@/lib/financial-recurrence";
 import { TransactionModal } from "@/components/modals/TransactionModal";
@@ -127,37 +127,7 @@ export function FinanceiroView() {
   const toggleStatus = useMutation({
     mutationFn: async (t: any) => {
       const next = t.status === "pago" ? "pendente" : "pago";
-      const { error } = await supabase
-        .from("financial_transactions")
-        .update({ status: next, paid_date: next === "pago" ? todayLocalStr() : null })
-        .eq("id", t.id);
-      if (error) throw error;
-      if (next === "pago" && t.financial_recurrence_id) {
-        await advanceFinancialRecurrence(
-          t.financial_recurrence_id,
-          t.due_date ? String(t.due_date).slice(0, 10) : undefined,
-        );
-      }
-      // Reabrir: desfaz a ocorrência futura que esta quitação havia gerado,
-      // para não ficar um lançamento fantasma "a pagar/receber".
-      if (next === "pendente" && t.financial_recurrence_id && t.due_date) {
-        const dueStr = String(t.due_date).slice(0, 10);
-        const { data: successors } = await supabase
-          .from("financial_transactions")
-          .select("id, due_date")
-          .eq("financial_recurrence_id", t.financial_recurrence_id)
-          .eq("status", "pendente")
-          .gt("due_date", dueStr)
-          .order("due_date", { ascending: true });
-        const ids = (successors ?? []).map((s) => s.id);
-        if (ids.length > 0) {
-          await supabase.from("financial_transactions").delete().in("id", ids);
-        }
-        await supabase
-          .from("financial_recurrences")
-          .update({ next_run: dueStr })
-          .eq("id", t.financial_recurrence_id);
-      }
+      await setTransactionPaid(t, next === "pago");
       return next;
     },
     onSuccess: (next) => {

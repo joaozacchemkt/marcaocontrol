@@ -1,5 +1,6 @@
 import { addDays, addMonths, addWeeks, format, getDaysInMonth, setDate } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
+import type { Db } from "@/lib/db";
 import { parseLocalDate } from "@/lib/dates";
 
 export type FinancialFrequency =
@@ -84,8 +85,8 @@ interface RecurrenceRow {
 }
 
 /** Já existe um lançamento dessa regra vencendo nessa data? (dedupe robusto) */
-async function occurrenceExists(recurrenceId: string, dueDate: string): Promise<boolean> {
-  const { data } = await supabase
+async function occurrenceExists(recurrenceId: string, dueDate: string, db: Db): Promise<boolean> {
+  const { data } = await db
     .from("financial_transactions")
     .select("id")
     .eq("financial_recurrence_id", recurrenceId)
@@ -109,9 +110,10 @@ async function occurrenceExists(recurrenceId: string, dueDate: string): Promise<
 export async function advanceFinancialRecurrence(
   recurrenceId: string,
   paidOccurrenceDate?: string,
+  db: Db = supabase,
 ): Promise<void> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("financial_recurrences")
       .select("*")
       .eq("id", recurrenceId)
@@ -130,7 +132,7 @@ export async function advanceFinancialRecurrence(
     // Sem a data da ocorrência paga (lançamento sem vencimento): se já existe
     // uma ocorrência pendente em `next_run` ou depois, a régua já andou.
     if (!paidOccurrenceDate) {
-      const { data: ahead } = await supabase
+      const { data: ahead } = await db
         .from("financial_transactions")
         .select("id")
         .eq("financial_recurrence_id", rec.id)
@@ -158,12 +160,12 @@ export async function advanceFinancialRecurrence(
       const nextStr = format(next, "yyyy-MM-dd");
 
       if (end && next > end) {
-        await supabase.from("financial_recurrences").update({ active: false }).eq("id", rec.id);
+        await db.from("financial_recurrences").update({ active: false }).eq("id", rec.id);
         break;
       }
 
-      if (nextStr >= backlogCutoff && !(await occurrenceExists(rec.id, nextStr))) {
-        const { error: insErr } = await supabase.from("financial_transactions").insert({
+      if (nextStr >= backlogCutoff && !(await occurrenceExists(rec.id, nextStr, db))) {
+        const { error: insErr } = await db.from("financial_transactions").insert({
           user_id: rec.user_id,
           project_id: rec.project_id,
           contact_id: rec.contact_id,
@@ -192,7 +194,7 @@ export async function advanceFinancialRecurrence(
     }
 
     if (lastGenerated && lastGenerated > rec.next_run) {
-      await supabase
+      await db
         .from("financial_recurrences")
         .update({ next_run: lastGenerated })
         .eq("id", rec.id);

@@ -1,5 +1,6 @@
 import { addDays, addMonths, addWeeks, addYears, format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
+import type { Db } from "@/lib/db";
 
 export type Frequency =
   | "diario"
@@ -64,9 +65,9 @@ interface RecurrenceRow {
  * Ao concluir uma tarefa recorrente, gera a próxima ocorrência e avança a
  * régua da recorrência. Falhas são silenciosas para não travar a conclusão.
  */
-export async function advanceRecurrence(recurrenceId: string): Promise<void> {
+export async function advanceRecurrence(recurrenceId: string, db: Db = supabase): Promise<void> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("task_recurrences" as never)
       .select("*")
       .eq("id", recurrenceId)
@@ -80,7 +81,7 @@ export async function advanceRecurrence(recurrenceId: string): Promise<void> {
     const next = nextOccurrence(base, rec.frequency, rec.interval_count);
 
     if (rec.end_date && next > new Date(`${rec.end_date}T23:59:59`)) {
-      await supabase
+      await db
         .from("task_recurrences" as never)
         .update({ active: false } as never)
         .eq("id", rec.id);
@@ -91,7 +92,7 @@ export async function advanceRecurrence(recurrenceId: string): Promise<void> {
     // Idempotência: se a próxima ocorrência já foi gerada (duplo clique, ou
     // concluir + salvar em sequência), não cria outra.
     if (nextStr <= rec.next_run) return;
-    const { data: dupe } = await supabase
+    const { data: dupe } = await db
       .from("tasks")
       .select("id")
       .eq("recurrence_id", rec.id)
@@ -100,7 +101,7 @@ export async function advanceRecurrence(recurrenceId: string): Promise<void> {
       .limit(1);
     if ((dupe?.length ?? 0) > 0) return;
 
-    await supabase.from("tasks").insert({
+    await db.from("tasks").insert({
       user_id: rec.user_id,
       project_id: rec.project_id,
       title: rec.title,
@@ -110,7 +111,7 @@ export async function advanceRecurrence(recurrenceId: string): Promise<void> {
       recurrence_id: rec.id,
     } as never);
 
-    await supabase
+    await db
       .from("task_recurrences" as never)
       .update({ next_run: nextStr } as never)
       .eq("id", rec.id);
