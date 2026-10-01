@@ -41,7 +41,15 @@ let client: Anthropic | null = null;
 function getClient(): Anthropic {
   const apiKey = process.env["ANTHROPIC_API_KEY"];
   if (!apiKey) throw new AssistantError("O assistente ainda não foi configurado (falta a chave da API).");
-  client ??= new Anthropic({ apiKey, maxRetries: 2, timeout: 120_000 });
+  // Chave de usuário (sk-ant-usr-…) não é presa a um workspace: a API exige
+  // o header com o workspace a cobrar. Chave de workspace dispensa.
+  const workspaceId = process.env["ANTHROPIC_WORKSPACE_ID"];
+  client ??= new Anthropic({
+    apiKey,
+    maxRetries: 2,
+    timeout: 120_000,
+    ...(workspaceId ? { defaultHeaders: { "anthropic-workspace-id": workspaceId } } : {}),
+  });
   return client;
 }
 
