@@ -196,7 +196,6 @@ export function FinanceiroView() {
   const aPagar = sum(pagarList);
   const receberAtrasado = sum(overdue(receberList) as typeof receberList);
   const pagarAtrasado = sum(overdue(pagarList) as typeof pagarList);
-  const previstoMes = resultadoMes + aReceber - aPagar;
 
   const monthlyBurn = useMemo(
     () =>
@@ -293,12 +292,12 @@ export function FinanceiroView() {
         <SummaryCard
           label="Resultado do mês"
           value={brl(resultadoMes)}
-          hint={`Entrou ${brl(receitasMes)} · Saiu ${brl(despesasMes)} · Previsto ${brl(previstoMes)}`}
+          hint={`Entrou ${brl(receitasMes)} · Saiu ${brl(despesasMes)}`}
           tone={resultadoMes >= 0 ? "neutral" : "warn"}
           icon={<Wallet className="h-4 w-4" />}
         />
         <SummaryCard
-          label="Compromisso mensal fixo"
+          label="Recorrências mensais"
           value={brl(monthlyBurn)}
           hint={`${recorrencias.filter((r) => r.active && r.type === "despesa").length} conta(s) fixa(s) ativa(s)`}
           tone="neutral"
