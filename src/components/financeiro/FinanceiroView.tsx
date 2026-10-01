@@ -72,15 +72,18 @@ export function FinanceiroView() {
   };
 
   // ---- Queries ----
+  // Extrato = o que de fato entrou/saiu no mês (pela data do pagamento),
+  // como num extrato de banco. O que ainda vai vencer fica em A pagar/receber.
   const { data: monthTx = [], isLoading: loadingMonth } = useQuery({
     queryKey: ["financial_transactions", format(currentDate, "yyyy-MM")],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("financial_transactions")
         .select("*, projects(name), contacts(name)")
-        .gte("date", format(monthStart, "yyyy-MM-dd"))
-        .lte("date", format(monthEnd, "yyyy-MM-dd"))
-        .order("date", { ascending: false });
+        .eq("status", "pago")
+        .gte("paid_date", format(monthStart, "yyyy-MM-dd"))
+        .lte("paid_date", format(monthEnd, "yyyy-MM-dd"))
+        .order("paid_date", { ascending: false });
       if (error) throw error;
       return data;
     },
@@ -112,16 +115,6 @@ export function FinanceiroView() {
     },
   });
 
-  const { data: allTotals } = useQuery({
-    queryKey: ["financial_totals"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("financial_transactions")
-        .select("amount, type, status");
-      if (error) throw error;
-      return data;
-    },
-  });
 
   // ---- Mutations ----
   const toggleStatus = useMutation({
@@ -174,16 +167,36 @@ export function FinanceiroView() {
   });
 
   // ---- Derivados ----
-  const receitasMes = monthTx.filter((t) => t.type === "receita").reduce((a, t) => a + t.amount, 0);
-  const despesasMes = monthTx.filter((t) => t.type === "despesa").reduce((a, t) => a + t.amount, 0);
+  // Tudo nos cartões segue o mês escolhido:
+  // - Entrou/Saiu/Resultado = realizado (quitado no mês).
+  // - A pagar/receber = pendentes que vencem no mês; no mês atual, somando
+  //   também o que ficou atrasado de meses anteriores.
+  const receitasMes = monthTx.filter((t) => t.type === "receita").reduce((a, t) => a + Number(t.amount), 0);
+  const despesasMes = monthTx.filter((t) => t.type === "despesa").reduce((a, t) => a + Number(t.amount), 0);
   const resultadoMes = receitasMes - despesasMes;
 
-  const aReceber = (allTotals ?? [])
-    .filter((t) => t.type === "receita" && t.status === "pendente")
-    .reduce((a, t) => a + t.amount, 0);
-  const aPagar = (allTotals ?? [])
-    .filter((t) => t.type === "despesa" && t.status === "pendente")
-    .reduce((a, t) => a + t.amount, 0);
+  const monthStartStr = format(monthStart, "yyyy-MM-dd");
+  const monthEndStr = format(monthEnd, "yyyy-MM-dd");
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const isCurrentMonth = format(currentDate, "yyyy-MM") === todayStr.slice(0, 7);
+  const pendingOfMonth = (type: "receita" | "despesa") =>
+    pendentes.filter((t) => {
+      if (t.type !== type) return false;
+      const due = t.due_date ? String(t.due_date).slice(0, 10) : null;
+      if (!due) return isCurrentMonth;
+      if (due >= monthStartStr && due <= monthEndStr) return true;
+      return isCurrentMonth && due < monthStartStr;
+    });
+  const sum = (list: { amount: number }[]) => list.reduce((a, t) => a + Number(t.amount), 0);
+  const overdue = (list: { due_date: string | null }[]) =>
+    list.filter((t) => t.due_date && String(t.due_date).slice(0, 10) < todayStr);
+  const receberList = pendingOfMonth("receita");
+  const pagarList = pendingOfMonth("despesa");
+  const aReceber = sum(receberList);
+  const aPagar = sum(pagarList);
+  const receberAtrasado = sum(overdue(receberList) as typeof receberList);
+  const pagarAtrasado = sum(overdue(pagarList) as typeof pagarList);
+  const previstoMes = resultadoMes + aReceber - aPagar;
 
   const monthlyBurn = useMemo(
     () =>
@@ -241,12 +254,56 @@ export function FinanceiroView() {
         </div>
       </div>
 
+      {/* Mês de referência — vale pra todos os cartões e pro extrato */}
+      <div className="flex items-center gap-2">
+        <div className="flex items-center rounded-lg border p-1">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentDate(subMonths(currentDate, 1))}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="min-w-[130px] px-3 text-center text-sm font-bold capitalize">
+            {format(currentDate, "MMMM yyyy", { locale: ptBR })}
+          </span>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentDate(addMonths(currentDate, 1))}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+        {!isCurrentMonth && (
+          <Button variant="ghost" size="sm" className="text-xs" onClick={() => setCurrentDate(new Date())}>
+            Voltar pra este mês
+          </Button>
+        )}
+      </div>
+
       {/* Resumo */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <SummaryCard label="A receber" value={brl(aReceber)} tone="good" icon={<ArrowUpRight className="h-4 w-4" />} />
-        <SummaryCard label="A pagar" value={brl(aPagar)} tone="bad" icon={<ArrowDownLeft className="h-4 w-4" />} />
-        <SummaryCard label="Resultado do mês" value={brl(resultadoMes)} tone={resultadoMes >= 0 ? "neutral" : "warn"} icon={<Wallet className="h-4 w-4" />} />
-        <SummaryCard label="Compromisso mensal fixo" value={brl(monthlyBurn)} tone="neutral" icon={<Repeat className="h-4 w-4" />} />
+        <SummaryCard
+          label="A receber no mês"
+          value={brl(aReceber)}
+          hint={receberAtrasado > 0 ? `${brl(receberAtrasado)} atrasado` : `${receberList.length} lançamento(s)`}
+          tone="good"
+          icon={<ArrowUpRight className="h-4 w-4" />}
+        />
+        <SummaryCard
+          label="A pagar no mês"
+          value={brl(aPagar)}
+          hint={pagarAtrasado > 0 ? `${brl(pagarAtrasado)} atrasado` : `${pagarList.length} conta(s)`}
+          tone="bad"
+          icon={<ArrowDownLeft className="h-4 w-4" />}
+        />
+        <SummaryCard
+          label="Resultado do mês"
+          value={brl(resultadoMes)}
+          hint={`Entrou ${brl(receitasMes)} · Saiu ${brl(despesasMes)} · Previsto ${brl(previstoMes)}`}
+          tone={resultadoMes >= 0 ? "neutral" : "warn"}
+          icon={<Wallet className="h-4 w-4" />}
+        />
+        <SummaryCard
+          label="Compromisso mensal fixo"
+          value={brl(monthlyBurn)}
+          hint={`${recorrencias.filter((r) => r.active && r.type === "despesa").length} conta(s) fixa(s) ativa(s)`}
+          tone="neutral"
+          icon={<Repeat className="h-4 w-4" />}
+        />
       </div>
 
       {/* Navegação de seções */}
@@ -291,16 +348,9 @@ export function FinanceiroView() {
       {view === "extrato" && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 border-b pb-3">
-            <div className="flex items-center rounded-lg border p-1">
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentDate(subMonths(currentDate, 1))}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="min-w-[130px] px-3 text-center text-sm font-bold capitalize">
-                {format(currentDate, "MMMM yyyy", { locale: ptBR })}
-              </span>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentDate(addMonths(currentDate, 1))}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
+            <div>
+              <CardTitle className="text-sm">Pago e recebido em {format(currentDate, "MMMM", { locale: ptBR })}</CardTitle>
+              <p className="text-[11px] text-muted-foreground">Pela data do pagamento. O que ainda vai vencer fica em A pagar / A receber.</p>
             </div>
             <div className="flex gap-4 text-xs">
               <span className="text-emerald-600">
@@ -317,7 +367,7 @@ export function FinanceiroView() {
             {loadingMonth ? (
               <p className="p-8 text-center text-sm text-muted-foreground">Carregando…</p>
             ) : monthFiltered.length === 0 ? (
-              <p className="p-10 text-center text-sm italic text-muted-foreground">Nada neste mês.</p>
+              <p className="p-10 text-center text-sm italic text-muted-foreground">Nada pago ou recebido neste mês ainda.</p>
             ) : (
               <ul className="divide-y">
                 {monthFiltered.map((t) => (
@@ -472,11 +522,13 @@ export function FinanceiroView() {
 function SummaryCard({
   label,
   value,
+  hint,
   tone,
   icon,
 }: {
   label: string;
   value: string;
+  hint?: string;
   tone: "good" | "bad" | "warn" | "neutral";
   icon: React.ReactNode;
 }) {
@@ -505,6 +557,7 @@ function SummaryCard({
         >
           {value}
         </p>
+        {hint && <p className="mt-0.5 text-[11px] text-muted-foreground">{hint}</p>}
       </CardContent>
     </Card>
   );

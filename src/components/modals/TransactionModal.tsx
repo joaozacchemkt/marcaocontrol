@@ -18,6 +18,7 @@ import { logActivity } from "@/lib/activity";
 import { useGuardedSubmit } from "@/lib/use-guarded-submit";
 import { FINANCE_CATEGORIES, PAYMENT_METHODS, amountToBRL, maskBRL, parseBRL } from "@/lib/finance-categories";
 import { todayLocalStr } from "@/lib/dates";
+import { setTransactionPaid } from "@/lib/finance-actions";
 import {
   FINANCIAL_FREQUENCY_LABELS,
   advanceFinancialRecurrence,
@@ -121,6 +122,20 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
           .update({ ...insertData, user_id: undefined })
           .eq('id', transaction.id);
         if (updateError) throw updateError;
+        // Mudou pago/pendente pelo formulário: mesma regra do botão da lista
+        // (gera a próxima conta fixa ao quitar; desfaz ao reabrir).
+        const prevStatus = transaction.status ?? 'pendente';
+        if (prevStatus !== data.status) {
+          await setTransactionPaid(
+            {
+              id: transaction.id,
+              due_date: insertData.due_date,
+              financial_recurrence_id: transaction.financial_recurrence_id ?? null,
+            },
+            data.status === 'pago',
+            insertData.paid_date ? { paidDate: insertData.paid_date } : {},
+          );
+        }
         // Mantém a regra de recorrência em sincronia com a edição, para as
         // próximas ocorrências não saírem com valor/descrição defasados.
         if (transaction.financial_recurrence_id) {
