@@ -265,7 +265,7 @@ function AssistentePage() {
               submit();
             }
           }}
-          placeholder={voice.listening ? "Pode falar…" : "Ex.: paguei 4 reais pro meu filho"}
+          placeholder={voice.listening ? "Pode falar…" : "Digite sua mensagem…"}
           rows={1}
           className={cn("max-h-40 min-h-[48px] resize-none text-base md:text-sm", voice.listening && "border-primary")}
           disabled={chat.sending}
