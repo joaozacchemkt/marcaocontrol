@@ -172,11 +172,17 @@ export function useAssistantChat(page: string | null) {
     onSuccess: (res) => {
       setConversationId(null);
       toast.success(
-        res.summary ? "Conversa limpa. Guardei um resumo pra continuar de onde paramos." : "Conversa limpa.",
+        res.summary
+          ? "Nova conversa. Guardei um resumo da anterior pra continuar de onde paramos."
+          : "Nova conversa iniciada.",
       );
       void queryClient.invalidateQueries({ queryKey: ["assistant-conversations"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    // Mesmo se o resumo falhar, abre a conversa nova (não deixa o botão "morto").
+    onError: () => {
+      setConversationId(null);
+      toast.success("Nova conversa iniciada.");
+    },
   });
 
   const items = thread.data?.items ?? [];
@@ -208,9 +214,18 @@ export function useAssistantChat(page: string | null) {
         return false;
       }
     },
-    clear: () => {
-      if (conversationId && !current?.archived_at) archive.mutate(conversationId);
-      else setConversationId(null);
+    /**
+     * "Nova conversa": encerra a atual guardando um resumo (o contexto não se
+     * perde e ela não volta ao recarregar) e abre uma limpa.
+     */
+    newConversation: () => {
+      const hasMessages = items.some((i) => i.kind === "message");
+      if (conversationId && !current?.archived_at && hasMessages) {
+        archive.mutate(conversationId);
+      } else {
+        setConversationId(null);
+        toast.success("Nova conversa iniciada.");
+      }
     },
     clearing: archive.isPending,
     confirmAction: (id: string) => resolve.mutate({ actionId: id, decision: "confirm" }),

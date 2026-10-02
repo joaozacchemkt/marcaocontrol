@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { format } from "date-fns";
 import {
-  Eraser,
   ListChecks,
   Loader2,
   Maximize2,
+  MessageSquarePlus,
   Mic,
   MicOff,
   Minimize2,
@@ -79,6 +79,13 @@ function AssistentePage() {
   const [expanded, setExpanded] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const voice = useVoiceInput(setDraft);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const startNew = () => {
+    setMobileTab("chat");
+    chat.newConversation();
+    setTimeout(() => inputRef.current?.focus(), 50);
+  };
 
   const submit = (text = draft) => {
     if (!text.trim() || chat.sending) return;
@@ -130,14 +137,14 @@ function AssistentePage() {
         <div className={cn(!expanded && "xl:hidden")}>
           <Select
             value={chat.conversationId ?? "nova"}
-            onValueChange={(v) => chat.selectConversation(v === "nova" ? null : v)}
+            onValueChange={(v) => (v === "nova" ? startNew() : chat.selectConversation(v))}
             disabled={chat.sending}
           >
             <SelectTrigger className="h-8 w-[120px] text-xs sm:w-[160px]">
               <SelectValue placeholder="Conversas" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="nova">+ Nova conversa</SelectItem>
+              <SelectItem value="nova">Conversa atual</SelectItem>
               {chat.conversations.map((c) => (
                 <SelectItem key={c.id} value={c.id}>
                   {(c.title || "Conversa").slice(0, 40)}
@@ -148,15 +155,15 @@ function AssistentePage() {
         </div>
 
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
-          className="h-8 gap-1.5 px-2 text-xs"
-          disabled={chat.sending || chat.clearing || (chat.items.length === 0 && !chat.conversationId)}
-          onClick={chat.clear}
-          title="Limpa a tela e guarda um resumo pra continuar de onde parou"
+          className="h-8 gap-1.5 px-2.5 text-xs"
+          disabled={chat.sending || chat.clearing}
+          onClick={startNew}
+          title="Começa do zero e guarda um resumo desta conversa pra eu continuar lembrando"
         >
-          {chat.clearing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eraser className="h-4 w-4" />}
-          <span className="hidden sm:inline">Limpar</span>
+          {chat.clearing ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageSquarePlus className="h-4 w-4" />}
+          <span className="hidden sm:inline">Nova conversa</span>
         </Button>
         <Button
           variant="ghost"
@@ -258,6 +265,7 @@ function AssistentePage() {
         }}
       >
         <Textarea
+          ref={inputRef}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
@@ -303,15 +311,6 @@ function AssistentePage() {
         {/* Conversas anteriores (telas largas) */}
         <aside className="hidden w-56 shrink-0 flex-col xl:flex">
           <p className="mb-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Conversas</p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="mb-2 justify-start text-xs"
-            disabled={chat.sending}
-            onClick={() => chat.selectConversation(null)}
-          >
-            + Nova conversa
-          </Button>
           <ConversationList
             items={chat.conversations}
             currentId={chat.conversationId ?? null}
