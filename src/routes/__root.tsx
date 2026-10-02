@@ -14,6 +14,7 @@ import { useAlerts } from "@/hooks/use-alerts";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { THEME_BOOT_SCRIPT, useTheme } from "@/lib/theme";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 function NotFoundComponent() {
   return (
@@ -132,14 +133,17 @@ function AlertsRunner() {
 /** Toasts embaixo (não cobrem o topo da tela) e no tema certo. */
 function ThemedToaster() {
   const { resolved } = useTheme();
+  const isMobile = useIsMobile();
+  // Computador: canto inferior direito (longe do campo do chat e dos botões
+  // do topo). Celular: topo, sobre a barra do app (embaixo fica o teclado/chat).
   return (
     <Toaster
-      position="bottom-center"
+      position={isMobile ? "top-center" : "bottom-right"}
       richColors
       closeButton
       theme={resolved}
-      offset={{ bottom: 24 }}
-      mobileOffset={{ bottom: 88 }}
+      offset={{ bottom: 24, right: 24 }}
+      mobileOffset={{ top: 8 }}
     />
   );
 }

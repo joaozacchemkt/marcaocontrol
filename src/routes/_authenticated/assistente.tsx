@@ -398,7 +398,7 @@ function AssistentePage() {
               void addFiles(files);
             }
           }}
-          placeholder={voice.listening ? "Pode falar…" : attachments.length ? "O que fazer com a imagem? (opcional)" : "Digite sua mensagem…"}
+          placeholder={voice.listening ? "Pode falar…" : attachments.length ? "Comentário (opcional)" : "Digite sua mensagem…"}
           rows={1}
           className={cn("max-h-40 min-h-[48px] resize-none text-base md:text-sm", voice.listening && "border-primary")}
           disabled={chat.sending}
