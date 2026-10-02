@@ -38,7 +38,7 @@ export interface ToolCtx {
 export type UndoSpec =
   | { op: "delete"; table: "tasks" | "reminders" | "events" | "contacts" | "assistant_memories"; id: string }
   | { op: "deleteTransaction"; id: string; recurrenceId: string | null }
-  | { op: "setPaid"; id: string; paid: boolean; paidDate: string | null }
+  | { op: "setPaid"; id: string; paid: boolean; paidDate: string | null; paymentMethod?: string | null }
   | { op: "restoreStatus"; table: "tasks" | "reminders"; id: string; status: string }
   | { op: "insertMemory"; fact: string };
 
@@ -368,6 +368,7 @@ const marcarLancamentoPago = write({
     id: zId,
     pago: z.boolean(),
     data_pagamento: zDate.optional().describe("Padrão: hoje"),
+    forma_pagamento: z.enum(PAYMENT_METHODS).optional().describe("Como foi pago, se a pessoa disse"),
   }),
   async run(i, { db }) {
     const t = await mustGet(
@@ -381,12 +382,16 @@ const marcarLancamentoPago = write({
     }
     const paidDate = i.data_pagamento ?? todaySP();
     await setTransactionPaid(tx, i.pago, { db, paidDate });
+    if (i.pago && i.forma_pagamento && i.forma_pagamento !== tx.payment_method) {
+      const { error } = await db.from("financial_transactions").update({ payment_method: i.forma_pagamento }).eq("id", tx.id);
+      dbError(error, "Erro ao gravar a forma de pagamento");
+    }
     return {
       result: { ...txOut(tx), status: i.pago ? "pago" : "pendente", data_pagamento: i.pago ? paidDate : null },
       summary: i.pago
-        ? `Quitado: ${tx.description} — ${brl(tx.amount)} em ${dmy(paidDate)}`
+        ? `Quitado: ${tx.description} — ${brl(tx.amount)} em ${dmy(paidDate)}${i.forma_pagamento ? `, ${i.forma_pagamento}` : ""}`
         : `Reaberto como pendente: ${tx.description}`,
-      undo: { op: "setPaid", id: tx.id, paid: wasPaid, paidDate: tx.paid_date },
+      undo: { op: "setPaid", id: tx.id, paid: wasPaid, paidDate: tx.paid_date, paymentMethod: tx.payment_method },
     };
   },
 });
@@ -1267,6 +1272,9 @@ export async function runUndo(spec: UndoSpec, { db, userId }: ToolCtx): Promise<
         "Lançamento não existe mais",
       );
       await setTransactionPaid(t, spec.paid, spec.paidDate ? { db, paidDate: spec.paidDate } : { db });
+      if (spec.paymentMethod !== undefined) {
+        await db.from("financial_transactions").update({ payment_method: spec.paymentMethod }).eq("id", spec.id);
+      }
       return;
     }
     case "restoreStatus": {

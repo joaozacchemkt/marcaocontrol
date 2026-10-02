@@ -1,13 +1,25 @@
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { format } from "date-fns";
-import { ListChecks, Loader2, MessageSquarePlus, Send, Sparkles } from "lucide-react";
+import {
+  Eraser,
+  ListChecks,
+  Loader2,
+  Maximize2,
+  Mic,
+  MicOff,
+  Minimize2,
+  Send,
+  Sparkles,
+} from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { ActionPreview } from "@/components/assistant/ActionPreview";
+import { BriefingCard } from "@/components/assistant/BriefingCard";
+import { useVoiceInput } from "@/components/assistant/use-voice-input";
 import {
   useAssistantChat,
   type AssistantAction,
@@ -15,16 +27,37 @@ import {
 } from "@/components/assistant/use-assistant-chat";
 
 export const Route = createFileRoute("/_authenticated/assistente")({
+  // `de` = tela de onde a pessoa abriu o chat (vira contexto pro assistente).
+  validateSearch: (search: Record<string, unknown>): { de?: string } =>
+    typeof search["de"] === "string" && search["de"].startsWith("/") ? { de: search["de"] } : {},
   component: AssistentePage,
 });
 
-const SUGGESTIONS = [
-  "Paguei R$ 50 de mercado no Pix",
-  "O que vence essa semana?",
-  "Me lembra amanhã às 9h de ligar pro contador",
-  "Quanto gastei este mês?",
-  "Quais tarefas estão atrasadas?",
-];
+/** O que mostrar enquanto cada ferramenta roda. */
+const STEP_LABELS: Record<string, string> = {
+  buscar_lancamentos: "Consultando o financeiro",
+  listar_contas_fixas: "Vendo as contas fixas",
+  registrar_lancamento: "Registrando o lançamento",
+  marcar_lancamento_pago: "Atualizando o pagamento",
+  editar_lancamento: "Preparando a alteração",
+  buscar_tarefas: "Olhando as tarefas",
+  criar_tarefa: "Criando a tarefa",
+  concluir_tarefa: "Atualizando a tarefa",
+  editar_tarefa: "Preparando a alteração",
+  buscar_lembretes: "Olhando os lembretes",
+  criar_lembrete: "Criando o lembrete",
+  concluir_lembrete: "Atualizando o lembrete",
+  editar_lembrete: "Preparando a alteração",
+  buscar_agenda: "Olhando a agenda",
+  criar_compromisso: "Agendando",
+  editar_compromisso: "Preparando a alteração",
+  buscar_contatos: "Procurando nos contatos",
+  criar_contato: "Cadastrando o contato",
+  excluir_registro: "Preparando a exclusão",
+  lembrar_fato: "Anotando pra lembrar",
+  esquecer_fato: "Atualizando o que sei",
+  registrar_feedback: "Registrando pro João",
+};
 
 /** **negrito** simples; o resto em texto puro (nunca HTML vindo do modelo). */
 function RichText({ text }: { text: string }) {
@@ -38,13 +71,17 @@ function RichText({ text }: { text: string }) {
 }
 
 function AssistentePage() {
-  const chat = useAssistantChat();
+  const { de } = Route.useSearch();
+  const chat = useAssistantChat(de ?? null);
   const [draft, setDraft] = useState("");
   const [mobileTab, setMobileTab] = useState<"chat" | "feito">("chat");
+  const [expanded, setExpanded] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const voice = useVoiceInput(setDraft);
 
   const submit = (text = draft) => {
     if (!text.trim() || chat.sending) return;
+    voice.stop();
     setDraft("");
     setMobileTab("chat");
     void chat.send(text).then((ok) => {
@@ -54,11 +91,20 @@ function AssistentePage() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [chat.items.length, chat.pendingText, mobileTab]);
+  }, [chat.items.length, chat.pendingText, chat.steps.length, mobileTab, expanded]);
+
+  // Esc sai da tela cheia.
+  useEffect(() => {
+    if (!expanded) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setExpanded(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [expanded]);
 
   const done = chat.actions.filter((a) => a.status !== "cancelled");
   const pendingCount = chat.actions.filter((a) => a.status === "pending").length;
   const empty = chat.items.length === 0 && !chat.pendingText && !chat.loadingThread;
+  const lastStep = chat.steps.at(-1);
 
   const actionProps = (a: AssistantAction) => ({
     action: a,
@@ -68,22 +114,203 @@ function AssistentePage() {
     onUndo: () => chat.undoAction(a.id),
   });
 
+  const chatSection = (
+    <section
+      className={cn(
+        "flex min-w-0 flex-1 flex-col overflow-hidden border bg-card",
+        expanded ? "fixed inset-0 z-50 md:inset-4 md:rounded-2xl md:shadow-2xl" : "rounded-xl",
+      )}
+    >
+      <header className="flex items-center gap-1.5 border-b px-3 py-2.5 md:px-4">
+        <Sparkles className="h-4 w-4 shrink-0 text-primary" />
+        <h1 className="mr-auto text-base font-semibold">Assistente</h1>
+
+        {/* Conversas anteriores (quando a lista lateral não aparece) */}
+        <div className={cn(!expanded && "xl:hidden")}>
+          <Select
+            value={chat.conversationId ?? "nova"}
+            onValueChange={(v) => chat.selectConversation(v === "nova" ? null : v)}
+            disabled={chat.sending}
+          >
+            <SelectTrigger className="h-8 w-[120px] text-xs sm:w-[160px]">
+              <SelectValue placeholder="Conversas" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="nova">+ Nova conversa</SelectItem>
+              {chat.conversations.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {(c.title || "Conversa").slice(0, 40)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 gap-1.5 px-2 text-xs"
+          disabled={chat.sending || chat.clearing || (chat.items.length === 0 && !chat.conversationId)}
+          onClick={chat.clear}
+          title="Limpa a tela e guarda um resumo pra continuar de onde parou"
+        >
+          {chat.clearing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eraser className="h-4 w-4" />}
+          <span className="hidden sm:inline">Limpar</span>
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="hidden h-8 w-8 md:inline-flex"
+          onClick={() => setExpanded((v) => !v)}
+          aria-label={expanded ? "Sair da tela cheia" : "Expandir"}
+          title={expanded ? "Sair da tela cheia (Esc)" : "Expandir"}
+        >
+          {expanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+        </Button>
+      </header>
+
+      {/* Abas no celular/tablet: conversa x o que foi feito */}
+      <div className={cn("grid grid-cols-2 border-b text-sm", !expanded && "lg:hidden")}>
+        {(["chat", "feito"] as const).map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => setMobileTab(tab)}
+            className={cn(
+              "flex items-center justify-center gap-1.5 py-2 font-medium text-muted-foreground",
+              mobileTab === tab && "border-b-2 border-primary text-foreground",
+            )}
+          >
+            {tab === "chat" ? "Conversa" : "O que foi feito"}
+            {tab === "feito" && done.length > 0 && (
+              <span className={cn("rounded-full bg-muted px-1.5 text-[10px]", pendingCount > 0 && "bg-amber-500 text-white")}>
+                {pendingCount > 0 ? pendingCount : done.length}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-3 py-4 md:px-4">
+        {mobileTab === "feito" && (
+          <div className={cn(!expanded && "lg:hidden")}>
+            <DoneList actions={done} actionProps={actionProps} />
+          </div>
+        )}
+
+        <div className={cn("mx-auto max-w-3xl space-y-3", mobileTab === "feito" && (expanded ? "hidden" : "hidden lg:block"))}>
+          {chat.loadingThread && (
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Carregando conversa…
+            </p>
+          )}
+
+          {empty && <BriefingCard onAsk={submit} disabled={chat.sending} />}
+
+          {chat.currentArchived && chat.items.length > 0 && (
+            <p className="rounded-lg bg-muted px-3 py-2 text-center text-xs text-muted-foreground">
+              Conversa encerrada (só leitura). Mandar uma mensagem abre uma nova — eu lembro do resumo desta.
+            </p>
+          )}
+
+          {chat.items.map((it) =>
+            it.kind === "message" ? (
+              <div key={it.id} className={cn("flex", it.role === "user" ? "justify-end" : "justify-start")}>
+                <div
+                  className={cn(
+                    "max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm",
+                    it.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted",
+                  )}
+                >
+                  <RichText text={it.text} />
+                </div>
+              </div>
+            ) : (
+              <div key={it.id} className="max-w-[85%]">
+                <ActionPreview compact {...actionProps(it.action)} />
+              </div>
+            ),
+          )}
+
+          {chat.pendingText && (
+            <div className="flex justify-end">
+              <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl bg-primary px-3.5 py-2 text-sm text-primary-foreground">
+                {chat.pendingText}
+              </div>
+            </div>
+          )}
+          {chat.sending && (
+            <p className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              {lastStep ? `${STEP_LABELS[lastStep] ?? "Trabalhando"}…` : "Pensando…"}
+            </p>
+          )}
+          <div ref={bottomRef} />
+        </div>
+      </div>
+
+      <form
+        className="flex items-end gap-2 border-t p-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          submit();
+        }}
+      >
+        <Textarea
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              submit();
+            }
+          }}
+          placeholder={voice.listening ? "Pode falar…" : "Ex.: paguei 4 reais pro meu filho"}
+          rows={1}
+          className={cn("max-h-40 min-h-[48px] resize-none text-base md:text-sm", voice.listening && "border-primary")}
+          disabled={chat.sending}
+        />
+        {voice.supported && (
+          <Button
+            type="button"
+            size="icon"
+            variant={voice.listening ? "default" : "outline"}
+            className={cn("h-12 w-12 shrink-0", voice.listening && "animate-pulse")}
+            disabled={chat.sending}
+            onClick={() => (voice.listening ? voice.stop() : voice.start(draft))}
+            aria-label={voice.listening ? "Parar de ouvir" : "Falar"}
+          >
+            {voice.listening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+          </Button>
+        )}
+        <Button
+          type="submit"
+          size="icon"
+          className="h-12 w-12 shrink-0"
+          disabled={chat.sending || !draft.trim()}
+          aria-label="Enviar"
+        >
+          {chat.sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+        </Button>
+      </form>
+    </section>
+  );
+
   return (
     <AppLayout>
       <div className="flex h-[calc(100dvh-57px-2rem)] gap-4 md:h-[calc(100dvh-4rem)]">
         {/* Conversas anteriores (telas largas) */}
         <aside className="hidden w-56 shrink-0 flex-col xl:flex">
+          <p className="mb-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Conversas</p>
           <Button
             variant="outline"
-            className="mb-3 justify-start gap-2"
+            size="sm"
+            className="mb-2 justify-start text-xs"
             disabled={chat.sending}
             onClick={() => chat.selectConversation(null)}
           >
-            <MessageSquarePlus className="h-4 w-4" /> Nova conversa
+            + Nova conversa
           </Button>
-          <p className="mb-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Conversas
-          </p>
           <ConversationList
             items={chat.conversations}
             currentId={chat.conversationId ?? null}
@@ -92,164 +319,7 @@ function AssistentePage() {
           />
         </aside>
 
-        {/* Conversa */}
-        <section className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card">
-          <header className="flex items-center gap-2 border-b px-4 py-3">
-            <Sparkles className="h-4 w-4 shrink-0 text-primary" />
-            <h1 className="mr-auto text-base font-semibold">Assistente</h1>
-
-            {/* Conversas anteriores (telas menores) */}
-            <div className="xl:hidden">
-              <Select
-                value={chat.conversationId ?? "nova"}
-                onValueChange={(v) => chat.selectConversation(v === "nova" ? null : v)}
-                disabled={chat.sending}
-              >
-                <SelectTrigger className="h-8 w-[150px] text-xs">
-                  <SelectValue placeholder="Conversas" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="nova">+ Nova conversa</SelectItem>
-                  {chat.conversations.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {(c.title || "Conversa").slice(0, 40)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </header>
-
-          {/* Abas no celular/tablet: conversa x o que foi feito */}
-          <div className="grid grid-cols-2 border-b text-sm lg:hidden">
-            {(["chat", "feito"] as const).map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                onClick={() => setMobileTab(tab)}
-                className={cn(
-                  "flex items-center justify-center gap-1.5 py-2 font-medium text-muted-foreground",
-                  mobileTab === tab && "border-b-2 border-primary text-foreground",
-                )}
-              >
-                {tab === "chat" ? "Conversa" : "O que foi feito"}
-                {tab === "feito" && done.length > 0 && (
-                  <span
-                    className={cn(
-                      "rounded-full bg-muted px-1.5 text-[10px]",
-                      pendingCount > 0 && "bg-amber-500 text-white",
-                    )}
-                  >
-                    {pendingCount > 0 ? pendingCount : done.length}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex-1 overflow-y-auto px-4 py-4">
-            {mobileTab === "feito" ? (
-              <div className="lg:hidden">
-                <DoneList actions={done} actionProps={actionProps} />
-              </div>
-            ) : null}
-
-            <div className={cn("space-y-3", mobileTab === "feito" && "hidden lg:block")}>
-              {chat.loadingThread && (
-                <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" /> Carregando conversa…
-                </p>
-              )}
-
-              {empty && (
-                <div className="mx-auto max-w-md space-y-4 pt-10 text-center">
-                  <Sparkles className="mx-auto h-8 w-8 text-primary" />
-                  <p className="text-sm text-muted-foreground">
-                    Fale do jeito que falaria com uma pessoa. Eu registro, consulto, lembro e aviso o que precisa de
-                    atenção. Tudo que eu fizer aparece em "O que foi feito", com botão pra desfazer.
-                  </p>
-                  <div className="flex flex-wrap justify-center gap-2">
-                    {SUGGESTIONS.map((s) => (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => submit(s)}
-                        className="rounded-full border px-3 py-1.5 text-xs text-muted-foreground transition hover:bg-accent hover:text-foreground"
-                      >
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {chat.items.map((it) =>
-                it.kind === "message" ? (
-                  <div key={it.id} className={cn("flex", it.role === "user" ? "justify-end" : "justify-start")}>
-                    <div
-                      className={cn(
-                        "max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm",
-                        it.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted",
-                      )}
-                    >
-                      <RichText text={it.text} />
-                    </div>
-                  </div>
-                ) : (
-                  <div key={it.id} className="max-w-[85%]">
-                    <ActionPreview compact {...actionProps(it.action)} />
-                  </div>
-                ),
-              )}
-
-              {chat.pendingText && (
-                <>
-                  <div className="flex justify-end">
-                    <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl bg-primary px-3.5 py-2 text-sm text-primary-foreground">
-                      {chat.pendingText}
-                    </div>
-                  </div>
-                  <p className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Pensando…
-                  </p>
-                </>
-              )}
-              <div ref={bottomRef} />
-            </div>
-          </div>
-
-          <form
-            className="flex items-end gap-2 border-t p-3"
-            onSubmit={(e) => {
-              e.preventDefault();
-              submit();
-            }}
-          >
-            <Textarea
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-                  e.preventDefault();
-                  submit();
-                }
-              }}
-              placeholder="Ex.: paguei 4 reais pro meu filho"
-              rows={1}
-              className="max-h-40 min-h-[48px] resize-none text-base md:text-sm"
-              disabled={chat.sending}
-            />
-            <Button
-              type="submit"
-              size="icon"
-              className="h-12 w-12 shrink-0"
-              disabled={chat.sending || !draft.trim()}
-              aria-label="Enviar"
-            >
-              {chat.sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            </Button>
-          </form>
-        </section>
+        {chatSection}
 
         {/* O que foi feito (telas largas) */}
         <aside className="hidden w-80 shrink-0 flex-col overflow-hidden rounded-xl border bg-card lg:flex">
@@ -330,8 +400,11 @@ function ConversationList({
             c.id === currentId && "bg-accent",
           )}
         >
-          <p className="truncate text-sm">{c.title || "Conversa"}</p>
-          <p className="text-[10px] text-muted-foreground">{format(new Date(c.updated_at), "dd/MM HH:mm")}</p>
+          <p className={cn("truncate text-sm", c.archived_at && "text-muted-foreground")}>{c.title || "Conversa"}</p>
+          <p className="text-[10px] text-muted-foreground">
+            {format(new Date(c.updated_at), "dd/MM HH:mm")}
+            {c.archived_at ? " · encerrada" : ""}
+          </p>
         </button>
       ))}
     </nav>

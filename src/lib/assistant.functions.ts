@@ -1,7 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Json } from "@/integrations/supabase/types";
-import { AssistantError, runTurn, saveSystemNote } from "@/lib/assistant/agent";
+import { AssistantError, runTurn, saveSystemNote, summarizeConversation } from "@/lib/assistant/agent";
+import { AUTO_CONTEXT_PREFIX, getSnapshot, pageName, snapshotText } from "@/lib/assistant/snapshot";
 import { ToolError, getTool, parseToolInput, runUndo, type UndoSpec } from "@/lib/assistant/tools";
 
 /**
@@ -20,11 +21,12 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 export const sendAssistantMessage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { conversationId?: string | null; text: string }) => {
+  .inputValidator((data: { conversationId?: string | null; text: string; page?: string | null }) => {
     const text = typeof data?.text === "string" ? data.text.trim().slice(0, 4000) : "";
     const conversationId =
       typeof data?.conversationId === "string" && UUID_RE.test(data.conversationId) ? data.conversationId : null;
-    return { text, conversationId };
+    const page = typeof data?.page === "string" ? data.page.slice(0, 200) : null;
+    return { text, conversationId, page };
   })
   .handler(async ({ data, context }): Promise<AssistantReply> => {
     const { supabase: db, userId } = context;
@@ -34,10 +36,11 @@ export const sendAssistantMessage = createServerFn({ method: "POST" })
     if (conversationId) {
       const { data: conv } = await db
         .from("assistant_conversations")
-        .select("id")
+        .select("id, archived_at")
         .eq("id", conversationId)
         .maybeSingle();
-      if (!conv) conversationId = null;
+      // Conversa limpa (arquivada) não recebe mensagem nova: abre outra.
+      if (!conv || conv.archived_at) conversationId = null;
     }
     if (!conversationId) {
       const { data: conv, error } = await db
@@ -53,11 +56,24 @@ export const sendAssistantMessage = createServerFn({ method: "POST" })
     }
 
     const ctx = { db, userId, conversationId };
+    // Contexto automático gravado junto com a mensagem (fica fixo no
+    // histórico: o modelo vê a situação daquele momento e o cache não quebra).
+    let auto = AUTO_CONTEXT_PREFIX;
+    const page = pageName(data.page);
+    if (page) auto += `\nAbriu o chat a partir da tela: ${page}.`;
+    try {
+      auto += `\nSituação agora:\n${snapshotText(await getSnapshot(db, userId))}`;
+    } catch (err) {
+      console.error("[assistente] snapshot falhou:", err);
+    }
     const { error: insErr } = await db.from("assistant_messages").insert({
       conversation_id: conversationId,
       user_id: userId,
       role: "user",
-      content: [{ type: "text", text: data.text }] as Json,
+      content: [
+        { type: "text", text: data.text },
+        { type: "text", text: auto },
+      ] as Json,
     });
     if (insErr) return { ok: false, conversationId, error: "Não consegui salvar sua mensagem." };
 
@@ -166,4 +182,37 @@ export const undoAssistantAction = createServerFn({ method: "POST" })
       await db.from("assistant_actions").update({ status: "done", error: msg }).eq("id", action.id);
       return { ok: false, message: `Não consegui desfazer: ${msg}` };
     }
+  });
+
+/**
+ * "Limpar conversa": arquiva com um resumo (que entra no contexto das
+ * próximas conversas) e o chat recomeça limpo, sem perder o fio.
+ */
+export const archiveAssistantConversation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { conversationId: string }) => {
+    if (typeof data?.conversationId !== "string" || !UUID_RE.test(data.conversationId)) throw new Error("Conversa inválida");
+    return data;
+  })
+  .handler(async ({ data, context }): Promise<{ ok: boolean; summary: string | null }> => {
+    const { supabase: db } = context;
+    const { data: conv } = await db
+      .from("assistant_conversations")
+      .select("id, archived_at")
+      .eq("id", data.conversationId)
+      .maybeSingle();
+    if (!conv) return { ok: false, summary: null };
+    if (conv.archived_at) return { ok: true, summary: null };
+    let summary: string | null = null;
+    try {
+      summary = await summarizeConversation(db, data.conversationId);
+    } catch (err) {
+      // Sem resumo não trava: a conversa é arquivada mesmo assim.
+      console.error("[assistente] resumo falhou:", err);
+    }
+    await db
+      .from("assistant_conversations")
+      .update({ archived_at: new Date().toISOString(), summary })
+      .eq("id", data.conversationId);
+    return { ok: true, summary };
   });

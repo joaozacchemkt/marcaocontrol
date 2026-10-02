@@ -319,3 +319,54 @@ export async function runTurn(db: Db, ctx: ToolCtx): Promise<void> {
     { type: "text", text: "Esse pedido ficou longo demais pra uma vez só. Me diga o próximo passo que eu continuo." },
   ]);
 }
+
+// ---------------------------------------------------------------------------
+// Resumo ao limpar a conversa
+// ---------------------------------------------------------------------------
+
+/**
+ * Resume a conversa (feito, decidido, pendente, preferências) pra entrar no
+ * contexto das próximas. Usa só o texto visível + ações executadas.
+ */
+export async function summarizeConversation(db: Db, conversationId: string): Promise<string | null> {
+  const [rows, acts] = await Promise.all([
+    loadHistory(db, conversationId),
+    db
+      .from("assistant_actions")
+      .select("summary, status")
+      .eq("conversation_id", conversationId)
+      .in("status", ["done", "pending"])
+      .order("created_at"),
+  ]);
+  const lines: string[] = [];
+  for (const r of rows) {
+    if (r.hidden || isToolResultOnly(r.content) || !Array.isArray(r.content)) continue;
+    const blocks = r.content as unknown as { type: string; text?: string }[];
+    const text = (r.role === "user" ? blocks.slice(0, 1) : blocks)
+      .filter((b) => b.type === "text" && b.text)
+      .map((b) => b.text)
+      .join(" ")
+      .trim();
+    if (text) lines.push(`${r.role === "user" ? "Pessoa" : "Assistente"}: ${text.slice(0, 600)}`);
+  }
+  for (const a of acts.data ?? []) lines.push(`Ação ${a.status === "pending" ? "aguardando confirmação" : "feita"}: ${a.summary}`);
+  if (lines.length === 0) return null;
+
+  const response = await getClient().beta.messages.create({
+    model: MODEL,
+    max_tokens: 2000,
+    output_config: { effort: "low" },
+    betas: ["server-side-fallback-2026-07-01"],
+    fallbacks: "default",
+    system:
+      "Você resume conversas entre o Marcus/João e o assistente do sistema Marcão Control, para o assistente lembrar depois. Escreva em português, no máximo 8 tópicos curtos ('- '), só o que vale lembrar: o que foi feito, decisões, pendências combinadas (o que ficou de fazer e quando), preferências reveladas. Sem preâmbulo, sem ids.",
+    messages: [{ role: "user", content: lines.join("\n").slice(-30_000) }],
+  });
+  if (response.stop_reason === "refusal") return null;
+  const text = response.content
+    .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("\n")
+    .trim();
+  return text || null;
+}

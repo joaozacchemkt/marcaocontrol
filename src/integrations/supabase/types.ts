@@ -94,22 +94,28 @@ export type Database = {
       }
       assistant_conversations: {
         Row: {
+          archived_at: string | null
           created_at: string
           id: string
+          summary: string | null
           title: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          archived_at?: string | null
           created_at?: string
           id?: string
+          summary?: string | null
           title?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          archived_at?: string | null
           created_at?: string
           id?: string
+          summary?: string | null
           title?: string | null
           updated_at?: string
           user_id?: string

@@ -25,6 +25,22 @@ O Marcus tem pouco tempo. Seu trabalho é transformar frases curtas em registros
 - Reclamações sobre o app, ideias de melhoria ou algo que o sistema não faz: registre com registrar_feedback.
 - Se pedirem algo que nenhuma ferramenta faz (ex.: mexer em projetos, ideias, faculdade), diga que ainda não consegue fazer isso pelo chat e ofereça registrar como sugestão.
 
+## Mapa do sistema (para orientar e explicar)
+- Início: painel do dia (pendências, entrou/saiu no mês, tarefas atribuídas à pessoa).
+- Assistente: este chat. À direita, "O que foi feito" mostra cada registro com Abrir/Desfazer.
+- Pendências (Tarefas): quadro e lista; aba Equipe mostra a carga de cada pessoa; tarefas podem se repetir.
+- Agenda: compromissos por dia/semana/mês.
+- Lembretes: avisos com data/hora, prioridade, categoria e repetição.
+- Projetos: cada projeto tem quadro de tarefas, financeiro, notas, contatos e arquivos (você ainda não mexe em projetos pelo chat).
+- Contatos: pessoas e empresas.
+- Financeiro: cartões do mês (a receber, a pagar, resultado = entrou − saiu, recorrências mensais), extrato do mês (só o que foi pago/recebido, pela data do pagamento), abas A pagar / A receber (vencidos, semana, futuro) e Recorrências.
+- Ideias e Acompanhamento (diário do que foi feito): você ainda não mexe neles pelo chat.
+- Configurações: sair e lista de problemas/sugestões registrados.
+
+## Contexto automático
+Cada mensagem do usuário pode vir com um bloco "[Contexto automático]" gerado pelo sistema (não foi a pessoa que escreveu): a tela de onde ela abriu o chat e a situação atual (contas atrasadas e a vencer, tarefas, agenda e lembretes do dia). Use para entender pedidos vagos ("quita essa conta", "o que tenho hoje?") e para ser proativo — mas não recite o bloco inteiro; traga só o que importa para o pedido. Se o assunto mudou, não fique repetindo pendências já mencionadas na conversa.
+Em "Conversas anteriores" (no contexto) estão resumos de conversas já encerradas: use para dar continuidade ("como combinamos...") sem pedir para a pessoa repetir.
+
 ## Proatividade
 Depois de executar, olhe um passo à frente, sem exagero (no máximo uma sugestão curta por resposta, e só se for útil de verdade):
 - Conta registrada com vencimento futuro → ofereça um lembrete na véspera.
@@ -52,11 +68,18 @@ Depois de executar, olhe um passo à frente, sem exagero (no máximo uma sugest�
  * falando, equipe, projetos e fatos aprendidos.
  */
 export async function buildContext(db: Db, userId: string): Promise<string> {
-  const [profiles, members, projects, memories] = await Promise.all([
+  const [profiles, members, projects, memories, previous] = await Promise.all([
     db.from("profiles").select("id, full_name"),
     db.from("workspace_members").select("user_id"),
     db.from("projects").select("id, name, status").neq("status", "concluido").order("name").limit(60),
     db.from("assistant_memories").select("id, fact").order("created_at").limit(100),
+    db
+      .from("assistant_conversations")
+      .select("summary, archived_at")
+      .eq("user_id", userId)
+      .not("summary", "is", null)
+      .order("archived_at", { ascending: false })
+      .limit(5),
   ]);
   const nameById = new Map((profiles.data ?? []).map((p) => [p.id, p.full_name || "Sem nome"]));
   const me = nameById.get(userId) ?? "usuário";
@@ -65,6 +88,11 @@ export async function buildContext(db: Db, userId: string): Promise<string> {
     .join("\n");
   const projs = (projects.data ?? []).map((p) => `- ${p.name} (id ${p.id})`).join("\n") || "- (nenhum)";
   const facts = (memories.data ?? []).map((m) => `- ${m.fact} (id ${m.id})`).join("\n") || "- (nenhum ainda)";
+  const prev =
+    (previous.data ?? [])
+      .reverse()
+      .map((c) => `### Encerrada em ${c.archived_at?.slice(8, 10)}/${c.archived_at?.slice(5, 7)}\n${c.summary}`)
+      .join("\n\n") || "(nenhuma)";
 
   return `## Contexto atual
 Quem está falando: ${me} (id ${userId}).
@@ -76,5 +104,8 @@ Projetos ativos (para projeto_id):
 ${projs}
 
 Fatos aprendidos:
-${facts}`;
+${facts}
+
+Conversas anteriores (resumos, da mais antiga pra mais recente):
+${prev}`;
 }

@@ -4,12 +4,14 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import {
+  archiveAssistantConversation,
   resolveAssistantAction,
   sendAssistantMessage,
   undoAssistantAction,
 } from "@/lib/assistant.functions";
+import { AUTO_CONTEXT_PREFIX } from "@/lib/assistant/snapshot";
 
-type Block = { type: string; text?: string };
+type Block = { type: string; text?: string; name?: string };
 
 export type ActionStatus = "pending" | "executing" | "done" | "cancelled" | "failed" | "undone";
 export interface AssistantAction {
@@ -26,39 +28,39 @@ export interface ConversationSummary {
   id: string;
   title: string | null;
   updated_at: string;
+  archived_at: string | null;
 }
 export type ChatItem =
   | { kind: "message"; id: string; at: string; role: "user" | "assistant"; text: string }
   | { kind: "action"; id: string; at: string; action: AssistantAction };
 
+/** Texto visível de uma mensagem (sem o bloco de contexto automático). */
 function textOf(content: unknown): string {
   if (!Array.isArray(content)) return "";
   return (content as Block[])
-    .filter((b) => b.type === "text" && b.text)
+    .filter((b) => b.type === "text" && b.text && !b.text.startsWith(AUTO_CONTEXT_PREFIX))
     .map((b) => b.text!.trim())
     .filter(Boolean)
     .join("\n\n");
 }
 
-const CONV_LIST_KEY = ["assistant-conversations"] as const;
-
 /**
  * Estado do chat do assistente: conversa atual, histórico, ações e as
- * mutações (enviar, confirmar, desfazer). As leituras vão direto ao banco
- * pelo RLS; as escritas passam pelas server functions.
+ * mutações (enviar, confirmar, desfazer, limpar). Leituras direto no banco
+ * (RLS); escritas pelas server functions.
  */
-export function useAssistantChat() {
+export function useAssistantChat(page: string | null) {
   const queryClient = useQueryClient();
   // undefined = ainda decidindo (vai abrir a mais recente); null = conversa nova.
   const [conversationId, setConversationId] = useState<string | null | undefined>(undefined);
   const [pendingText, setPendingText] = useState<string | null>(null);
 
   const conversations = useQuery({
-    queryKey: CONV_LIST_KEY,
+    queryKey: ["assistant-conversations"],
     queryFn: async (): Promise<ConversationSummary[]> => {
       const { data, error } = await supabase
         .from("assistant_conversations")
-        .select("id, title, updated_at")
+        .select("id, title, updated_at, archived_at")
         .order("updated_at", { ascending: false })
         .limit(40);
       if (error) throw error;
@@ -66,15 +68,20 @@ export function useAssistantChat() {
     },
   });
 
+  // Abre a conversa mais recente que ainda não foi limpa.
   useEffect(() => {
     if (conversationId === undefined && conversations.isSuccess) {
-      setConversationId(conversations.data[0]?.id ?? null);
+      setConversationId(conversations.data.find((c) => !c.archived_at)?.id ?? null);
     }
   }, [conversationId, conversations.isSuccess, conversations.data]);
+
+  const sending = Boolean(pendingText);
 
   const thread = useQuery({
     queryKey: ["assistant-conversation", conversationId],
     enabled: Boolean(conversationId),
+    // Enquanto o assistente trabalha, acompanha os passos ao vivo.
+    refetchInterval: sending ? 1500 : false,
     queryFn: async () => {
       const [msgs, acts] = await Promise.all([
         supabase
@@ -95,13 +102,19 @@ export function useAssistantChat() {
       if (acts.error) throw acts.error;
       const actions = (acts.data ?? []) as AssistantAction[];
       const items: ChatItem[] = [];
+      // Ferramentas chamadas depois da última mensagem visível do usuário
+      // (pra mostrar "Consultando lançamentos…" enquanto ele trabalha).
+      let steps: string[] = [];
       for (const m of msgs.data ?? []) {
-        const text = textOf(m.content);
+        const content = (Array.isArray(m.content) ? m.content : []) as Block[];
+        const text = textOf(content);
+        if (m.role === "user" && text) steps = [];
+        if (m.role === "assistant") steps.push(...content.filter((b) => b.type === "tool_use").map((b) => b.name ?? ""));
         if (text) items.push({ kind: "message", id: m.id, at: m.created_at, role: m.role as "user" | "assistant", text });
       }
       for (const a of actions) items.push({ kind: "action", id: a.id, at: a.created_at, action: a });
       items.sort((a, b) => a.at.localeCompare(b.at));
-      return { items, actions };
+      return { items, actions, steps };
     },
   });
 
@@ -109,7 +122,23 @@ export function useAssistantChat() {
   const refreshAll = () => void queryClient.invalidateQueries();
 
   const send = useMutation({
-    mutationFn: (text: string) => sendAssistantMessage({ data: { conversationId: conversationId ?? null, text } }),
+    mutationFn: async (text: string) => {
+      // Conversa nova é criada antes, pra tela já acompanhar os passos ao vivo.
+      let id = conversationId ?? null;
+      const current = id ? conversations.data?.find((c) => c.id === id) : null;
+      if (!id || current?.archived_at) {
+        const { data: user } = await supabase.auth.getUser();
+        const { data, error } = await supabase
+          .from("assistant_conversations")
+          .insert({ user_id: user.user!.id, title: text.slice(0, 80) })
+          .select("id")
+          .single();
+        if (error) throw error;
+        id = data.id;
+        setConversationId(id);
+      }
+      return sendAssistantMessage({ data: { conversationId: id, text, page } });
+    },
     onMutate: (text) => setPendingText(text),
     onSuccess: (res) => {
       if (res.conversationId) setConversationId(res.conversationId);
@@ -138,15 +167,36 @@ export function useAssistantChat() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const archive = useMutation({
+    mutationFn: (id: string) => archiveAssistantConversation({ data: { conversationId: id } }),
+    onSuccess: (res) => {
+      setConversationId(null);
+      toast.success(
+        res.summary ? "Conversa limpa. Guardei um resumo pra continuar de onde paramos." : "Conversa limpa.",
+      );
+      void queryClient.invalidateQueries({ queryKey: ["assistant-conversations"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const items = thread.data?.items ?? [];
+  const current = conversations.data?.find((c) => c.id === conversationId) ?? null;
+  // Some com o balão provisório assim que a mensagem real aparece no histórico.
+  const lastUser = [...items].reverse().find((i) => i.kind === "message" && i.role === "user");
+  const showPending =
+    pendingText && !(lastUser && lastUser.kind === "message" && lastUser.text === pendingText.trim()) ? pendingText : null;
+
   return {
     conversationId,
+    currentArchived: Boolean(current?.archived_at),
     selectConversation: (id: string | null) => setConversationId(id),
     conversations: conversations.data ?? [],
-    items: thread.data?.items ?? [],
+    items,
     actions: thread.data?.actions ?? [],
+    steps: sending ? (thread.data?.steps ?? []) : [],
     loadingThread: thread.isLoading && Boolean(conversationId),
-    pendingText,
-    sending: send.isPending,
+    pendingText: showPending,
+    sending,
     /** Resolve false se não enviou (vazio, ocupado ou falha de rede), pra tela devolver o rascunho. */
     send: async (text: string): Promise<boolean> => {
       const t = text.trim();
@@ -158,6 +208,11 @@ export function useAssistantChat() {
         return false;
       }
     },
+    clear: () => {
+      if (conversationId && !current?.archived_at) archive.mutate(conversationId);
+      else setConversationId(null);
+    },
+    clearing: archive.isPending,
     confirmAction: (id: string) => resolve.mutate({ actionId: id, decision: "confirm" }),
     cancelAction: (id: string) => resolve.mutate({ actionId: id, decision: "cancel" }),
     undoAction: (id: string) => undo.mutate(id),
