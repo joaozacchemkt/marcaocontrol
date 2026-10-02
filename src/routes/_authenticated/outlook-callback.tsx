@@ -11,14 +11,22 @@ export const Route = createFileRoute("/_authenticated/outlook-callback")({
     code: typeof s["code"] === "string" ? s["code"] : undefined,
     state: typeof s["state"] === "string" ? s["state"] : undefined,
     error_description: typeof s["error_description"] === "string" ? s["error_description"] : undefined,
+    // Volta do link de aprovação do administrador (não traz código de login).
+    admin_consent: typeof s["admin_consent"] === "string" ? s["admin_consent"] : undefined,
   }),
   component: OutlookCallback,
 });
 
 function OutlookCallback() {
-  const { code, state, error_description } = Route.useSearch();
+  const { code, state, error_description, admin_consent } = Route.useSearch();
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(
-    error_description ? { ok: false, text: error_description } : null,
+    error_description
+      ? { ok: false, text: error_description }
+      : admin_consent
+        ? { ok: true, text: "Aprovação do administrador concedida. Agora é só conectar o Outlook em Configurações." }
+        : !code
+          ? { ok: false, text: "A Microsoft não devolveu a autorização. Tente conectar de novo em Configurações." }
+          : null,
   );
   const ran = useRef(false);
 
