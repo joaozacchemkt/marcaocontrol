@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { GlobalAddButton } from "./GlobalAddButton";
 import { GlobalSearch } from "../search/GlobalSearch";
 import { ThemeToggle } from "./ThemeToggle";
+import { FEATURES } from "@/lib/features";
 
 const menuItems = [
   { title: "Início", href: "/", icon: Home },
@@ -28,7 +29,7 @@ const menuItems = [
   { title: "Projetos", href: "/projetos", icon: Briefcase },
   { title: "Contatos", href: "/contatos", icon: Users },
   { title: "Financeiro", href: "/financeiro", icon: DollarSign },
-  { title: "E-mail", href: "/email", icon: Mail },
+  ...(FEATURES.outlook ? [{ title: "E-mail", href: "/email", icon: Mail }] : []),
   { title: "Ideias", href: "/ideias", icon: Lightbulb },
   { title: "Acompanhamento", href: "/acompanhamento", icon: NotebookPen },
   { title: "Configurações", href: "/configuracoes", icon: Settings },

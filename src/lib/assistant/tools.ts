@@ -23,6 +23,7 @@ import { advanceRecurrence } from "@/lib/recurrence";
 import { advanceReminderRecurrence } from "@/lib/reminders";
 import { logActivity } from "@/lib/activity";
 import { OutlookError, listCalendar, listRecentMail } from "@/lib/outlook/graph";
+import { FEATURES } from "@/lib/features";
 import { addDaysStr, instantSP, isDateStr, isTimeStr, splitInstantSP, todaySP } from "./time";
 
 // ---------------------------------------------------------------------------
@@ -1008,7 +1009,9 @@ const buscarAgenda = read({
     // Outlook (se conectado). Falha aqui não derruba a consulta.
     let aviso: string | undefined;
     let outlook: ReturnType<typeof eventOut>[] = [];
-    const { data: conn } = await db.from("outlook_connections").select("user_id").eq("user_id", userId).maybeSingle();
+    const { data: conn } = FEATURES.outlook
+      ? await db.from("outlook_connections").select("user_id").eq("user_id", userId).maybeSingle()
+      : { data: null };
     if (conn) {
       try {
         const term = i.texto?.toLowerCase();
@@ -1389,8 +1392,7 @@ export const TOOLS: readonly ToolDef[] = [
   editarCompromisso,
   buscarContatos,
   criarContato,
-  buscarEmailsPendentes,
-  ignorarEmails,
+  ...(FEATURES.outlook ? [buscarEmailsPendentes, ignorarEmails] : []),
   excluirRegistro,
   lembrarFato,
   esquecerFato,

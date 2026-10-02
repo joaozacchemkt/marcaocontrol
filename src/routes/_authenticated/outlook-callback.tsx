@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute, redirect } from "@tanstack/react-router";
+import { FEATURES } from "@/lib/features";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,10 @@ import { finishOutlookConnect } from "@/lib/outlook.functions";
 
 /** Volta do login da Microsoft (redirect URI registrado no Entra ID). */
 export const Route = createFileRoute("/_authenticated/outlook-callback")({
+  // Integração Outlook pausada (ver src/lib/features.ts).
+  beforeLoad: () => {
+    if (!FEATURES.outlook) throw redirect({ to: "/" });
+  },
   validateSearch: (s: Record<string, unknown>) => ({
     code: typeof s["code"] === "string" ? s["code"] : undefined,
     state: typeof s["state"] === "string" ? s["state"] : undefined,

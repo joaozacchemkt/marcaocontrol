@@ -13,6 +13,7 @@ import { EventModal } from "@/components/modals/EventModal";
 import { QuickTaskModal } from "@/components/modals/QuickTaskModal";
 import { addDays, endOfMonth, isSameDay, parseISO, startOfMonth } from "date-fns";
 import { getOutlookEvents } from "@/lib/outlook.functions";
+import { FEATURES } from "@/lib/features";
 import { Loader2, Settings2, PanelRightOpen } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
@@ -142,6 +143,7 @@ export function CalendarAgenda() {
   // Agenda do Outlook (só leitura), no mês visível com folga de uma semana.
   const { data: outlook } = useQuery({
     queryKey: ["outlook-events", month.toISOString()],
+    enabled: FEATURES.outlook,
     queryFn: () =>
       getOutlookEvents({
         data: { from: addDays(startOfMonth(month), -7).toISOString(), to: addDays(endOfMonth(month), 8).toISOString() },

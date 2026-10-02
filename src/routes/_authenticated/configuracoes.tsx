@@ -5,6 +5,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { FeedbackList } from "@/components/assistant/FeedbackList";
 import { OutlookCard } from "@/components/assistant/OutlookCard";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { FEATURES } from "@/lib/features";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,7 +40,7 @@ function ConfiguracoesPage() {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Configurações</h1>
-          <p className="text-sm text-muted-foreground">Acesso, aparência e integrações.</p>
+          <p className="text-sm text-muted-foreground">Acesso e aparência.</p>
         </div>
 
         <div className="grid max-w-5xl gap-6 md:grid-cols-2">
@@ -66,7 +67,7 @@ function ConfiguracoesPage() {
           </CardContent>
         </Card>
 
-        <OutlookCard />
+        {FEATURES.outlook && <OutlookCard />}
         </div>
 
         <div className="max-w-5xl">

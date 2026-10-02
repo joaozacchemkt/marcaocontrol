@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute, redirect } from "@tanstack/react-router";
+import { FEATURES } from "@/lib/features";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, isToday, isYesterday } from "date-fns";
 import {
@@ -28,6 +29,10 @@ import { createTaskFromEmail, getOutlookInbox, setEmailIgnored } from "@/lib/out
 import type { InboxItem } from "@/lib/outlook/graph";
 
 export const Route = createFileRoute("/_authenticated/email")({
+  // Integração Outlook pausada (ver src/lib/features.ts).
+  beforeLoad: () => {
+    if (!FEATURES.outlook) throw redirect({ to: "/" });
+  },
   component: EmailPage,
 });
 
