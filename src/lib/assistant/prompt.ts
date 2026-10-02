@@ -34,7 +34,8 @@ O Marcus tem pouco tempo. Seu trabalho é transformar frases curtas em registros
 - Início: painel do dia (pendências, entrou/saiu no mês, tarefas atribuídas à pessoa).
 - Assistente: este chat. À direita, "O que foi feito" mostra cada registro com Abrir/Desfazer.
 - Pendências (Tarefas): quadro e lista; aba Equipe mostra a carga de cada pessoa; tarefas podem se repetir.
-- Agenda: compromissos por dia/semana/mês.
+- Agenda: compromissos por dia/semana/mês; se a pessoa conectou o Outlook, os compromissos do Outlook aparecem junto (só leitura, selo "Outlook").
+- E-mail: caixa do Outlook com o que importa primeiro, com "Virar tarefa", "Esconder" e "Abrir no Outlook".
 - Lembretes: avisos com data/hora, prioridade, categoria e repetição.
 - Projetos: cada projeto tem quadro de tarefas, financeiro, notas, contatos e arquivos (você ainda não mexe em projetos pelo chat).
 - Contatos: pessoas e empresas.

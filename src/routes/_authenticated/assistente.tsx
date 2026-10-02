@@ -28,8 +28,11 @@ import {
 
 export const Route = createFileRoute("/_authenticated/assistente")({
   // `de` = tela de onde a pessoa abriu o chat (vira contexto pro assistente).
-  validateSearch: (search: Record<string, unknown>): { de?: string } =>
-    typeof search["de"] === "string" && search["de"].startsWith("/") ? { de: search["de"] } : {},
+  // `pergunta` = texto que já vem escrito no campo (ex.: botão da tela E-mail).
+  validateSearch: (search: Record<string, unknown>): { de?: string; pergunta?: string } => ({
+    ...(typeof search["de"] === "string" && search["de"].startsWith("/") ? { de: search["de"] } : {}),
+    ...(typeof search["pergunta"] === "string" ? { pergunta: search["pergunta"].slice(0, 500) } : {}),
+  }),
   component: AssistentePage,
 });
 
@@ -74,9 +77,9 @@ function RichText({ text }: { text: string }) {
 }
 
 function AssistentePage() {
-  const { de } = Route.useSearch();
+  const { de, pergunta } = Route.useSearch();
   const chat = useAssistantChat(de ?? null);
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState(pergunta ?? "");
   const [mobileTab, setMobileTab] = useState<"chat" | "feito">("chat");
   const [expanded, setExpanded] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);

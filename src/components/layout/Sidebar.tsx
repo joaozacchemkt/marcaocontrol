@@ -10,6 +10,7 @@ import {
   NotebookPen,
   Settings,
   Sparkles,
+  Mail,
 } from "lucide-react";
 import { Link, useLocation } from "@tanstack/react-router";
 import { motion } from "framer-motion";
@@ -26,6 +27,7 @@ const menuItems = [
   { title: "Projetos", href: "/projetos", icon: Briefcase },
   { title: "Contatos", href: "/contatos", icon: Users },
   { title: "Financeiro", href: "/financeiro", icon: DollarSign },
+  { title: "E-mail", href: "/email", icon: Mail },
   { title: "Ideias", href: "/ideias", icon: Lightbulb },
   { title: "Acompanhamento", href: "/acompanhamento", icon: NotebookPen },
   { title: "Configurações", href: "/configuracoes", icon: Settings },

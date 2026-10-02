@@ -1,5 +1,5 @@
 /**
- * Microsoft Graph (Outlook) — SÓ SERVIDOR. Leitura de e-mail, nada mais.
+ * Microsoft Graph (Outlook) — SÓ SERVIDOR. Só leitura: e-mail e agenda.
  *
  * - App registrado no Entra ID da SPKR (single-tenant). Env:
  *   MS_TENANT_ID, MS_CLIENT_ID, MS_CLIENT_SECRET, OUTLOOK_TOKEN_KEY
@@ -12,7 +12,7 @@
 import { createCipheriv, createDecipheriv, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import type { Db } from "@/lib/db";
 
-const SCOPES = "offline_access User.Read Mail.Read";
+const SCOPES = "offline_access User.Read Mail.Read Calendars.Read";
 const DEFAULT_REDIRECT = "https://marcaocontrol.vercel.app/outlook-callback";
 
 export class OutlookError extends Error {}
@@ -249,4 +249,130 @@ export async function listRecentMail(
       texto: cleanBody(m.body?.content ?? m.bodyPreview ?? ""),
     }));
   return { email: conn?.email ?? null, itens, total_na_caixa: all.length };
+}
+
+// ---------------------------------------------------------------------------
+// Caixa de entrada pra tela "E-mail" (leve: só prévia, sem corpo)
+// ---------------------------------------------------------------------------
+
+export interface InboxItem {
+  id: string;
+  assunto: string;
+  de_nome: string;
+  de_email: string;
+  recebido_em: string;
+  lido: boolean;
+  sinalizado: boolean;
+  importante: boolean;
+  prioritario: boolean;
+  link: string;
+  previa: string;
+}
+
+/** Remetentes automáticos (notificação, newsletter) — vão pro fim da lista. */
+const AUTOMATED = /(no-?reply|nao-?responda|naoresponda|notifica|notification|newsletter|mailer|marketing|news@|info@|alerts?@|bounce)/i;
+
+export async function listInbox(
+  db: Db,
+  userId: string,
+  opts: { days: number },
+): Promise<InboxItem[]> {
+  const token = await accessToken(db, userId);
+  const since = new Date(Date.now() - opts.days * 86_400_000).toISOString();
+  const q = new URLSearchParams({
+    $filter: `receivedDateTime ge ${since}`,
+    $orderby: "receivedDateTime desc",
+    $top: "100",
+    $select: "id,subject,from,receivedDateTime,isRead,importance,webLink,flag,bodyPreview,inferenceClassification",
+  });
+  const res = await fetch(`https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages?${q}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    console.error("[outlook] inbox:", res.status, await res.text().catch(() => ""));
+    throw new OutlookError(res.status === 401 || res.status === 403 ? "Sem permissão pra ler o e-mail. Conecte de novo em Configurações." : "Não consegui ler o e-mail agora.");
+  }
+  const json = (await res.json()) as { value: (GraphMessage & { inferenceClassification?: string })[] };
+  return (json.value ?? []).map((m) => {
+    const address = m.from?.emailAddress?.address ?? "";
+    return {
+      id: m.id,
+      assunto: m.subject || "(sem assunto)",
+      de_nome: m.from?.emailAddress?.name || address,
+      de_email: address,
+      recebido_em: m.receivedDateTime,
+      lido: m.isRead,
+      sinalizado: m.flag?.flagStatus === "flagged",
+      importante: m.importance === "high",
+      // "Prioritário" = caixa Focada do Outlook e remetente que não é automático.
+      prioritario: m.inferenceClassification !== "other" && !AUTOMATED.test(address),
+      link: m.webLink,
+      previa: (m.bodyPreview ?? "").replace(/\s+/g, " ").trim().slice(0, 220),
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Agenda (só leitura)
+// ---------------------------------------------------------------------------
+
+export interface OutlookEvent {
+  id: string;
+  title: string;
+  /** Instante ISO (UTC). Dia todo: meia-noite de SP do dia. */
+  start_time: string;
+  end_time: string | null;
+  all_day: boolean;
+  location: string | null;
+  link: string;
+}
+
+/** Hora "de parede" de SP devolvida pelo Graph → instante ISO. */
+function spWallToIso(dateTime: string): string {
+  return new Date(`${dateTime.slice(0, 19)}-03:00`).toISOString();
+}
+
+export async function listCalendar(db: Db, userId: string, fromIso: string, toIso: string): Promise<OutlookEvent[]> {
+  const token = await accessToken(db, userId);
+  const q = new URLSearchParams({
+    startDateTime: fromIso,
+    endDateTime: toIso,
+    $select: "id,subject,start,end,isAllDay,location,webLink,isCancelled,showAs",
+    $orderby: "start/dateTime",
+    $top: "250",
+  });
+  const res = await fetch(`https://graph.microsoft.com/v1.0/me/calendarView?${q}`, {
+    headers: { Authorization: `Bearer ${token}`, Prefer: 'outlook.timezone="E. South America Standard Time"' },
+  });
+  if (!res.ok) {
+    console.error("[outlook] calendar:", res.status, await res.text().catch(() => ""));
+    throw new OutlookError(
+      res.status === 401 || res.status === 403
+        ? "Sem permissão pra ler a agenda do Outlook. Desconecte e conecte de novo em Configurações."
+        : "Não consegui ler a agenda do Outlook agora.",
+    );
+  }
+  type GraphEvent = {
+    id: string;
+    subject: string | null;
+    start: { dateTime: string };
+    end: { dateTime: string };
+    isAllDay: boolean;
+    isCancelled: boolean;
+    showAs: string;
+    location?: { displayName?: string };
+    webLink: string;
+  };
+  const json = (await res.json()) as { value: GraphEvent[] };
+  return (json.value ?? [])
+    .filter((e) => !e.isCancelled)
+    .map((e) => ({
+      id: `outlook:${e.id}`,
+      title: e.subject || "(sem título)",
+      start_time: e.isAllDay ? spWallToIso(`${e.start.dateTime.slice(0, 10)}T00:00:00`) : spWallToIso(e.start.dateTime),
+      end_time: e.isAllDay ? null : spWallToIso(e.end.dateTime),
+      all_day: e.isAllDay,
+      location: e.location?.displayName || null,
+      link: e.webLink,
+    }));
 }

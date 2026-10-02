@@ -11,7 +11,8 @@ import { MonthGrid, type DayCounts } from "@/components/calendar/MonthGrid";
 import { DayDetailsPanel } from "@/components/calendar/DayDetailsPanel";
 import { EventModal } from "@/components/modals/EventModal";
 import { QuickTaskModal } from "@/components/modals/QuickTaskModal";
-import { isSameDay, parseISO, startOfMonth } from "date-fns";
+import { addDays, endOfMonth, isSameDay, parseISO, startOfMonth } from "date-fns";
+import { getOutlookEvents } from "@/lib/outlook.functions";
 import { Loader2, Settings2, PanelRightOpen } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
@@ -138,6 +139,24 @@ export function CalendarAgenda() {
     },
   });
 
+  // Agenda do Outlook (só leitura), no mês visível com folga de uma semana.
+  const { data: outlook } = useQuery({
+    queryKey: ["outlook-events", month.toISOString()],
+    queryFn: () =>
+      getOutlookEvents({
+        data: { from: addDays(startOfMonth(month), -7).toISOString(), to: addDays(endOfMonth(month), 8).toISOString() },
+      }),
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+  useEffect(() => {
+    if (outlook?.error) toast.error(outlook.error, { id: "outlook-agenda" });
+  }, [outlook?.error]);
+  const allEvents = [
+    ...(events ?? []),
+    ...(outlook?.events ?? []).map((e) => ({ ...e, source: "outlook", status: "agendado" })),
+  ].sort((a, b) => a.start_time.localeCompare(b.start_time));
+
   const { data: finances } = useQuery({
     queryKey: ["finances-calendar"],
     queryFn: async () => {
@@ -162,13 +181,12 @@ export function CalendarAgenda() {
   const selectedDateAssignments =
     academicAssignments?.filter((a) => a.deadline && isSameDay(parseLocalDate(a.deadline)!, date || new Date())) || [];
 
-  const selectedDateEvents =
-    events?.filter((event) => isSameDay(parseISO(event.start_time), date || new Date())) || [];
+  const selectedDateEvents = allEvents.filter((event) => isSameDay(parseISO(event.start_time), date || new Date()));
   const selectedDateFinances =
     finances?.filter((t) => t.due_date && isSameDay(parseLocalDate(t.due_date)!, date || new Date())) || [];
 
   const getCounts = (day: Date): DayCounts => {
-    const dayEvents = events?.filter((e) => isSameDay(parseISO(e.start_time), day)) || [];
+    const dayEvents = allEvents.filter((e) => isSameDay(parseISO(e.start_time), day));
     const dayTasks = tasks?.filter((t) => t.deadline && isSameDay(parseLocalDate(t.deadline)!, day)) || [];
     const dayExams = academicExams?.filter((e) => e.date && isSameDay(parseLocalDate(e.date)!, day)) || [];
     const dayAssignments =

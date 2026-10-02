@@ -124,7 +124,7 @@ export function DayDetailsPanel({
                               : "bg-primary/10 text-primary",
                           )}
                         >
-                          {format(new Date(event.start_time), "HH:mm")}
+                          {event.all_day ? "Dia" : format(new Date(event.start_time), "HH:mm")}
                         </span>
                         <div className="min-w-0 space-y-1">
                           <p
@@ -135,6 +135,16 @@ export function DayDetailsPanel({
                           >
                             {event.title}
                           </p>
+                          {event.source === "outlook" && (
+                            <a
+                              href={event.link}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 rounded bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase text-sky-700 hover:underline dark:text-sky-400"
+                            >
+                              Outlook ↗
+                            </a>
+                          )}
                           {event.location && (
                             <p className="flex items-center gap-1 truncate text-[11px] text-muted-foreground">
                               <MapPin className="h-3 w-3 shrink-0 text-primary/60" />
@@ -146,7 +156,7 @@ export function DayDetailsPanel({
                               {event.description}
                             </p>
                           )}
-                          {(onEditEvent || onDeleteEvent || onToggleEvent) && (
+                          {event.source !== "outlook" && (onEditEvent || onDeleteEvent || onToggleEvent) && (
                             <div className="flex items-center gap-1 pt-1">
                               {onToggleEvent && (
                                 <Button

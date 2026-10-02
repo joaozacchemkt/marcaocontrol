@@ -22,7 +22,7 @@ import { setTransactionPaid } from "@/lib/finance-actions";
 import { advanceRecurrence } from "@/lib/recurrence";
 import { advanceReminderRecurrence } from "@/lib/reminders";
 import { logActivity } from "@/lib/activity";
-import { OutlookError, listRecentMail } from "@/lib/outlook/graph";
+import { OutlookError, listCalendar, listRecentMail } from "@/lib/outlook/graph";
 import { addDaysStr, instantSP, isDateStr, isTimeStr, splitInstantSP, todaySP } from "./time";
 
 // ---------------------------------------------------------------------------
@@ -991,9 +991,10 @@ function eventOut(e: EventRow) {
 
 const buscarAgenda = read({
   name: "buscar_agenda",
-  description: "Lista compromissos da agenda entre duas datas (inclusive).",
+  description:
+    "Lista compromissos entre duas datas (inclusive): os do Marcão Control e, se a pessoa conectou o Outlook, também os da agenda do Outlook (origem 'outlook', só leitura — não dá pra editar/excluir esses por aqui).",
   schema: z.object({ de: zDate, ate: zDate, texto: z.string().max(100).optional() }),
-  async run(i, { db }) {
+  async run(i, { db, userId }) {
     let q = db
       .from("events")
       .select(EVENT_COLS)
@@ -1002,7 +1003,40 @@ const buscarAgenda = read({
     if (i.texto) q = q.ilike("title", likeTerm(i.texto));
     const { data, error } = await q.order("start_time").limit(100);
     dbError(error, "Erro ao buscar agenda");
-    return ((data ?? []) as unknown as EventRow[]).map(eventOut);
+    const own = ((data ?? []) as unknown as EventRow[]).map((e) => ({ ...eventOut(e), origem: "marcao" }));
+
+    // Outlook (se conectado). Falha aqui não derruba a consulta.
+    let aviso: string | undefined;
+    let outlook: ReturnType<typeof eventOut>[] = [];
+    const { data: conn } = await db.from("outlook_connections").select("user_id").eq("user_id", userId).maybeSingle();
+    if (conn) {
+      try {
+        const term = i.texto?.toLowerCase();
+        outlook = (await listCalendar(db, userId, instantSP(i.de, "00:00"), instantSP(addDaysStr(i.ate, 1), "00:00")))
+          .filter((e) => !term || e.title.toLowerCase().includes(term))
+          .map((e) => {
+            const s0 = splitInstantSP(e.start_time);
+            return {
+              id: e.id,
+              titulo: e.title,
+              data: s0?.date ?? null,
+              inicio: e.all_day ? "dia todo" : (s0?.time ?? null),
+              fim: e.all_day ? null : (splitInstantSP(e.end_time)?.time ?? null),
+              local: e.location,
+              contato: null,
+              status: "agendado",
+              descricao: null,
+              origem: "outlook",
+            };
+          });
+      } catch (err) {
+        aviso = err instanceof OutlookError ? err.message : "Não consegui ler a agenda do Outlook agora.";
+      }
+    }
+    const itens = [...own, ...outlook].sort((a, b) =>
+      `${a.data} ${a.inicio}`.localeCompare(`${b.data} ${b.inicio}`),
+    );
+    return aviso ? { itens, aviso_outlook: aviso } : itens;
   },
 });
 
