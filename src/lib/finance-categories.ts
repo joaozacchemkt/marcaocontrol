@@ -15,6 +15,7 @@ export const FINANCE_CATEGORIES = [
   "Impostos / Taxas",
   "Marketing",
   "Software / Assinaturas",
+  "Alimentação / Mercado",
   "Transporte",
   "Estudos",
   "Investimento",

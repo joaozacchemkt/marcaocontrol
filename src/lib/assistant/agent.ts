@@ -38,7 +38,7 @@ function modelParams(effort: "low" | "medium" | "high") {
     ...(HAS_FALLBACKS ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const } : {}),
   };
 }
-const MAX_STEPS = 10;
+const MAX_STEPS = 15;
 const HISTORY_ROWS = 80;
 
 export interface StoredMessage {

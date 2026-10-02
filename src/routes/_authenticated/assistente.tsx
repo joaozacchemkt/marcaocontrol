@@ -42,6 +42,7 @@ const STEP_LABELS: Record<string, string> = {
   editar_lancamento: "Preparando a alteração",
   buscar_tarefas: "Olhando as tarefas",
   criar_tarefa: "Criando a tarefa",
+  criar_tarefas: "Criando as tarefas",
   concluir_tarefa: "Atualizando a tarefa",
   editar_tarefa: "Preparando a alteração",
   buscar_lembretes: "Olhando os lembretes",

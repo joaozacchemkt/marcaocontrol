@@ -37,6 +37,7 @@ export interface ToolCtx {
 /** Como desfazer uma ação `write`. Guardado em assistant_actions.undo. */
 export type UndoSpec =
   | { op: "delete"; table: "tasks" | "reminders" | "events" | "contacts" | "assistant_memories"; id: string }
+  | { op: "deleteMany"; table: "tasks"; ids: string[] }
   | { op: "deleteTransaction"; id: string; recurrenceId: string | null }
   | { op: "setPaid"; id: string; paid: boolean; paidDate: string | null; paymentMethod?: string | null }
   | { op: "restoreStatus"; table: "tasks" | "reminders"; id: string; status: string }
@@ -590,6 +591,62 @@ const criarTarefa = write({
       result: taskOut(t, names, todaySP()),
       summary: `Tarefa criada${quem}: ${t.title}${i.prazo ? ` — prazo ${dmy(i.prazo)}` : ""}`,
       undo: { op: "delete", table: "tasks", id: t.id },
+    };
+  },
+});
+
+const criarTarefas = write({
+  name: "criar_tarefas",
+  description:
+    "Cria VÁRIAS tarefas de uma vez (2 a 30) — use sempre que houver uma lista (ata de reunião, pendências, plano). Tudo vira um único cartão com um único Desfazer. Prioridade alta/média/baixa e responsável podem variar por item.",
+  schema: z.object({
+    projeto_id: zId.optional().describe("Projeto de todas as tarefas, se houver"),
+    tarefas: z
+      .array(
+        z.object({
+          titulo: zText(200),
+          descricao: z.string().max(2000).optional(),
+          prazo: zDate.optional(),
+          prioridade: zPriority.optional(),
+          responsavel_id: zId.optional(),
+        }),
+      )
+      .min(2)
+      .max(30),
+  }),
+  async run(i, { db, userId }) {
+    const { data, error } = await db
+      .from("tasks")
+      .insert(
+        i.tarefas.map((t) => ({
+          user_id: userId,
+          title: t.titulo,
+          description: t.descricao || null,
+          deadline: t.prazo ? deadlineOf(t.prazo) : null,
+          priority: t.prioridade ?? "media",
+          status: "a_fazer" as const,
+          assigned_to: t.responsavel_id ?? null,
+          project_id: i.projeto_id ?? null,
+        })),
+      )
+      .select("id, title");
+    dbError(error, "Erro ao criar tarefas");
+    const rows = data ?? [];
+    if (i.projeto_id) {
+      await logActivity({
+        db,
+        userId,
+        projectId: i.projeto_id,
+        type: "task_created",
+        description: `${rows.length} tarefas criadas pelo assistente`,
+        entityType: "task",
+        entityId: rows[0]?.id ?? i.projeto_id,
+      });
+    }
+    return {
+      result: { criadas: rows.length, ids: rows.map((r) => r.id) },
+      summary: `${rows.length} tarefas criadas`,
+      undo: { op: "deleteMany", table: "tasks", ids: rows.map((r) => r.id) },
     };
   },
 });
@@ -1203,6 +1260,7 @@ export const TOOLS: readonly ToolDef[] = [
   editarLancamento,
   buscarTarefas,
   criarTarefa,
+  criarTarefas,
   concluirTarefa,
   editarTarefa,
   buscarLembretes,
@@ -1251,6 +1309,11 @@ export async function runUndo(spec: UndoSpec, { db, userId }: ToolCtx): Promise<
   switch (spec.op) {
     case "delete": {
       const { error } = await db.from(spec.table).delete().eq("id", spec.id);
+      dbError(error, "Erro ao desfazer");
+      return;
+    }
+    case "deleteMany": {
+      const { error } = await db.from(spec.table).delete().in("id", spec.ids);
       dbError(error, "Erro ao desfazer");
       return;
     }

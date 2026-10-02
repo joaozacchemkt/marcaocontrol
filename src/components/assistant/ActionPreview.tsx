@@ -94,6 +94,20 @@ function describe(a: AssistantAction, nameOf: (id: unknown) => string): Meta {
           ["Detalhes", str(i["descricao"])],
         ]),
       };
+    case "criar_tarefas": {
+      const list = Array.isArray(i["tarefas"]) ? (i["tarefas"] as Input[]) : [];
+      return {
+        icon: CheckSquare,
+        title: a.summary,
+        href: "/tarefas",
+        fields: list.map((t): Field => [
+          PRIORITY[str(t["prioridade"])] ?? "Média",
+          [str(t["titulo"]), t["responsavel_id"] ? `→ ${nameOf(t["responsavel_id"])}` : "", dmy(t["prazo"])]
+            .filter(Boolean)
+            .join(" · "),
+        ]),
+      };
+    }
     case "concluir_tarefa":
       return { icon: CheckSquare, title: a.summary, href: "/tarefas", fields: [] };
     case "criar_lembrete":
