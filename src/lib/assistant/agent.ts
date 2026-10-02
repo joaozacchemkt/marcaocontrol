@@ -21,8 +21,23 @@ type MessageParam = Anthropic.Beta.BetaMessageParam;
 type ContentBlockParam = Anthropic.Beta.BetaContentBlockParam;
 type ToolResultParam = Anthropic.Beta.BetaToolResultBlockParam;
 
-const MODEL = process.env["ASSISTANT_MODEL"] || "claude-opus-5";
+// Padrão: o modelo mais econômico (as tarefas são CRUD simples). Pra trocar
+// sem mexer no código: env ASSISTANT_MODEL (ex.: claude-sonnet-5).
+const MODEL = process.env["ASSISTANT_MODEL"] || "claude-haiku-4-5";
 const EFFORT = (process.env["ASSISTANT_EFFORT"] || "medium") as "low" | "medium" | "high";
+
+/** Haiku 4.5 não tem thinking adaptativo nem `effort`; roda sem thinking. */
+const IS_HAIKU = MODEL.startsWith("claude-haiku");
+/** Fallback de recusa no servidor: só nos modelos que suportam. */
+const HAS_FALLBACKS = MODEL.startsWith("claude-opus-5") || MODEL.startsWith("claude-fable");
+
+/** Parâmetros que dependem do modelo (thinking, effort, fallback). */
+function modelParams(effort: "low" | "medium" | "high") {
+  return {
+    ...(IS_HAIKU ? {} : { thinking: { type: "adaptive" as const }, output_config: { effort } }),
+    ...(HAS_FALLBACKS ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const } : {}),
+  };
+}
 const MAX_STEPS = 10;
 const HISTORY_ROWS = 80;
 
@@ -92,7 +107,9 @@ function isToolResultOnly(content: unknown): boolean {
  * usuário ganha o carimbo de data/hora de quando foi enviada (determinístico:
  * vem do `created_at`, então o prefixo do cache não muda entre turnos).
  */
-export function buildApiMessages(rows: StoredMessage[]): MessageParam[] {
+const THINKING_TYPES = new Set(["thinking", "redacted_thinking", "fallback"]);
+
+export function buildApiMessages(rows: StoredMessage[], keepThinking = !IS_HAIKU): MessageParam[] {
   // Começa numa mensagem de texto do usuário (nunca num tool_result solto).
   const start = rows.findIndex((r) => r.role === "user" && !isToolResultOnly(r.content));
   const usable = start === -1 ? [] : rows.slice(start);
@@ -101,6 +118,12 @@ export function buildApiMessages(rows: StoredMessage[]): MessageParam[] {
   for (let i = 0; i < usable.length; i++) {
     const row = usable[i]!;
     let content = row.content as unknown as ContentBlockParam[];
+    // Sem thinking (Haiku) ou trocando de modelo: blocos de raciocínio de
+    // outro modelo não são reenviados.
+    if (!keepThinking && row.role === "assistant") {
+      content = content.filter((b) => !THINKING_TYPES.has(b.type));
+      if (content.length === 0) continue;
+    }
     if (row.role === "user" && !row.hidden && !isToolResultOnly(content)) {
       content = content.map((b, idx) =>
         idx === 0 && b.type === "text"
@@ -271,12 +294,13 @@ export async function runTurn(db: Db, ctx: ToolCtx): Promise<void> {
         system,
         tools,
         messages,
-        thinking: { type: "adaptive" },
-        output_config: { effort: EFFORT },
         cache_control: { type: "ephemeral" },
-        betas: ["server-side-fallback-2026-07-01"],
-        fallbacks: "default",
+        ...modelParams(EFFORT),
       });
+      const u = response.usage;
+      console.info(
+        `[assistente] ${response.model} in=${u.input_tokens} cache_read=${u.cache_read_input_tokens ?? 0} cache_write=${u.cache_creation_input_tokens ?? 0} out=${u.output_tokens}`,
+      );
     } catch (err) {
       throw friendlyApiError(err);
     }
@@ -355,11 +379,9 @@ export async function summarizeConversation(db: Db, conversationId: string): Pro
   const response = await getClient().beta.messages.create({
     model: MODEL,
     max_tokens: 2000,
-    output_config: { effort: "low" },
-    betas: ["server-side-fallback-2026-07-01"],
-    fallbacks: "default",
+    ...modelParams("low"),
     system:
-      "Você resume conversas entre o Marcus/João e o assistente do sistema Marcão Control, para o assistente lembrar depois. Escreva em português, no máximo 8 tópicos curtos ('- '), só o que vale lembrar: o que foi feito, decisões, pendências combinadas (o que ficou de fazer e quando), preferências reveladas. Sem preâmbulo, sem ids.",
+      "Você resume conversas entre o Marcus/João e o assistente do sistema Marcão Control, para o assistente lembrar depois. Escreva em português, no máximo 8 tópicos curtos ('- '), só o que vale lembrar: o que foi feito, decisões, pendências combinadas (o que ficou de fazer e quando), preferências reveladas. Atenção: 'Ação feita' foi executada; 'Ação aguardando confirmação' NÃO foi executada (escreva 'ficou pendente de confirmação'). Não repita listas de contas a vencer (isso muda todo dia). Sem preâmbulo, sem ids.",
     messages: [{ role: "user", content: lines.join("\n").slice(-30_000) }],
   });
   if (response.stop_reason === "refusal") return null;
