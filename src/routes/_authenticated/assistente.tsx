@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import {
   ListChecks,
   Loader2,
+  ImagePlus,
   Maximize2,
   MessageSquarePlus,
   Mic,
@@ -11,7 +12,9 @@ import {
   Minimize2,
   Send,
   Sparkles,
+  X,
 } from "lucide-react";
+import { toast } from "sonner";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,6 +23,8 @@ import { cn } from "@/lib/utils";
 import { ActionPreview } from "@/components/assistant/ActionPreview";
 import { BriefingCard } from "@/components/assistant/BriefingCard";
 import { useVoiceInput } from "@/components/assistant/use-voice-input";
+import { MessageImages } from "@/components/assistant/MessageImages";
+import { prepareImage, type PreparedImage } from "@/components/assistant/image-utils";
 import {
   useAssistantChat,
   type AssistantAction,
@@ -54,6 +59,7 @@ const STEP_LABELS: Record<string, string> = {
   editar_lembrete: "Preparando a alteração",
   buscar_agenda: "Olhando a agenda",
   criar_compromisso: "Agendando",
+  criar_compromissos: "Agendando os compromissos",
   editar_compromisso: "Preparando a alteração",
   buscar_contatos: "Procurando nos contatos",
   criar_contato: "Cadastrando o contato",
@@ -85,6 +91,33 @@ function AssistentePage() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const voice = useVoiceInput(setDraft);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [attachments, setAttachments] = useState<PreparedImage[]>([]);
+  const [dragging, setDragging] = useState(false);
+  const MAX_IMAGES = 4;
+
+  /** Anexa imagens (botão, colar ou arrastar), já otimizadas. */
+  const addFiles = async (files: FileList | File[]) => {
+    const imgs = Array.from(files).filter((f) => f.type.startsWith("image/"));
+    if (imgs.length === 0) return;
+    const room = MAX_IMAGES - attachments.length;
+    if (room <= 0) {
+      toast.error(`No máximo ${MAX_IMAGES} imagens por mensagem.`);
+      return;
+    }
+    if (imgs.length > room) toast.error(`Só cabem mais ${room} imagem(ns) nesta mensagem.`);
+    try {
+      const prepared = await Promise.all(imgs.slice(0, room).map(prepareImage));
+      setAttachments((a) => [...a, ...prepared]);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Não consegui ler a imagem.");
+    }
+  };
+  const removeAttachment = (idx: number) =>
+    setAttachments((a) => {
+      URL.revokeObjectURL(a[idx]!.previewUrl);
+      return a.filter((_, i) => i !== idx);
+    });
 
   const startNew = () => {
     setMobileTab("chat");
@@ -93,12 +126,18 @@ function AssistentePage() {
   };
 
   const submit = (text = draft) => {
-    if (!text.trim() || chat.sending) return;
+    const imgs = attachments;
+    if ((!text.trim() && imgs.length === 0) || chat.sending) return;
     voice.stop();
     setDraft("");
+    setAttachments([]);
     setMobileTab("chat");
-    void chat.send(text).then((ok) => {
-      if (!ok) setDraft((d) => d || text); // devolve o texto se não foi
+    void chat.send(text, imgs).then((ok) => {
+      if (!ok) {
+        // Devolve texto e imagens se não foi.
+        setDraft((d) => d || text);
+        setAttachments((a) => (a.length ? a : imgs));
+      }
     });
   };
 
@@ -116,7 +155,7 @@ function AssistentePage() {
 
   const done = chat.actions.filter((a) => a.status !== "cancelled");
   const pendingCount = chat.actions.filter((a) => a.status === "pending").length;
-  const empty = chat.items.length === 0 && !chat.pendingText && !chat.loadingThread;
+  const empty = chat.items.length === 0 && chat.pendingText === null && !chat.loadingThread;
   const lastStep = chat.steps.at(-1);
 
   const actionProps = (a: AssistantAction) => ({
@@ -228,15 +267,21 @@ function AssistentePage() {
 
           {chat.items.map((it) =>
             it.kind === "message" ? (
-              <div key={it.id} className={cn("flex", it.role === "user" ? "justify-end" : "justify-start")}>
-                <div
-                  className={cn(
-                    "max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm",
-                    it.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted",
-                  )}
-                >
-                  <RichText text={it.text} />
-                </div>
+              <div
+                key={it.id}
+                className={cn("flex flex-col gap-1.5", it.role === "user" ? "items-end" : "items-start")}
+              >
+                <MessageImages paths={it.images} />
+                {it.text && (
+                  <div
+                    className={cn(
+                      "max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm",
+                      it.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted",
+                    )}
+                  >
+                    <RichText text={it.text} />
+                  </div>
+                )}
               </div>
             ) : (
               <div key={it.id} className="max-w-[85%]">
@@ -245,11 +290,20 @@ function AssistentePage() {
             ),
           )}
 
-          {chat.pendingText && (
-            <div className="flex justify-end">
-              <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl bg-primary px-3.5 py-2 text-sm text-primary-foreground">
-                {chat.pendingText}
-              </div>
+          {chat.pendingText !== null && (
+            <div className="flex flex-col items-end gap-1.5">
+              {chat.pendingImages.length > 0 && (
+                <div className="flex flex-wrap justify-end gap-1.5">
+                  {chat.pendingImages.map((src) => (
+                    <img key={src} src={src} alt="" className="h-28 max-w-[200px] rounded-xl border object-cover opacity-70" />
+                  ))}
+                </div>
+              )}
+              {chat.pendingText && (
+                <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl bg-primary px-3.5 py-2 text-sm text-primary-foreground">
+                  {chat.pendingText}
+                </div>
+              )}
             </div>
           )}
           {chat.sending && (
@@ -263,12 +317,70 @@ function AssistentePage() {
       </div>
 
       <form
-        className="flex items-end gap-2 border-t p-3"
+        className={cn("relative border-t p-3", dragging && "bg-primary/5")}
         onSubmit={(e) => {
           e.preventDefault();
           submit();
         }}
+        onDragOver={(e) => {
+          if (Array.from(e.dataTransfer.items).some((i) => i.kind === "file")) {
+            e.preventDefault();
+            setDragging(true);
+          }
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          void addFiles(e.dataTransfer.files);
+        }}
       >
+        {dragging && (
+          <p className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-b-xl border-2 border-dashed border-primary text-sm font-medium text-primary">
+            Solte a imagem aqui
+          </p>
+        )}
+        {attachments.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-2">
+            {attachments.map((a, idx) => (
+              <div key={a.previewUrl} className="relative">
+                <img src={a.previewUrl} alt="" className="h-16 w-16 rounded-lg border object-cover" />
+                <button
+                  type="button"
+                  onClick={() => removeAttachment(idx)}
+                  aria-label="Remover imagem"
+                  className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-foreground text-background shadow"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            if (e.target.files) void addFiles(e.target.files);
+            e.target.value = "";
+          }}
+        />
+        <div className="flex items-end gap-2">
+        <Button
+          type="button"
+          size="icon"
+          variant="outline"
+          className="h-12 w-12 shrink-0"
+          disabled={chat.sending || attachments.length >= MAX_IMAGES}
+          onClick={() => fileRef.current?.click()}
+          aria-label="Anexar imagem"
+          title="Anexar print ou foto (ou cole com Ctrl+V)"
+        >
+          <ImagePlus className="h-4 w-4" />
+        </Button>
         <Textarea
           ref={inputRef}
           value={draft}
@@ -279,7 +391,14 @@ function AssistentePage() {
               submit();
             }
           }}
-          placeholder={voice.listening ? "Pode falar…" : "Digite sua mensagem…"}
+          onPaste={(e) => {
+            const files = Array.from(e.clipboardData.files).filter((f) => f.type.startsWith("image/"));
+            if (files.length) {
+              e.preventDefault();
+              void addFiles(files);
+            }
+          }}
+          placeholder={voice.listening ? "Pode falar…" : attachments.length ? "O que fazer com a imagem? (opcional)" : "Digite sua mensagem…"}
           rows={1}
           className={cn("max-h-40 min-h-[48px] resize-none text-base md:text-sm", voice.listening && "border-primary")}
           disabled={chat.sending}
@@ -301,11 +420,12 @@ function AssistentePage() {
           type="submit"
           size="icon"
           className="h-12 w-12 shrink-0"
-          disabled={chat.sending || !draft.trim()}
+          disabled={chat.sending || (!draft.trim() && attachments.length === 0)}
           aria-label="Enviar"
         >
           {chat.sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </Button>
+        </div>
       </form>
     </section>
   );

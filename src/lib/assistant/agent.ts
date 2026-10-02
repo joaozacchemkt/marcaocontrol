@@ -26,17 +26,66 @@ type ToolResultParam = Anthropic.Beta.BetaToolResultBlockParam;
 const MODEL = process.env["ASSISTANT_MODEL"] || "claude-haiku-4-5";
 const EFFORT = (process.env["ASSISTANT_EFFORT"] || "medium") as "low" | "medium" | "high";
 
+/**
+ * Modelo só pras mensagens com imagem (opcional). O Haiku 4.5 já lê imagem,
+ * então por padrão é o mesmo modelo; se algum print complexo não for bem
+ * lido, dá pra apontar ASSISTANT_VISION_MODEL (ex.: claude-sonnet-5) e só
+ * esses turnos usam o outro — os demais continuam no econômico.
+ */
+const VISION_MODEL = process.env["ASSISTANT_VISION_MODEL"] || MODEL;
+
 /** Haiku 4.5 não tem thinking adaptativo nem `effort`; roda sem thinking. */
-const IS_HAIKU = MODEL.startsWith("claude-haiku");
+const isHaiku = (model: string) => model.startsWith("claude-haiku");
 /** Fallback de recusa no servidor: só nos modelos que suportam. */
-const HAS_FALLBACKS = MODEL.startsWith("claude-opus-5") || MODEL.startsWith("claude-fable");
+const hasFallbacks = (model: string) => model.startsWith("claude-opus-5") || model.startsWith("claude-fable");
 
 /** Parâmetros que dependem do modelo (thinking, effort, fallback). */
-function modelParams(effort: "low" | "medium" | "high") {
+function modelParams(model: string, effort: "low" | "medium" | "high") {
   return {
-    ...(IS_HAIKU ? {} : { thinking: { type: "adaptive" as const }, output_config: { effort } }),
-    ...(HAS_FALLBACKS ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const } : {}),
+    ...(isHaiku(model) ? {} : { thinking: { type: "adaptive" as const }, output_config: { effort } }),
+    ...(hasFallbacks(model) ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const } : {}),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Imagens (prints/fotos enviados no chat)
+// ---------------------------------------------------------------------------
+
+/** Bloco guardado no histórico: a imagem fica no Storage, não no banco. */
+export interface ImageRef {
+  type: "image_ref";
+  path: string;
+  media_type: "image/jpeg" | "image/png" | "image/webp" | "image/gif";
+}
+const isImageRef = (b: unknown): b is ImageRef => (b as { type?: string })?.type === "image_ref";
+type LoadedImages = Map<string, { data: string; media_type: ImageRef["media_type"] }>;
+
+/** Só as imagens das 2 últimas mensagens do usuário vão pra IA (as antigas viram uma nota). */
+const IMAGE_TURNS = 2;
+
+async function loadRecentImages(db: Db, rows: StoredMessage[]): Promise<LoadedImages> {
+  const userRows = rows.filter((r) => r.role === "user" && !r.hidden && Array.isArray(r.content));
+  const refs = userRows
+    .slice(-IMAGE_TURNS)
+    .flatMap((r) => (r.content as unknown[]).filter(isImageRef));
+  const out: LoadedImages = new Map();
+  await Promise.all(
+    refs.map(async (ref) => {
+      const { data, error } = await db.storage.from("assistant-uploads").download(ref.path);
+      if (error || !data) {
+        console.error("[assistente] imagem não carregou:", ref.path, error?.message);
+        return;
+      }
+      out.set(ref.path, { data: Buffer.from(await data.arrayBuffer()).toString("base64"), media_type: ref.media_type });
+    }),
+  );
+  return out;
+}
+
+/** A última mensagem visível do usuário tem imagem? (decide o modelo do turno) */
+function lastUserHasImage(rows: StoredMessage[]): boolean {
+  const last = [...rows].reverse().find((r) => r.role === "user" && !r.hidden && !isToolResultOnly(r.content));
+  return Array.isArray(last?.content) && (last.content as unknown[]).some(isImageRef);
 }
 const MAX_STEPS = 15;
 const HISTORY_ROWS = 80;
@@ -109,7 +158,11 @@ function isToolResultOnly(content: unknown): boolean {
  */
 const THINKING_TYPES = new Set(["thinking", "redacted_thinking", "fallback"]);
 
-export function buildApiMessages(rows: StoredMessage[], keepThinking = !IS_HAIKU): MessageParam[] {
+export function buildApiMessages(
+  rows: StoredMessage[],
+  keepThinking = !isHaiku(MODEL),
+  images: LoadedImages = new Map(),
+): MessageParam[] {
   // Começa numa mensagem de texto do usuário (nunca num tool_result solto).
   const start = rows.findIndex((r) => r.role === "user" && !isToolResultOnly(r.content));
   const usable = start === -1 ? [] : rows.slice(start);
@@ -125,11 +178,25 @@ export function buildApiMessages(rows: StoredMessage[], keepThinking = !IS_HAIKU
       if (content.length === 0) continue;
     }
     if (row.role === "user" && !row.hidden && !isToolResultOnly(content)) {
-      content = content.map((b, idx) =>
-        idx === 0 && b.type === "text"
-          ? { type: "text" as const, text: `[${nowLabelSP(new Date(row.created_at))}]\n${b.text}` }
-          : b,
-      );
+      // Imagens: as recentes vão inteiras (antes do texto, como a API
+      // recomenda); as antigas viram uma nota pra não pagar de novo.
+      const raw = content as unknown[];
+      const imgs: ContentBlockParam[] = raw.filter(isImageRef).map((ref) => {
+        const img = images.get(ref.path);
+        return img
+          ? { type: "image" as const, source: { type: "base64" as const, media_type: img.media_type, data: img.data } }
+          : { type: "text" as const, text: "[imagem enviada anteriormente]" };
+      });
+      const rest = raw.filter((b) => !isImageRef(b)) as ContentBlockParam[];
+      const firstText = rest.findIndex((b) => b.type === "text");
+      content = [
+        ...imgs,
+        ...rest.map((b, idx) =>
+          idx === firstText && b.type === "text"
+            ? { type: "text" as const, text: `[${nowLabelSP(new Date(row.created_at))}]\n${b.text}` }
+            : b,
+        ),
+      ];
     }
     out.push({ role: row.role, content });
 
@@ -284,18 +351,25 @@ export async function runTurn(db: Db, ctx: ToolCtx): Promise<void> {
     { type: "text", text: context },
   ];
 
+  let images: LoadedImages = new Map();
+  let turnModel = MODEL;
   for (let step = 0; step < MAX_STEPS; step++) {
-    const messages = buildApiMessages(await loadHistory(db, ctx.conversationId));
+    const rows = await loadHistory(db, ctx.conversationId);
+    if (step === 0) {
+      images = await loadRecentImages(db, rows);
+      turnModel = lastUserHasImage(rows) ? VISION_MODEL : MODEL;
+    }
+    const messages = buildApiMessages(rows, !isHaiku(turnModel), images);
     let response: Anthropic.Beta.BetaMessage;
     try {
       response = await anthropic.beta.messages.create({
-        model: MODEL,
+        model: turnModel,
         max_tokens: 16000,
         system,
         tools,
         messages,
         cache_control: { type: "ephemeral" },
-        ...modelParams(EFFORT),
+        ...modelParams(turnModel, EFFORT),
       });
       const u = response.usage;
       console.info(
@@ -366,7 +440,8 @@ export async function summarizeConversation(db: Db, conversationId: string): Pro
   for (const r of rows) {
     if (r.hidden || isToolResultOnly(r.content) || !Array.isArray(r.content)) continue;
     const blocks = r.content as unknown as { type: string; text?: string }[];
-    const text = (r.role === "user" ? blocks.slice(0, 1) : blocks)
+    const hasImg = r.role === "user" && blocks.some((b) => b.type === "image_ref");
+    const text = (hasImg ? "[enviou imagem] " : "") + (r.role === "user" ? blocks.filter((b) => b.type === "text").slice(0, 1) : blocks)
       .filter((b) => b.type === "text" && b.text)
       .map((b) => b.text)
       .join(" ")
@@ -379,7 +454,7 @@ export async function summarizeConversation(db: Db, conversationId: string): Pro
   const response = await getClient().beta.messages.create({
     model: MODEL,
     max_tokens: 2000,
-    ...modelParams("low"),
+    ...modelParams(MODEL, "low"),
     system:
       "Você resume conversas entre o Marcus/João e o assistente do sistema Marcão Control, para o assistente lembrar depois. Escreva em português, no máximo 8 tópicos curtos ('- '), só o que vale lembrar: o que foi feito, decisões, pendências combinadas (o que ficou de fazer e quando), preferências reveladas. Atenção: 'Ação feita' foi executada; 'Ação aguardando confirmação' NÃO foi executada (escreva 'ficou pendente de confirmação'). Não repita listas de contas a vencer (isso muda todo dia). Sem preâmbulo, sem ids.",
     messages: [{ role: "user", content: lines.join("\n").slice(-30_000) }],

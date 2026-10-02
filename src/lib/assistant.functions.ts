@@ -21,16 +21,34 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 export const sendAssistantMessage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { conversationId?: string | null; text: string; page?: string | null }) => {
-    const text = typeof data?.text === "string" ? data.text.trim().slice(0, 4000) : "";
-    const conversationId =
-      typeof data?.conversationId === "string" && UUID_RE.test(data.conversationId) ? data.conversationId : null;
-    const page = typeof data?.page === "string" ? data.page.slice(0, 200) : null;
-    return { text, conversationId, page };
-  })
+  .inputValidator(
+    (data: {
+      conversationId?: string | null;
+      text: string;
+      page?: string | null;
+      images?: { path: string; mediaType: string }[];
+    }) => {
+      const text = typeof data?.text === "string" ? data.text.trim().slice(0, 4000) : "";
+      const conversationId =
+        typeof data?.conversationId === "string" && UUID_RE.test(data.conversationId) ? data.conversationId : null;
+      const page = typeof data?.page === "string" ? data.page.slice(0, 200) : null;
+      const images = (Array.isArray(data?.images) ? data.images : [])
+        .filter(
+          (i) =>
+            typeof i?.path === "string" &&
+            /^[0-9a-f-]{36}\/[\w.-]{1,120}$/i.test(i.path) &&
+            ["image/jpeg", "image/png", "image/webp", "image/gif"].includes(i.mediaType),
+        )
+        .slice(0, 4);
+      return { text, conversationId, page, images };
+    },
+  )
   .handler(async ({ data, context }): Promise<AssistantReply> => {
     const { supabase: db, userId } = context;
-    if (!data.text) return { ok: false, conversationId: data.conversationId, error: "Mensagem vazia." };
+    // Só aceita imagem da própria pasta (o RLS do Storage também garante).
+    const images = data.images.filter((i) => i.path.startsWith(`${userId}/`));
+    if (!data.text && images.length === 0) return { ok: false, conversationId: data.conversationId, error: "Mensagem vazia." };
+    const text = data.text || (images.length > 1 ? "(enviou imagens)" : "(enviou uma imagem)");
 
     let conversationId = data.conversationId;
     if (conversationId) {
@@ -45,7 +63,7 @@ export const sendAssistantMessage = createServerFn({ method: "POST" })
     if (!conversationId) {
       const { data: conv, error } = await db
         .from("assistant_conversations")
-        .insert({ user_id: userId, title: data.text.slice(0, 80) })
+        .insert({ user_id: userId, title: (data.text || "Imagem").slice(0, 80) })
         .select("id")
         .single();
       if (error || !conv) return { ok: false, conversationId: null, error: "Não consegui abrir a conversa." };
@@ -86,7 +104,8 @@ export const sendAssistantMessage = createServerFn({ method: "POST" })
       user_id: userId,
       role: "user",
       content: [
-        { type: "text", text: data.text },
+        ...images.map((i) => ({ type: "image_ref", path: i.path, media_type: i.mediaType })),
+        { type: "text", text },
         ...(auto === AUTO_CONTEXT_PREFIX ? [] : [{ type: "text", text: auto }]),
       ] as Json,
     });

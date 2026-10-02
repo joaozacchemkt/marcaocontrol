@@ -39,7 +39,7 @@ export interface ToolCtx {
 /** Como desfazer uma ação `write`. Guardado em assistant_actions.undo. */
 export type UndoSpec =
   | { op: "delete"; table: "tasks" | "reminders" | "events" | "contacts" | "assistant_memories"; id: string }
-  | { op: "deleteMany"; table: "tasks"; ids: string[] }
+  | { op: "deleteMany"; table: "tasks" | "events"; ids: string[] }
   | { op: "deleteTransaction"; id: string; recurrenceId: string | null }
   | { op: "setPaid"; id: string; paid: boolean; paidDate: string | null; paymentMethod?: string | null }
   | { op: "restoreStatus"; table: "tasks" | "reminders"; id: string; status: string }
@@ -1093,6 +1093,54 @@ const criarCompromisso = write({
   },
 });
 
+const criarCompromissos = write({
+  name: "criar_compromissos",
+  description:
+    "Agenda VÁRIOS compromissos de uma vez (2 a 30) — use pra print/foto de agenda ou lista de reuniões. Antes, confira com buscar_agenda no período pra não duplicar o que já existe. Um cartão, um Desfazer.",
+  schema: z.object({
+    compromissos: z
+      .array(
+        z.object({
+          titulo: zText(200),
+          data: zDate,
+          hora_inicio: zTime,
+          hora_fim: zTime.optional(),
+          local: z.string().max(200).optional(),
+          descricao: z.string().max(2000).optional(),
+        }),
+      )
+      .min(2)
+      .max(30),
+    projeto_id: zId.optional(),
+  }),
+  async run(i, { db, userId }) {
+    for (const c of i.compromissos) {
+      if (c.hora_fim && c.hora_fim <= c.hora_inicio) throw new ToolError(`"${c.titulo}": hora_fim precisa ser depois de hora_inicio.`);
+    }
+    const { data, error } = await db
+      .from("events")
+      .insert(
+        i.compromissos.map((c) => ({
+          user_id: userId,
+          title: c.titulo,
+          start_time: instantSP(c.data, c.hora_inicio),
+          end_time: c.hora_fim ? instantSP(c.data, c.hora_fim) : null,
+          location: c.local || null,
+          description: c.descricao || null,
+          project_id: i.projeto_id ?? null,
+        })),
+      )
+      .select("id");
+    dbError(error, "Erro ao agendar");
+    const ids = (data ?? []).map((r) => r.id);
+    return {
+      result: { criados: ids.length },
+      summary: `${ids.length} compromissos agendados`,
+      undo: { op: "deleteMany", table: "events", ids },
+    };
+  },
+});
+
 const editarCompromisso = confirm({
   name: "editar_compromisso",
   description: "Altera um compromisso (remarcar data/hora, título, local). Precisa de confirmação.",
@@ -1389,6 +1437,7 @@ export const TOOLS: readonly ToolDef[] = [
   editarLembrete,
   buscarAgenda,
   criarCompromisso,
+  criarCompromissos,
   editarCompromisso,
   buscarContatos,
   criarContato,
@@ -1436,7 +1485,7 @@ export async function runUndo(spec: UndoSpec, { db, userId }: ToolCtx): Promise<
     }
     case "deleteMany": {
       // Tarefa desfeita: o e-mail de origem volta a ser sugerido.
-      await db.from("outlook_seen_messages").delete().in("task_id", spec.ids);
+      if (spec.table === "tasks") await db.from("outlook_seen_messages").delete().in("task_id", spec.ids);
       const { error } = await db.from(spec.table).delete().in("id", spec.ids);
       dbError(error, "Erro ao desfazer");
       return;

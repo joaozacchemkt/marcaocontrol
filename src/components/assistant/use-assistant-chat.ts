@@ -10,8 +10,9 @@ import {
   undoAssistantAction,
 } from "@/lib/assistant.functions";
 import { AUTO_CONTEXT_PREFIX } from "@/lib/assistant/snapshot";
+import type { PreparedImage } from "./image-utils";
 
-type Block = { type: string; text?: string; name?: string };
+type Block = { type: string; text?: string; name?: string; path?: string };
 
 export type ActionStatus = "pending" | "executing" | "done" | "cancelled" | "failed" | "undone";
 export interface AssistantAction {
@@ -31,17 +32,24 @@ export interface ConversationSummary {
   archived_at: string | null;
 }
 export type ChatItem =
-  | { kind: "message"; id: string; at: string; role: "user" | "assistant"; text: string }
+  | { kind: "message"; id: string; at: string; role: "user" | "assistant"; text: string; images: string[] }
   | { kind: "action"; id: string; at: string; action: AssistantAction };
 
 /** Texto visível de uma mensagem (sem o bloco de contexto automático). */
 function textOf(content: unknown): string {
   if (!Array.isArray(content)) return "";
+  const hasImage = (content as Block[]).some((b) => b.type === "image_ref");
   return (content as Block[])
     .filter((b) => b.type === "text" && b.text && !b.text.startsWith(AUTO_CONTEXT_PREFIX))
     .map((b) => b.text!.trim())
-    .filter(Boolean)
+    // Texto automático de mensagem só com imagem não aparece no balão.
+    .filter((t) => t && !(hasImage && /^\(enviou (uma imagem|imagens)\)$/.test(t)))
     .join("\n\n");
+}
+
+function imagesOf(content: unknown): string[] {
+  if (!Array.isArray(content)) return [];
+  return (content as Block[]).filter((b) => b.type === "image_ref" && b.path).map((b) => b.path!);
 }
 
 /**
@@ -54,6 +62,7 @@ export function useAssistantChat(page: string | null) {
   // undefined = ainda decidindo (vai abrir a mais recente); null = conversa nova.
   const [conversationId, setConversationId] = useState<string | null | undefined>(undefined);
   const [pendingText, setPendingText] = useState<string | null>(null);
+  const [pendingImages, setPendingImages] = useState<string[]>([]);
 
   const conversations = useQuery({
     queryKey: ["assistant-conversations"],
@@ -75,7 +84,7 @@ export function useAssistantChat(page: string | null) {
     }
   }, [conversationId, conversations.isSuccess, conversations.data]);
 
-  const sending = Boolean(pendingText);
+  const sending = pendingText !== null;
 
   const thread = useQuery({
     queryKey: ["assistant-conversation", conversationId],
@@ -110,7 +119,9 @@ export function useAssistantChat(page: string | null) {
         const text = textOf(content);
         if (m.role === "user" && text) steps = [];
         if (m.role === "assistant") steps.push(...content.filter((b) => b.type === "tool_use").map((b) => b.name ?? ""));
-        if (text) items.push({ kind: "message", id: m.id, at: m.created_at, role: m.role as "user" | "assistant", text });
+        const images = imagesOf(content);
+        if (text || images.length)
+          items.push({ kind: "message", id: m.id, at: m.created_at, role: m.role as "user" | "assistant", text, images });
       }
       for (const a of actions) items.push({ kind: "action", id: a.id, at: a.created_at, action: a });
       items.sort((a, b) => a.at.localeCompare(b.at));
@@ -122,31 +133,49 @@ export function useAssistantChat(page: string | null) {
   const refreshAll = () => void queryClient.invalidateQueries();
 
   const send = useMutation({
-    mutationFn: async (text: string) => {
+    mutationFn: async ({ text, images }: { text: string; images: PreparedImage[] }) => {
+      const { data: auth } = await supabase.auth.getUser();
+      const uid = auth.user!.id;
+      // Sobe os prints direto pro Storage (pasta privada da pessoa).
+      const uploaded = await Promise.all(
+        images.map(async (img) => {
+          const path = `${uid}/${crypto.randomUUID()}.jpg`;
+          const { error } = await supabase.storage
+            .from("assistant-uploads")
+            .upload(path, img.blob, { contentType: img.mediaType, upsert: false });
+          if (error) throw new Error(`Não consegui enviar a imagem: ${error.message}`);
+          return { path, mediaType: img.mediaType };
+        }),
+      );
       // Conversa nova é criada antes, pra tela já acompanhar os passos ao vivo.
       let id = conversationId ?? null;
       const current = id ? conversations.data?.find((c) => c.id === id) : null;
       if (!id || current?.archived_at) {
-        const { data: user } = await supabase.auth.getUser();
         const { data, error } = await supabase
           .from("assistant_conversations")
-          .insert({ user_id: user.user!.id, title: text.slice(0, 80) })
+          .insert({ user_id: uid, title: (text || "Imagem").slice(0, 80) })
           .select("id")
           .single();
         if (error) throw error;
         id = data.id;
         setConversationId(id);
       }
-      return sendAssistantMessage({ data: { conversationId: id, text, page } });
+      return sendAssistantMessage({ data: { conversationId: id, text, page, images: uploaded } });
     },
-    onMutate: (text) => setPendingText(text),
+    onMutate: ({ text, images }) => {
+      setPendingText(text);
+      setPendingImages(images.map((i) => i.previewUrl));
+    },
     onSuccess: (res) => {
       if (res.conversationId) setConversationId(res.conversationId);
       if (!res.ok && res.error && !res.conversationId) toast.error(res.error);
       refreshAll();
     },
     onError: (e: Error) => toast.error(e.message || "Não consegui enviar. Tente de novo."),
-    onSettled: () => setPendingText(null),
+    onSettled: () => {
+      setPendingText(null);
+      setPendingImages([]);
+    },
   });
 
   const resolve = useMutation({
@@ -189,8 +218,9 @@ export function useAssistantChat(page: string | null) {
   const current = conversations.data?.find((c) => c.id === conversationId) ?? null;
   // Some com o balão provisório assim que a mensagem real aparece no histórico.
   const lastUser = [...items].reverse().find((i) => i.kind === "message" && i.role === "user");
-  const showPending =
-    pendingText && !(lastUser && lastUser.kind === "message" && lastUser.text === pendingText.trim()) ? pendingText : null;
+  const pendingShown =
+    pendingText !== null &&
+    !(lastUser && lastUser.kind === "message" && lastUser.text === pendingText.trim() && lastUser.images.length === pendingImages.length);
 
   return {
     conversationId,
@@ -201,14 +231,15 @@ export function useAssistantChat(page: string | null) {
     actions: thread.data?.actions ?? [],
     steps: sending ? (thread.data?.steps ?? []) : [],
     loadingThread: thread.isLoading && Boolean(conversationId),
-    pendingText: showPending,
+    pendingText: pendingShown ? pendingText : null,
+    pendingImages: pendingShown ? pendingImages : [],
     sending,
     /** Resolve false se não enviou (vazio, ocupado ou falha de rede), pra tela devolver o rascunho. */
-    send: async (text: string): Promise<boolean> => {
+    send: async (text: string, images: PreparedImage[] = []): Promise<boolean> => {
       const t = text.trim();
-      if (!t || send.isPending) return false;
+      if ((!t && images.length === 0) || send.isPending) return false;
       try {
-        await send.mutateAsync(t);
+        await send.mutateAsync({ text: t, images });
         return true;
       } catch {
         return false;

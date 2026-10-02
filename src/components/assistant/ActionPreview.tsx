@@ -136,6 +136,18 @@ function describe(a: AssistantAction, nameOf: (id: unknown) => string): Meta {
           ["Detalhes", str(i["descricao"])],
         ]),
       };
+    case "criar_compromissos": {
+      const list = Array.isArray(i["compromissos"]) ? (i["compromissos"] as Input[]) : [];
+      return {
+        icon: Calendar,
+        title: a.summary,
+        href: "/agenda",
+        fields: list.map((c): Field => [
+          `${dmy(c["data"]).slice(0, 5)} ${str(c["hora_inicio"])}`,
+          [str(c["titulo"]), str(c["local"])].filter(Boolean).join(" · "),
+        ]),
+      };
+    }
     case "criar_contato":
       return {
         icon: User,
