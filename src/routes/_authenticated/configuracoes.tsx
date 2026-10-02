@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { LogOut } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { FeedbackList } from "@/components/assistant/FeedbackList";
+import { OutlookCard } from "@/components/assistant/OutlookCard";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -52,6 +53,10 @@ function ConfiguracoesPage() {
             </Button>
           </CardContent>
         </Card>
+
+        <div className="max-w-md">
+          <OutlookCard />
+        </div>
 
         <div className="max-w-3xl">
           <FeedbackList />

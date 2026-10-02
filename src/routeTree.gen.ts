@@ -20,6 +20,7 @@ import { Route as AuthenticatedContatosRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedFinanceiroRouteImport } from './routes/_authenticated/financeiro'
 import { Route as AuthenticatedIdeiasRouteImport } from './routes/_authenticated/ideias'
 import { Route as AuthenticatedLembretesRouteImport } from './routes/_authenticated/lembretes'
+import { Route as AuthenticatedOutlookCallbackRouteImport } from './routes/_authenticated/outlook-callback'
 import { Route as AuthenticatedTarefasRouteImport } from './routes/_authenticated/tarefas'
 import { Route as AuthenticatedProjetosIndexRouteImport } from './routes/_authenticated/projetos.index'
 import { Route as AuthenticatedProjetosProjectIdRouteImport } from './routes/_authenticated/projetos.$projectId'
@@ -80,6 +81,12 @@ const AuthenticatedLembretesRoute = AuthenticatedLembretesRouteImport.update({
   path: '/lembretes',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedOutlookCallbackRoute =
+  AuthenticatedOutlookCallbackRouteImport.update({
+    id: '/outlook-callback',
+    path: '/outlook-callback',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedTarefasRoute = AuthenticatedTarefasRouteImport.update({
   id: '/tarefas',
   path: '/tarefas',
@@ -109,6 +116,7 @@ export interface FileRoutesByFullPath {
   '/financeiro': typeof AuthenticatedFinanceiroRoute
   '/ideias': typeof AuthenticatedIdeiasRoute
   '/lembretes': typeof AuthenticatedLembretesRoute
+  '/outlook-callback': typeof AuthenticatedOutlookCallbackRoute
   '/tarefas': typeof AuthenticatedTarefasRoute
   '/projetos/$projectId': typeof AuthenticatedProjetosProjectIdRoute
   '/projetos/': typeof AuthenticatedProjetosIndexRoute
@@ -123,6 +131,7 @@ export interface FileRoutesByTo {
   '/financeiro': typeof AuthenticatedFinanceiroRoute
   '/ideias': typeof AuthenticatedIdeiasRoute
   '/lembretes': typeof AuthenticatedLembretesRoute
+  '/outlook-callback': typeof AuthenticatedOutlookCallbackRoute
   '/tarefas': typeof AuthenticatedTarefasRoute
   '/': typeof AuthenticatedIndexRoute
   '/projetos/$projectId': typeof AuthenticatedProjetosProjectIdRoute
@@ -140,6 +149,7 @@ export interface FileRoutesById {
   '/_authenticated/financeiro': typeof AuthenticatedFinanceiroRoute
   '/_authenticated/ideias': typeof AuthenticatedIdeiasRoute
   '/_authenticated/lembretes': typeof AuthenticatedLembretesRoute
+  '/_authenticated/outlook-callback': typeof AuthenticatedOutlookCallbackRoute
   '/_authenticated/tarefas': typeof AuthenticatedTarefasRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/projetos/$projectId': typeof AuthenticatedProjetosProjectIdRoute
@@ -158,6 +168,7 @@ export interface FileRouteTypes {
     | '/financeiro'
     | '/ideias'
     | '/lembretes'
+    | '/outlook-callback'
     | '/tarefas'
     | '/projetos/$projectId'
     | '/projetos/'
@@ -172,6 +183,7 @@ export interface FileRouteTypes {
     | '/financeiro'
     | '/ideias'
     | '/lembretes'
+    | '/outlook-callback'
     | '/tarefas'
     | '/'
     | '/projetos/$projectId'
@@ -188,6 +200,7 @@ export interface FileRouteTypes {
     | '/_authenticated/financeiro'
     | '/_authenticated/ideias'
     | '/_authenticated/lembretes'
+    | '/_authenticated/outlook-callback'
     | '/_authenticated/tarefas'
     | '/_authenticated/'
     | '/_authenticated/projetos/$projectId'
@@ -278,6 +291,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLembretesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/outlook-callback': {
+      id: '/_authenticated/outlook-callback'
+      path: '/outlook-callback'
+      fullPath: '/outlook-callback'
+      preLoaderRoute: typeof AuthenticatedOutlookCallbackRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/tarefas': {
       id: '/_authenticated/tarefas'
       path: '/tarefas'
@@ -311,6 +331,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedFinanceiroRoute: typeof AuthenticatedFinanceiroRoute
   AuthenticatedIdeiasRoute: typeof AuthenticatedIdeiasRoute
   AuthenticatedLembretesRoute: typeof AuthenticatedLembretesRoute
+  AuthenticatedOutlookCallbackRoute: typeof AuthenticatedOutlookCallbackRoute
   AuthenticatedTarefasRoute: typeof AuthenticatedTarefasRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedProjetosProjectIdRoute: typeof AuthenticatedProjetosProjectIdRoute
@@ -326,6 +347,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedFinanceiroRoute: AuthenticatedFinanceiroRoute,
   AuthenticatedIdeiasRoute: AuthenticatedIdeiasRoute,
   AuthenticatedLembretesRoute: AuthenticatedLembretesRoute,
+  AuthenticatedOutlookCallbackRoute: AuthenticatedOutlookCallbackRoute,
   AuthenticatedTarefasRoute: AuthenticatedTarefasRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedProjetosProjectIdRoute: AuthenticatedProjetosProjectIdRoute,

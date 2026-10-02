@@ -761,6 +761,57 @@ export type Database = {
         }
         Relationships: []
       }
+      outlook_connections: {
+        Row: {
+          created_at: string
+          email: string | null
+          expires_at: string | null
+          token_enc: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          expires_at?: string | null
+          token_enc: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          expires_at?: string | null
+          token_enc?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      outlook_seen_messages: {
+        Row: {
+          created_at: string
+          decision: string
+          message_id: string
+          task_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          decision: string
+          message_id: string
+          task_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          decision?: string
+          message_id?: string
+          task_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null

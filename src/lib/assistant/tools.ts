@@ -22,6 +22,7 @@ import { setTransactionPaid } from "@/lib/finance-actions";
 import { advanceRecurrence } from "@/lib/recurrence";
 import { advanceReminderRecurrence } from "@/lib/reminders";
 import { logActivity } from "@/lib/activity";
+import { OutlookError, listRecentMail } from "@/lib/outlook/graph";
 import { addDaysStr, instantSP, isDateStr, isTimeStr, splitInstantSP, todaySP } from "./time";
 
 // ---------------------------------------------------------------------------
@@ -41,7 +42,8 @@ export type UndoSpec =
   | { op: "deleteTransaction"; id: string; recurrenceId: string | null }
   | { op: "setPaid"; id: string; paid: boolean; paidDate: string | null; paymentMethod?: string | null }
   | { op: "restoreStatus"; table: "tasks" | "reminders"; id: string; status: string }
-  | { op: "insertMemory"; fact: string };
+  | { op: "insertMemory"; fact: string }
+  | { op: "unseeEmails"; ids: string[] };
 
 export interface WriteOutcome {
   result: unknown;
@@ -124,6 +126,8 @@ const zFinancialFrequency = z.enum([
   "anual",
 ]) satisfies z.ZodType<FinancialFrequency>;
 const zReminderFrequency = z.enum(["diario", "semanal", "quinzenal", "mensal", "anual"]);
+const zEmailId = z.string().min(10).max(500).describe("id do e-mail (de buscar_emails_pendentes), quando a tarefa vier de um e-mail");
+const zEmailLink = z.string().url().max(2000).describe("link do e-mail (campo link de buscar_emails_pendentes)");
 const zLimit = z.number().int().min(1).max(100).optional().describe("Máximo de itens (padrão 30)");
 
 // ---------------------------------------------------------------------------
@@ -509,6 +513,21 @@ function taskOut(t: TaskRow, names: Map<string, string>, today: string) {
   };
 }
 
+/** Anexa a origem (e-mail) na descrição da tarefa. */
+function withEmailOrigin(desc: string | undefined, link: string | undefined): string | null {
+  const base = desc?.trim() || "";
+  if (!link) return base || null;
+  return `${base}${base ? "\n\n" : ""}Origem: e-mail — ${link}`;
+}
+
+/** Marca e-mails como já tratados (viraram tarefa) pra não serem sugeridos de novo. */
+async function markEmailsAsTasks(db: Db, userId: string, pairs: { emailId: string; taskId: string }[]) {
+  if (pairs.length === 0) return;
+  await db
+    .from("outlook_seen_messages")
+    .upsert(pairs.map((p) => ({ user_id: userId, message_id: p.emailId, decision: "tarefa", task_id: p.taskId })));
+}
+
 /** Prazo "dia sem hora": meio-dia de SP, igual ao formulário da tarefa. */
 const deadlineOf = (date: string) => instantSP(date, "12:00");
 
@@ -555,6 +574,8 @@ const criarTarefa = write({
     responsavel_id: zId.optional(),
     projeto_id: zId.optional(),
     contato_id: zId.optional(),
+    email_id: zEmailId.optional(),
+    email_link: zEmailLink.optional(),
   }),
   async run(i, { db, userId }) {
     const { data, error } = await db
@@ -562,7 +583,7 @@ const criarTarefa = write({
       .insert({
         user_id: userId,
         title: i.titulo,
-        description: i.descricao || null,
+        description: withEmailOrigin(i.descricao, i.email_link),
         deadline: i.prazo ? deadlineOf(i.prazo) : null,
         priority: i.prioridade ?? "media",
         status: i.status ?? "a_fazer",
@@ -574,6 +595,7 @@ const criarTarefa = write({
       .single();
     dbError(error, "Erro ao criar tarefa");
     const t = data as unknown as TaskRow;
+    if (i.email_id) await markEmailsAsTasks(db, userId, [{ emailId: i.email_id, taskId: t.id }]);
     const names = await memberNames(db);
     if (t.project_id) {
       await logActivity({
@@ -609,6 +631,8 @@ const criarTarefas = write({
           prazo: zDate.optional(),
           prioridade: zPriority.optional(),
           responsavel_id: zId.optional(),
+          email_id: zEmailId.optional(),
+          email_link: zEmailLink.optional(),
         }),
       )
       .min(2)
@@ -621,7 +645,7 @@ const criarTarefas = write({
         i.tarefas.map((t) => ({
           user_id: userId,
           title: t.titulo,
-          description: t.descricao || null,
+          description: withEmailOrigin(t.descricao, t.email_link),
           deadline: t.prazo ? deadlineOf(t.prazo) : null,
           priority: t.prioridade ?? "media",
           status: "a_fazer" as const,
@@ -632,6 +656,12 @@ const criarTarefas = write({
       .select("id, title");
     dbError(error, "Erro ao criar tarefas");
     const rows = data ?? [];
+    // insert devolve na mesma ordem: casa cada tarefa com o e-mail de origem.
+    await markEmailsAsTasks(
+      db,
+      userId,
+      i.tarefas.flatMap((t, idx) => (t.email_id && rows[idx] ? [{ emailId: t.email_id, taskId: rows[idx]!.id }] : [])),
+    );
     if (i.projeto_id) {
       await logActivity({
         db,
@@ -1146,6 +1176,59 @@ const criarContato = write({
 });
 
 // ---------------------------------------------------------------------------
+// E-MAIL (Outlook — só leitura)
+// ---------------------------------------------------------------------------
+
+const buscarEmailsPendentes = read({
+  name: "buscar_emails_pendentes",
+  description:
+    "Lê os e-mails recentes da caixa de entrada do Outlook de quem está falando (só leitura), para encontrar o que pede ação dele. E-mails que já viraram tarefa ou foram ignorados não voltam. Use quando a pessoa perguntar de pendências no e-mail.",
+  schema: z.object({
+    dias: z.number().int().min(1).max(30).optional().describe("Quantos dias pra trás (padrão 7)"),
+    apenas_nao_lidos: z.boolean().optional().describe("Só os não lidos (padrão false)"),
+  }),
+  async run(i, { db, userId }) {
+    const { data: seen } = await db.from("outlook_seen_messages").select("message_id").eq("user_id", userId);
+    try {
+      const out = await listRecentMail(db, userId, {
+        days: i.dias ?? 7,
+        unreadOnly: i.apenas_nao_lidos ?? false,
+        exclude: new Set((seen ?? []).map((r) => r.message_id)),
+        max: 40,
+      });
+      return {
+        caixa: out.email,
+        emails_novos: out.itens.length,
+        itens: out.itens.map((m) => ({ ...m, recebido_em: splitInstantSP(m.recebido_em) })),
+      };
+    } catch (err) {
+      if (err instanceof OutlookError) throw new ToolError(err.message);
+      throw err;
+    }
+  },
+});
+
+const ignorarEmails = write({
+  name: "ignorar_emails",
+  description:
+    "Marca e-mails como já vistos/sem ação, pra não serem sugeridos de novo (use quando a pessoa descartar sugestões ou disser que já resolveu).",
+  schema: z.object({ email_ids: z.array(zEmailId).min(1).max(60) }),
+  async run(i, { db, userId }) {
+    const { error } = await db
+      .from("outlook_seen_messages")
+      .upsert(i.email_ids.map((id) => ({ user_id: userId, message_id: id, decision: "ignorado" })), {
+        ignoreDuplicates: true,
+      });
+    dbError(error, "Erro ao marcar e-mails");
+    return {
+      result: { ok: true },
+      summary: `${i.email_ids.length} e-mail(s) marcado(s) como sem ação`,
+      undo: { op: "unseeEmails", ids: i.email_ids },
+    };
+  },
+});
+
+// ---------------------------------------------------------------------------
 // EXCLUSÃO (sempre com confirmação — convenção do app)
 // ---------------------------------------------------------------------------
 
@@ -1272,6 +1355,8 @@ export const TOOLS: readonly ToolDef[] = [
   editarCompromisso,
   buscarContatos,
   criarContato,
+  buscarEmailsPendentes,
+  ignorarEmails,
   excluirRegistro,
   lembrarFato,
   esquecerFato,
@@ -1308,11 +1393,14 @@ export function parseToolInput(tool: ToolDef, input: unknown): { ok: true; data:
 export async function runUndo(spec: UndoSpec, { db, userId }: ToolCtx): Promise<void> {
   switch (spec.op) {
     case "delete": {
+      if (spec.table === "tasks") await db.from("outlook_seen_messages").delete().eq("task_id", spec.id);
       const { error } = await db.from(spec.table).delete().eq("id", spec.id);
       dbError(error, "Erro ao desfazer");
       return;
     }
     case "deleteMany": {
+      // Tarefa desfeita: o e-mail de origem volta a ser sugerido.
+      await db.from("outlook_seen_messages").delete().in("task_id", spec.ids);
       const { error } = await db.from(spec.table).delete().in("id", spec.ids);
       dbError(error, "Erro ao desfazer");
       return;
@@ -1345,6 +1433,16 @@ export async function runUndo(spec: UndoSpec, { db, userId }: ToolCtx): Promise<
         .from(spec.table)
         .update({ status: spec.status } as never)
         .eq("id", spec.id);
+      dbError(error, "Erro ao desfazer");
+      return;
+    }
+    case "unseeEmails": {
+      const { error } = await db
+        .from("outlook_seen_messages")
+        .delete()
+        .eq("user_id", userId)
+        .eq("decision", "ignorado")
+        .in("message_id", spec.ids);
       dbError(error, "Erro ao desfazer");
       return;
     }

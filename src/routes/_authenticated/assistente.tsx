@@ -54,6 +54,8 @@ const STEP_LABELS: Record<string, string> = {
   editar_compromisso: "Preparando a alteração",
   buscar_contatos: "Procurando nos contatos",
   criar_contato: "Cadastrando o contato",
+  buscar_emails_pendentes: "Lendo seus e-mails",
+  ignorar_emails: "Marcando os e-mails",
   excluir_registro: "Preparando a exclusão",
   lembrar_fato: "Anotando pra lembrar",
   esquecer_fato: "Atualizando o que sei",
