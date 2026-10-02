@@ -352,7 +352,7 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
               : "Lista agrupada por etiqueta."}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex rounded-lg border p-0.5">
             <Button
               size="sm"
@@ -427,7 +427,7 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
         ))}
         {members.length > 1 && (
           <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
-            <SelectTrigger className="h-8 w-[160px] text-xs">
+            <SelectTrigger className="h-8 w-[190px] text-xs">
               <SelectValue placeholder="Responsável" />
             </SelectTrigger>
             <SelectContent>

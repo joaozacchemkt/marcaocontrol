@@ -145,7 +145,7 @@ function AssistentePage() {
             onValueChange={(v) => (v === "nova" ? startNew() : chat.selectConversation(v))}
             disabled={chat.sending}
           >
-            <SelectTrigger className="h-8 w-[120px] text-xs sm:w-[160px]">
+            <SelectTrigger className="h-8 w-[136px] text-xs sm:w-[170px]">
               <SelectValue placeholder="Conversas" />
             </SelectTrigger>
             <SelectContent>

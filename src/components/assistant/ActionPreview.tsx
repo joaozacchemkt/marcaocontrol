@@ -218,7 +218,7 @@ export function ActionPreview({
             "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground",
             meta.tone === "income" && "bg-emerald-500/10 text-emerald-600",
             meta.tone === "expense" && "bg-destructive/10 text-destructive",
-            pending && "bg-amber-500/15 text-amber-700",
+            pending && "bg-amber-500/15 text-amber-700 dark:text-amber-400",
           )}
         >
           {a.status === "executing" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Icon className="h-4 w-4" />}
@@ -231,7 +231,7 @@ export function ActionPreview({
             className={cn(
               "mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground",
               a.status === "done" && "text-emerald-600",
-              pending && "text-amber-700",
+              pending && "text-amber-700 dark:text-amber-400",
             )}
           >
             {a.status === "done" && <Check className="h-3 w-3" />}

@@ -19,7 +19,7 @@ export const Route = createFileRoute("/_authenticated/agenda")({
 function AgendaPage() {
   return (
     <AppLayout>
-      <div className="max-w-7xl mx-auto space-y-8">
+      <div className="max-w-7xl mx-auto space-y-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Agenda Executiva</h1>
           <p className="text-muted-foreground mt-1">Visualize seus compromissos e prazos de forma centralizada.</p>

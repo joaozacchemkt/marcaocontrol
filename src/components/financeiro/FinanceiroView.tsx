@@ -238,7 +238,7 @@ export function FinanceiroView() {
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
-            className="text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-700"
+            className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300"
             onClick={() => setActiveModal("receita")}
           >
             <ArrowUpRight className="mr-2 h-4 w-4" /> Receita
@@ -274,7 +274,7 @@ export function FinanceiroView() {
       </div>
 
       {/* Resumo */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <SummaryCard
           label="A receber no mês"
           value={brl(aReceber)}

@@ -247,7 +247,7 @@ function Dashboard() {
     <AppLayout>
       <header className="mb-6">
         <h2 className="text-3xl font-bold tracking-tight">Olá, Marcão</h2>
-        <p className="text-muted-foreground capitalize">{dateStr}</p>
+        <p className="text-muted-foreground first-letter:uppercase">{dateStr}</p>
       </header>
 
       {/* Régua de números — informação, não decisão. Um clique leva pro detalhe. */}
@@ -483,7 +483,7 @@ function BillList({
 }) {
   const shown = items.slice(0, 6);
   return (
-    <div className="rounded-xl border bg-card p-4">
+    <div className="min-w-0 rounded-xl border bg-card p-4">
       <div className="mb-3 flex items-center justify-between">
         <h4 className="flex items-center gap-2 text-sm font-bold">
           <Icon className={cn("h-4 w-4", accent)} /> {title}

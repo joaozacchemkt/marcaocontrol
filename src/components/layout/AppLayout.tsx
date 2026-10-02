@@ -29,7 +29,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         <span className="text-base font-bold tracking-tight text-primary">Marcão Control</span>
       </header>
 
-      <main className="p-4 md:ml-64 md:p-8">
+      <main className="p-4 pb-24 md:ml-64 md:p-8">
         <div className="mx-auto max-w-7xl">
           <PageTransition>{children}</PageTransition>
         </div>

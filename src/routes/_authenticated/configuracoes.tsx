@@ -4,6 +4,7 @@ import { LogOut } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { FeedbackList } from "@/components/assistant/FeedbackList";
 import { OutlookCard } from "@/components/assistant/OutlookCard";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,7 +39,7 @@ function ConfiguracoesPage() {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Configurações</h1>
-          <p className="text-sm text-muted-foreground">Gerencie o acesso ao painel.</p>
+          <p className="text-sm text-muted-foreground">Acesso, aparência e integrações.</p>
         </div>
 
         <Card className="max-w-md">
@@ -51,6 +52,16 @@ function ConfiguracoesPage() {
               <LogOut className="mr-2 h-4 w-4" />
               Sair
             </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle className="text-base">Aparência</CardTitle>
+            <CardDescription>Automático acompanha o modo claro/escuro do seu celular ou computador.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ThemeToggle showLabels />
           </CardContent>
         </Card>
 

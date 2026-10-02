@@ -13,6 +13,7 @@ import { useAlerts } from "@/hooks/use-alerts";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { THEME_BOOT_SCRIPT, useTheme } from "@/lib/theme";
 
 function NotFoundComponent() {
   return (
@@ -108,9 +109,11 @@ function RootShell({ children }: { children: ReactNode }) {
     // português, acha que é página estrangeira e "traduz" en->pt-BR,
     // gerando paráfrases sem sentido ("Início" -> "não se trata de uma
     // questão") e quebrando o React ao mexer no DOM.
-    <html lang="pt-BR" translate="no">
+    <html lang="pt-BR" translate="no" suppressHydrationWarning>
       <head>
         <meta name="google" content="notranslate" />
+        {/* Aplica o tema salvo antes de pintar (sem flash branco no modo escuro). */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
         <HeadContent />
       </head>
       <body>
@@ -126,6 +129,21 @@ function AlertsRunner() {
   return null;
 }
 
+/** Toasts embaixo (não cobrem o topo da tela) e no tema certo. */
+function ThemedToaster() {
+  const { resolved } = useTheme();
+  return (
+    <Toaster
+      position="bottom-center"
+      richColors
+      closeButton
+      theme={resolved}
+      offset={{ bottom: 24 }}
+      mobileOffset={{ bottom: 88 }}
+    />
+  );
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
@@ -134,7 +152,7 @@ function RootComponent() {
       <AlertsRunner />
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
-      <Toaster position="top-right" richColors />
+      <ThemedToaster />
     </QueryClientProvider>
   );
 }

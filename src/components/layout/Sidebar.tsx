@@ -17,6 +17,7 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { GlobalAddButton } from "./GlobalAddButton";
 import { GlobalSearch } from "../search/GlobalSearch";
+import { ThemeToggle } from "./ThemeToggle";
 
 const menuItems = [
   { title: "Início", href: "/", icon: Home },
@@ -99,7 +100,8 @@ export function Sidebar({ open = false, onNavigate }: SidebarProps) {
             })}
           </nav>
 
-          <div className="mt-auto pt-4">
+          <div className="mt-auto space-y-3 pt-4">
+            <ThemeToggle />
             <GlobalAddButton />
           </div>
         </div>

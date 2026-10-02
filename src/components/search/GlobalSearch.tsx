@@ -64,7 +64,7 @@ export function GlobalSearch() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="flex h-10 w-full items-center gap-2 rounded-md border border-input bg-card px-3 text-sm text-muted-foreground hover:bg-accent transition-colors md:w-64"
+        className="flex h-10 w-full items-center gap-2 rounded-md border border-input bg-card px-3 text-sm text-muted-foreground hover:bg-accent transition-colors"
       >
         <Search className="h-4 w-4" />
         <span className="flex-1 text-left">Busca global...</span>

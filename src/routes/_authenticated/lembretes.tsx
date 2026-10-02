@@ -258,7 +258,7 @@ function LembretesPage() {
             />
           </div>
           <Select value={priorityFilter} onValueChange={(v) => setPriorityFilter(v as typeof priorityFilter)}>
-            <SelectTrigger className="sm:w-[140px]">
+            <SelectTrigger className="sm:w-[170px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

@@ -60,6 +60,11 @@ export function useAlerts() {
   useEffect(() => {
     // Evitar notificações duplicadas na mesma sessão (simples flag)
     if ((window as any)._alertsShown) return;
+    try {
+      if (sessionStorage.getItem("alerts-shown")) return;
+    } catch {
+      /* sem storage: usa só a flag da janela */
+    }
 
     const overdueTasks = tasks.filter(t => t.deadline && isPast(parseLocalDate(t.deadline)!) && !isToday(parseLocalDate(t.deadline)!));
     const todayTasks = tasks.filter(t => t.deadline && isToday(parseLocalDate(t.deadline)!));
@@ -116,6 +121,11 @@ export function useAlerts() {
 
     if (alerts.length > 0) {
       (window as any)._alertsShown = true;
+      try {
+        sessionStorage.setItem("alerts-shown", "1");
+      } catch {
+        /* ignora */
+      }
       alerts.forEach((msg, index) => {
         setTimeout(() => {
           toast.info(msg, {
