@@ -42,7 +42,8 @@ function ConfiguracoesPage() {
           <p className="text-sm text-muted-foreground">Acesso, aparência e integrações.</p>
         </div>
 
-        <Card className="max-w-md">
+        <div className="grid max-w-5xl gap-6 md:grid-cols-2">
+        <Card>
           <CardHeader>
             <CardTitle className="text-base">Sessão</CardTitle>
             <CardDescription>Encerrar a sessão exigirá a senha novamente.</CardDescription>
@@ -55,7 +56,7 @@ function ConfiguracoesPage() {
           </CardContent>
         </Card>
 
-        <Card className="max-w-md">
+        <Card>
           <CardHeader>
             <CardTitle className="text-base">Aparência</CardTitle>
             <CardDescription>Automático acompanha o modo claro/escuro do seu celular ou computador.</CardDescription>
@@ -65,11 +66,10 @@ function ConfiguracoesPage() {
           </CardContent>
         </Card>
 
-        <div className="max-w-md">
-          <OutlookCard />
+        <OutlookCard />
         </div>
 
-        <div className="max-w-3xl">
+        <div className="max-w-5xl">
           <FeedbackList />
         </div>
       </div>

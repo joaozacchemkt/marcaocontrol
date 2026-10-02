@@ -346,7 +346,7 @@ export function FinanceiroView() {
       {/* ---- Extrato ---- */}
       {view === "extrato" && (
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2 border-b pb-3">
+          <CardHeader className="flex flex-col gap-2 border-b pb-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle className="text-sm">Pago e recebido em {format(currentDate, "MMMM", { locale: ptBR })}</CardTitle>
               <p className="text-[11px] text-muted-foreground">Pela data do pagamento. O que ainda vai vencer fica em A pagar / A receber.</p>
