@@ -25,6 +25,7 @@ import { logActivity } from "@/lib/activity";
 import { OutlookError, listCalendar, listRecentMail } from "@/lib/outlook/graph";
 import { FEATURES } from "@/lib/features";
 import { addDaysStr, instantSP, isDateStr, isTimeStr, splitInstantSP, todaySP } from "./time";
+import { getSnapshot, snapshotText } from "./snapshot";
 
 // ---------------------------------------------------------------------------
 // Tipos
@@ -247,6 +248,16 @@ const buscarLancamentos = read({
       itens: rows.slice(0, i.limite ?? 30).map(txOut),
       observacao: rows.length > (i.limite ?? 30) ? "Lista cortada; os totais consideram todos." : undefined,
     };
+  },
+});
+
+const verSituacao = read({
+  name: "ver_situacao",
+  description:
+    "Retrato da situação agora: contas atrasadas e a vencer em 7 dias, a receber, tarefas atrasadas e de hoje, agenda e lembretes do dia. Use SÓ quando a pessoa perguntar da situação/do dia ('o que tenho hoje?', 'como estão as contas?') — não pra puxar assunto.",
+  schema: z.object({}),
+  async run(_i, { db, userId }) {
+    return snapshotText(await getSnapshot(db, userId));
   },
 });
 
@@ -674,9 +685,19 @@ const criarTarefas = write({
         entityId: rows[0]?.id ?? i.projeto_id,
       });
     }
+    const names = await memberNames(db);
+    const porPessoa = new Map<string, string[]>();
+    i.tarefas.forEach((t, idx) => {
+      const quem = t.responsavel_id ? (names.get(t.responsavel_id) ?? "?") : "sem responsável";
+      porPessoa.set(quem, [...(porPessoa.get(quem) ?? []), rows[idx]?.title ?? t.titulo]);
+    });
     return {
-      result: { criadas: rows.length, ids: rows.map((r) => r.id) },
-      summary: `${rows.length} tarefas criadas`,
+      // Lista exata do que foi gravado: o modelo resume a partir DISTO.
+      result: {
+        criadas: rows.length,
+        por_responsavel: Object.fromEntries([...porPessoa].map(([k, v]) => [k, { quantidade: v.length, tarefas: v }])),
+      },
+      summary: `${rows.length} tarefas criadas — ${[...porPessoa].map(([k, v]) => `${k}: ${v.length}`).join(", ")}`,
       undo: { op: "deleteMany", table: "tasks", ids: rows.map((r) => r.id) },
     };
   },
@@ -1421,6 +1442,7 @@ const registrarFeedback = write({
 // ---------------------------------------------------------------------------
 
 export const TOOLS: readonly ToolDef[] = [
+  verSituacao,
   buscarLancamentos,
   listarContasFixas,
   registrarLancamento,

@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Json } from "@/integrations/supabase/types";
 import { AssistantError, runTurn, saveSystemNote, summarizeConversation } from "@/lib/assistant/agent";
-import { AUTO_CONTEXT_PREFIX, getSnapshot, pageName, snapshotText } from "@/lib/assistant/snapshot";
+import { AUTO_CONTEXT_PREFIX, pageName } from "@/lib/assistant/snapshot";
 import { ToolError, getTool, parseToolInput, runUndo, type UndoSpec } from "@/lib/assistant/tools";
 
 /**
@@ -76,29 +76,12 @@ export const sendAssistantMessage = createServerFn({ method: "POST" })
     const ctx = { db, userId, conversationId };
     // Contexto automático gravado junto com a mensagem (fica fixo no
     // histórico: o modelo vê a situação daquele momento e o cache não quebra).
-    // A situação geral só vai na 1ª mensagem da conversa ou se a última
-    // tem mais de 3h — evita o modelo ficar recitando pendências e economiza.
+    // Contexto automático: só a tela de onde a pessoa abriu o chat. A
+    // situação (contas, agenda...) NÃO vai junto — o modelo tendia a recitar
+    // pendência fora de assunto; ele consulta com ver_situacao quando precisa.
     let auto = AUTO_CONTEXT_PREFIX;
     const page = pageName(data.page);
     if (page) auto += `\nAbriu o chat a partir da tela: ${page}.`;
-    const since = new Date(Date.now() - 3 * 3600_000).toISOString();
-    const { data: recent } = await db
-      .from("assistant_messages")
-      .select("content")
-      .eq("conversation_id", conversationId)
-      .eq("role", "user")
-      .eq("hidden", false)
-      .gte("created_at", since)
-      .order("created_at", { ascending: false })
-      .limit(20);
-    const hasRecentSnapshot = (recent ?? []).some((m) => JSON.stringify(m.content).includes("Situação agora:"));
-    if (!hasRecentSnapshot) {
-      try {
-        auto += `\nSituação agora:\n${snapshotText(await getSnapshot(db, userId))}`;
-      } catch (err) {
-        console.error("[assistente] snapshot falhou:", err);
-      }
-    }
     const { error: insErr } = await db.from("assistant_messages").insert({
       conversation_id: conversationId,
       user_id: userId,

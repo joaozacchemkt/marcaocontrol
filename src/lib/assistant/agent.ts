@@ -32,7 +32,20 @@ const EFFORT = (process.env["ASSISTANT_EFFORT"] || "medium") as "low" | "medium"
  * lido, dá pra apontar ASSISTANT_VISION_MODEL (ex.: claude-sonnet-5) e só
  * esses turnos usam o outro — os demais continuam no econômico.
  */
-const VISION_MODEL = process.env["ASSISTANT_VISION_MODEL"] || MODEL;
+/**
+ * Troca automática por turno: comando curto fica no econômico (Haiku);
+ * texto longo/lista (ata, resumo de reunião) ou imagem usa um modelo que
+ * segue instrução com mais rigor — testado: numa ata real o Haiku criou
+ * tarefa a mais e inventou prazos; o Sonnet 5 criou exatamente a lista.
+ * A mensagem seguinte volta pro econômico.
+ */
+const COMPLEX_MODEL = process.env["ASSISTANT_COMPLEX_MODEL"] || "claude-sonnet-5";
+const VISION_MODEL = process.env["ASSISTANT_VISION_MODEL"] || COMPLEX_MODEL;
+/** "Complexo": texto grande ou com várias linhas de lista. */
+function isComplexText(text: string): boolean {
+  const lines = text.split("\n").filter((l) => l.trim()).length;
+  return text.length > 600 || lines >= 6;
+}
 
 /** Haiku 4.5 não tem thinking adaptativo nem `effort`; roda sem thinking. */
 const isHaiku = (model: string) => model.startsWith("claude-haiku");
@@ -82,10 +95,13 @@ async function loadRecentImages(db: Db, rows: StoredMessage[]): Promise<LoadedIm
   return out;
 }
 
-/** A última mensagem visível do usuário tem imagem? (decide o modelo do turno) */
-function lastUserHasImage(rows: StoredMessage[]): boolean {
+/** Escolhe o modelo do turno pela última mensagem visível do usuário. */
+function modelForTurn(rows: StoredMessage[]): string {
   const last = [...rows].reverse().find((r) => r.role === "user" && !r.hidden && !isToolResultOnly(r.content));
-  return Array.isArray(last?.content) && (last.content as unknown[]).some(isImageRef);
+  const blocks = (Array.isArray(last?.content) ? last.content : []) as { type?: string; text?: string }[];
+  if (blocks.some(isImageRef)) return VISION_MODEL;
+  const text = blocks.find((b) => b.type === "text")?.text ?? "";
+  return isComplexText(text) ? COMPLEX_MODEL : MODEL;
 }
 const MAX_STEPS = 15;
 const HISTORY_ROWS = 80;
@@ -357,7 +373,7 @@ export async function runTurn(db: Db, ctx: ToolCtx): Promise<void> {
     const rows = await loadHistory(db, ctx.conversationId);
     if (step === 0) {
       images = await loadRecentImages(db, rows);
-      turnModel = lastUserHasImage(rows) ? VISION_MODEL : MODEL;
+      turnModel = modelForTurn(rows);
     }
     const messages = buildApiMessages(rows, !isHaiku(turnModel), images);
     let response: Anthropic.Beta.BetaMessage;
