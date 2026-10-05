@@ -572,7 +572,7 @@ function PriorityCard({
             e.stopPropagation();
             onToggleTask();
           }}
-          className="shrink-0 rounded-full border p-1.5 text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
+          className="shrink-0 rounded-full border border-emerald-500/40 p-1.5 text-emerald-600 transition-colors hover:border-emerald-500 hover:bg-emerald-500/15 dark:text-emerald-400"
         >
           <Check className="h-3.5 w-3.5" />
         </button>

@@ -466,7 +466,7 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
                   title="Ver histórico e observações"
                   className="flex w-full items-center gap-2 rounded-md px-1 py-1 text-left text-sm text-muted-foreground transition-colors hover:bg-accent/50"
                 >
-                  <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
                   <span className="truncate text-foreground">{task.title}</span>
                   {task.responsible && (
                     <span className="shrink-0 text-xs">· {task.responsible}</span>
@@ -689,10 +689,11 @@ function TaskRow({
         <button
           type="button"
           aria-label="Concluir tarefa"
-          className="shrink-0 rounded-full text-muted-foreground transition-colors hover:text-primary"
+          title="Concluir"
+          className="shrink-0 rounded-full p-0.5 text-emerald-600 transition-colors hover:bg-emerald-500/15 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
           onClick={onComplete}
         >
-          <CheckCircle2 className="h-4 w-4" />
+          <CheckCircle2 className="h-5 w-5" />
         </button>
         <button
           type="button"
