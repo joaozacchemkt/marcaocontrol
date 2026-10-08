@@ -55,6 +55,13 @@ export interface WriteOutcome {
 
 export interface ConfirmPreview {
   summary: string;
+  /** Conta recorrente com mudança de série: o cartão pergunta o alcance à pessoa. */
+  askScope?: boolean;
+}
+
+/** Escolha feita pela PESSOA no cartão (nunca pelo modelo). */
+export interface CommitOptions {
+  scope?: "one" | "following";
 }
 
 interface ToolBase {
@@ -68,7 +75,7 @@ export type ToolDef =
   | (ToolBase & {
       kind: "confirm";
       prepare: (input: never, ctx: ToolCtx) => Promise<ConfirmPreview>;
-      commit: (input: never, ctx: ToolCtx) => Promise<WriteOutcome>;
+      commit: (input: never, ctx: ToolCtx, opts?: CommitOptions) => Promise<WriteOutcome>;
     });
 
 /** Erro "esperado" — a mensagem vai pro modelo, que corrige e tenta de novo. */
@@ -95,7 +102,7 @@ function confirm<S extends z.ZodType>(t: {
   description: string;
   schema: S;
   prepare: (input: z.infer<S>, ctx: ToolCtx) => Promise<ConfirmPreview>;
-  commit: (input: z.infer<S>, ctx: ToolCtx) => Promise<WriteOutcome>;
+  commit: (input: z.infer<S>, ctx: ToolCtx, opts?: CommitOptions) => Promise<WriteOutcome>;
 }): ToolDef {
   return { kind: "confirm", ...t } as ToolDef;
 }
@@ -435,7 +442,7 @@ function txPatch(i: {
 const editarLancamento = confirm({
   name: "editar_lancamento",
   description:
-    "Altera campos de um lançamento existente (valor, descrição, vencimento, categoria etc.). Precisa de confirmação do usuário. Para quitar/reabrir use marcar_lancamento_pago. Se o lançamento for recorrente (recorrente=true) e mudar descrição, valor, categoria, forma de pagamento, projeto ou contato, é OBRIGATÓRIO perguntar antes à pessoa se vale só pra este mês ou também pros próximos, e passar aplicar_em.",
+    "Altera campos de um lançamento existente (valor, descrição, vencimento, categoria etc.). Precisa de confirmação do usuário. Para quitar/reabrir use marcar_lancamento_pago. Se for recorrente, edite só o lançamento do mês em questão (um só): o próprio cartão pergunta à pessoa se vale só pra ele ou também pros próximos meses — não pergunte você nem chame de novo pra outros meses.",
   schema: z.object({
     id: zId,
     descricao: zText(200).optional(),
@@ -447,10 +454,6 @@ const editarLancamento = confirm({
     contato_id: zId.nullable().optional(),
     projeto_id: zId.nullable().optional(),
     observacoes: z.string().max(1000).nullable().optional(),
-    aplicar_em: z
-      .enum(["so_este", "este_e_proximos"])
-      .optional()
-      .describe("Só para lançamento recorrente: só este mês, ou este e os próximos (pendentes e futuros)"),
   }),
   async prepare(i, { db }) {
     const tx = (await mustGet(
@@ -471,21 +474,13 @@ const editarLancamento = confirm({
     if (i.projeto_id !== undefined && i.projeto_id !== tx.project_id) changes.push("projeto alterado");
     if (i.observacoes !== undefined && i.observacoes !== tx.notes) changes.push("observações alteradas");
     if (changes.length === 0) throw new ToolError("Nada muda em relação ao que já está salvo.");
-    const mudaSerie = Object.keys(seriesChanges(tx, txPatch(i))).length > 0;
-    if (tx.financial_recurrence_id && mudaSerie && !i.aplicar_em) {
-      throw new ToolError(
-        "Este lançamento é recorrente. Pergunte à pessoa se a alteração vale só para este mês ou também para os próximos, e chame de novo com aplicar_em.",
-      );
-    }
-    const alcance =
-      tx.financial_recurrence_id && mudaSerie
-        ? i.aplicar_em === "este_e_proximos"
-          ? " — vale para este mês e os próximos"
-          : " — só este mês"
-        : "";
-    return { summary: `Editar "${tx.description}": ${changes.join("; ")}${alcance}` };
+    const askScope = Boolean(tx.financial_recurrence_id) && Object.keys(seriesChanges(tx, txPatch(i))).length > 0;
+    return {
+      summary: `Editar "${tx.description.trim()}" (venc. ${dmy(tx.due_date)}): ${changes.join("; ")}${askScope ? " — conta recorrente" : ""}`,
+      askScope,
+    };
   },
-  async commit(i, { db }) {
+  async commit(i, { db }, opts) {
     const tx = (await mustGet(
       db.from("financial_transactions").select(TX_COLS).eq("id", i.id).maybeSingle(),
       "Lançamento não encontrado (pode ter sido excluído)",
@@ -506,7 +501,7 @@ const editarLancamento = confirm({
     const { error } = await db.from("financial_transactions").update(patch as never).eq("id", tx.id);
     dbError(error, "Erro ao salvar");
     // Mesma regra do formulário: só leva pros próximos meses se escolhido.
-    if (tx.financial_recurrence_id && i.aplicar_em === "este_e_proximos") {
+    if (tx.financial_recurrence_id && opts?.scope === "following") {
       await applyToFollowing(
         tx.financial_recurrence_id,
         String(patch["due_date"] ?? tx.due_date ?? ""),
@@ -514,7 +509,8 @@ const editarLancamento = confirm({
         { db, excludeId: tx.id },
       );
     }
-    return { result: { id: tx.id, alterado: Object.keys(patch) }, summary: `Lançamento "${tx.description}" atualizado`, undo: null };
+    const alcance = tx.financial_recurrence_id ? (opts?.scope === "following" ? " (este e os próximos meses)" : " (só este mês)") : "";
+    return { result: { id: tx.id, alterado: Object.keys(patch) }, summary: `Lançamento "${tx.description.trim()}" atualizado${alcance}`, undo: null };
   },
 });
 

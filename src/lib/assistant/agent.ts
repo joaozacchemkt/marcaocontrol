@@ -310,7 +310,8 @@ async function runTool(block: Anthropic.Beta.BetaToolUseBlock, ctx: ToolCtx): Pr
         kind: "confirm",
         status: "pending",
         summary: preview.summary,
-        input: parsed.data as Json,
+        // __escopo: o cartão mostra "Só nesta" / "Nesta e nas próximas".
+        input: (preview.askScope ? { ...(parsed.data as object), __escopo: true } : parsed.data) as Json,
       })
       .select("id")
       .single();
@@ -320,7 +321,9 @@ async function runTool(block: Anthropic.Beta.BetaToolUseBlock, ctx: ToolCtx): Pr
       acao_id: action!.id,
       resumo: preview.summary,
       instrucao:
-        "A pessoa está vendo um cartão com Confirmar/Cancelar. Não execute de novo; avise em uma frase que é só confirmar no cartão.",
+        preview.askScope
+          ? "A pessoa está vendo um cartão com 'Só nesta' / 'Nesta e nas próximas' / Cancelar. NÃO pergunte o alcance você mesmo e não chame de novo; diga em uma frase que é só escolher no cartão."
+          : "A pessoa está vendo um cartão com Confirmar/Cancelar. Não execute de novo; avise em uma frase que é só confirmar no cartão.",
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

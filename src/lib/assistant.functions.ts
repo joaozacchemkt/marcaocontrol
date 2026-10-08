@@ -125,10 +125,11 @@ type ActionRow = {
 /** Confirmar/cancelar uma ação pendente. Executa exatamente o que o cartão mostrou. */
 export const resolveAssistantAction = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { actionId: string; decision: "confirm" | "cancel" }) => {
+  .inputValidator((data: { actionId: string; decision: "confirm" | "cancel"; scope?: "one" | "following" }) => {
     if (typeof data?.actionId !== "string" || !UUID_RE.test(data.actionId)) throw new Error("Ação inválida");
     if (data.decision !== "confirm" && data.decision !== "cancel") throw new Error("Decisão inválida");
-    return data;
+    const scope = data.scope === "following" ? "following" : "one";
+    return { actionId: data.actionId, decision: data.decision, scope } as const;
   })
   .handler(async ({ data, context }): Promise<{ ok: boolean; message: string }> => {
     const { supabase: db, userId } = context;
@@ -154,9 +155,9 @@ export const resolveAssistantAction = createServerFn({ method: "POST" })
     const parsed = tool && tool.kind === "confirm" ? parseToolInput(tool, action.input) : null;
     try {
       if (!tool || tool.kind !== "confirm" || !parsed?.ok) throw new ToolError("Ação inválida ou desatualizada.");
-      const out = await tool.commit(parsed.data, ctx);
+      const out = await tool.commit(parsed.data, ctx, { scope: data.scope });
       await db.from("assistant_actions").update({ status: "done", summary: out.summary }).eq("id", action.id);
-      await saveSystemNote(db, ctx, `O usuário CONFIRMOU e foi executado: ${action.summary}.`);
+      await saveSystemNote(db, ctx, `O usuário CONFIRMOU e foi executado: ${out.summary}.`);
       return { ok: true, message: out.summary };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

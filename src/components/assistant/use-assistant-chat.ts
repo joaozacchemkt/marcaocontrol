@@ -179,7 +179,8 @@ export function useAssistantChat(page: string | null) {
   });
 
   const resolve = useMutation({
-    mutationFn: (v: { actionId: string; decision: "confirm" | "cancel" }) => resolveAssistantAction({ data: v }),
+    mutationFn: (v: { actionId: string; decision: "confirm" | "cancel"; scope?: "one" | "following" }) =>
+      resolveAssistantAction({ data: v }),
     onSuccess: (res) => {
       (res.ok ? toast.success : toast.error)(res.message);
       refreshAll();
@@ -259,7 +260,8 @@ export function useAssistantChat(page: string | null) {
       }
     },
     clearing: archive.isPending,
-    confirmAction: (id: string) => resolve.mutate({ actionId: id, decision: "confirm" }),
+    confirmAction: (id: string, scope?: "one" | "following") =>
+      resolve.mutate({ actionId: id, decision: "confirm", ...(scope ? { scope } : {}) }),
     cancelAction: (id: string) => resolve.mutate({ actionId: id, decision: "cancel" }),
     undoAction: (id: string) => undo.mutate(id),
     actionBusy: resolve.isPending || undo.isPending,

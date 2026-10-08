@@ -204,7 +204,7 @@ export function ActionPreview({
   action: AssistantAction;
   compact?: boolean;
   busy: boolean;
-  onConfirm: () => void;
+  onConfirm: (scope?: "one" | "following") => void;
   onCancel: () => void;
   onUndo: () => void;
 }) {
@@ -215,6 +215,8 @@ export function ActionPreview({
   const pending = a.status === "pending";
   const voided = a.status === "undone" || a.status === "cancelled";
   const canUndo = a.status === "done" && a.kind === "write" && a.undo != null;
+  /** Conta recorrente: a pessoa escolhe o alcance no próprio cartão. */
+  const askScope = Boolean((a.input as Record<string, unknown> | null)?.["__escopo"]);
 
   return (
     <div
@@ -265,7 +267,7 @@ export function ActionPreview({
       )}
 
       {(pending || canUndo || (!compact && meta.href && !voided)) && (
-        <div className="flex items-center justify-end gap-1.5 border-t px-2 py-1.5">
+        <div className="flex flex-wrap items-center justify-end gap-1.5 border-t px-2 py-1.5">
           {!compact && meta.href && !voided && !pending && (
             <Button asChild variant="ghost" size="sm" className="mr-auto h-7 gap-1 text-xs">
               <Link to={meta.href}>
@@ -278,9 +280,20 @@ export function ActionPreview({
               <Button size="sm" variant="ghost" className="h-8" disabled={busy} onClick={onCancel}>
                 Cancelar
               </Button>
-              <Button size="sm" className="h-8" disabled={busy} onClick={onConfirm}>
-                Confirmar
-              </Button>
+              {askScope ? (
+                <>
+                  <Button size="sm" variant="outline" className="h-8" disabled={busy} onClick={() => onConfirm("one")}>
+                    Só nesta
+                  </Button>
+                  <Button size="sm" className="h-8" disabled={busy} onClick={() => onConfirm("following")}>
+                    Nesta e nas próximas
+                  </Button>
+                </>
+              ) : (
+                <Button size="sm" className="h-8" disabled={busy} onClick={() => onConfirm()}>
+                  Confirmar
+                </Button>
+              )}
             </>
           )}
           {canUndo && (

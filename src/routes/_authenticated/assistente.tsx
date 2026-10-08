@@ -161,7 +161,7 @@ function AssistentePage() {
   const actionProps = (a: AssistantAction) => ({
     action: a,
     busy: chat.actionBusy,
-    onConfirm: () => chat.confirmAction(a.id),
+    onConfirm: (scope?: "one" | "following") => chat.confirmAction(a.id, scope),
     onCancel: () => chat.cancelAction(a.id),
     onUndo: () => chat.undoAction(a.id),
   });
