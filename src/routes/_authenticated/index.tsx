@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Link } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 import { parseLocalDate, localDateTime } from "@/lib/dates";
-import { useCurrentUserId } from "@/lib/workspace";
+import { useCurrentUserId, useWorkspaceMembers } from "@/lib/workspace";
 import { EstudarAgora } from "@/components/projects/workspace/faculdade/EstudarAgora";
 
 export const Route = createFileRoute("/_authenticated/")({
@@ -43,6 +43,9 @@ const currency = (value: number) =>
 function Dashboard() {
   const queryClient = useQueryClient();
   const { data: currentUserId } = useCurrentUserId();
+  const { data: members = [] } = useWorkspaceMembers();
+  // Saudação com o nome de quem está logado (antes era fixo "Marcão").
+  const firstName = (members.find((m) => m.id === currentUserId)?.name ?? "").split(" ")[0];
 
   const concluirLembrete = useMutation({
     mutationFn: async (id: string) => {
@@ -246,7 +249,7 @@ function Dashboard() {
   return (
     <AppLayout>
       <header className="mb-6">
-        <h2 className="text-3xl font-bold tracking-tight">Olá, Marcão</h2>
+        <h2 className="text-3xl font-bold tracking-tight">Olá{firstName ? `, ${firstName}` : ""}</h2>
         <p className="text-muted-foreground first-letter:uppercase">{dateStr}</p>
       </header>
 
