@@ -18,7 +18,7 @@ import type { Db } from "@/lib/db";
 import type { Json } from "@/integrations/supabase/types";
 import { FINANCE_CATEGORIES, PAYMENT_METHODS } from "@/lib/finance-categories";
 import { advanceFinancialRecurrence, type FinancialFrequency } from "@/lib/financial-recurrence";
-import { setTransactionPaid } from "@/lib/finance-actions";
+import { applyToFollowing, seriesChanges, setTransactionPaid } from "@/lib/finance-actions";
 import { advanceRecurrence } from "@/lib/recurrence";
 import { advanceReminderRecurrence } from "@/lib/reminders";
 import { logActivity } from "@/lib/activity";
@@ -413,10 +413,29 @@ const marcarLancamentoPago = write({
   },
 });
 
+/** Campos da série (formato do banco) a partir da entrada do editar_lancamento. */
+function txPatch(i: {
+  descricao?: string | undefined;
+  valor?: number | undefined;
+  categoria?: string | undefined;
+  forma_pagamento?: string | null | undefined;
+  contato_id?: string | null | undefined;
+  projeto_id?: string | null | undefined;
+}): Record<string, unknown> {
+  const p: Record<string, unknown> = {};
+  if (i.descricao !== undefined) p["description"] = i.descricao;
+  if (i.valor !== undefined) p["amount"] = round2(i.valor);
+  if (i.categoria !== undefined) p["category"] = i.categoria;
+  if (i.forma_pagamento !== undefined) p["payment_method"] = i.forma_pagamento;
+  if (i.contato_id !== undefined) p["contact_id"] = i.contato_id;
+  if (i.projeto_id !== undefined) p["project_id"] = i.projeto_id;
+  return p;
+}
+
 const editarLancamento = confirm({
   name: "editar_lancamento",
   description:
-    "Altera campos de um lançamento existente (valor, descrição, vencimento, categoria etc.). Precisa de confirmação do usuário. Para quitar/reabrir use marcar_lancamento_pago.",
+    "Altera campos de um lançamento existente (valor, descrição, vencimento, categoria etc.). Precisa de confirmação do usuário. Para quitar/reabrir use marcar_lancamento_pago. Se o lançamento for recorrente (recorrente=true) e mudar descrição, valor, categoria, forma de pagamento, projeto ou contato, é OBRIGATÓRIO perguntar antes à pessoa se vale só pra este mês ou também pros próximos, e passar aplicar_em.",
   schema: z.object({
     id: zId,
     descricao: zText(200).optional(),
@@ -428,6 +447,10 @@ const editarLancamento = confirm({
     contato_id: zId.nullable().optional(),
     projeto_id: zId.nullable().optional(),
     observacoes: z.string().max(1000).nullable().optional(),
+    aplicar_em: z
+      .enum(["so_este", "este_e_proximos"])
+      .optional()
+      .describe("Só para lançamento recorrente: só este mês, ou este e os próximos (pendentes e futuros)"),
   }),
   async prepare(i, { db }) {
     const tx = (await mustGet(
@@ -448,7 +471,19 @@ const editarLancamento = confirm({
     if (i.projeto_id !== undefined && i.projeto_id !== tx.project_id) changes.push("projeto alterado");
     if (i.observacoes !== undefined && i.observacoes !== tx.notes) changes.push("observações alteradas");
     if (changes.length === 0) throw new ToolError("Nada muda em relação ao que já está salvo.");
-    return { summary: `Editar "${tx.description}": ${changes.join("; ")}` };
+    const mudaSerie = Object.keys(seriesChanges(tx, txPatch(i))).length > 0;
+    if (tx.financial_recurrence_id && mudaSerie && !i.aplicar_em) {
+      throw new ToolError(
+        "Este lançamento é recorrente. Pergunte à pessoa se a alteração vale só para este mês ou também para os próximos, e chame de novo com aplicar_em.",
+      );
+    }
+    const alcance =
+      tx.financial_recurrence_id && mudaSerie
+        ? i.aplicar_em === "este_e_proximos"
+          ? " — vale para este mês e os próximos"
+          : " — só este mês"
+        : "";
+    return { summary: `Editar "${tx.description}": ${changes.join("; ")}${alcance}` };
   },
   async commit(i, { db }) {
     const tx = (await mustGet(
@@ -470,15 +505,14 @@ const editarLancamento = confirm({
     if (i.observacoes !== undefined) patch["notes"] = i.observacoes;
     const { error } = await db.from("financial_transactions").update(patch as never).eq("id", tx.id);
     dbError(error, "Erro ao salvar");
-    // Mesma regra do formulário: a regra de recorrência acompanha a edição.
-    if (tx.financial_recurrence_id) {
-      const recPatch: Record<string, unknown> = {};
-      for (const [k, v] of Object.entries(patch)) {
-        if (["description", "amount", "category", "project_id", "contact_id", "payment_method"].includes(k)) recPatch[k] = v;
-      }
-      if (Object.keys(recPatch).length > 0) {
-        await db.from("financial_recurrences").update(recPatch as never).eq("id", tx.financial_recurrence_id);
-      }
+    // Mesma regra do formulário: só leva pros próximos meses se escolhido.
+    if (tx.financial_recurrence_id && i.aplicar_em === "este_e_proximos") {
+      await applyToFollowing(
+        tx.financial_recurrence_id,
+        String(patch["due_date"] ?? tx.due_date ?? ""),
+        seriesChanges(tx, patch),
+        { db, excludeId: tx.id },
+      );
     }
     return { result: { id: tx.id, alterado: Object.keys(patch) }, summary: `Lançamento "${tx.description}" atualizado`, undo: null };
   },

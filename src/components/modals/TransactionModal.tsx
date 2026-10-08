@@ -13,12 +13,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activity";
 import { useGuardedSubmit } from "@/lib/use-guarded-submit";
 import { FINANCE_CATEGORIES, PAYMENT_METHODS, amountToBRL, maskBRL, parseBRL } from "@/lib/finance-categories";
 import { todayLocalStr } from "@/lib/dates";
-import { setTransactionPaid } from "@/lib/finance-actions";
+import { applyToFollowing, seriesChanges, setTransactionPaid } from "@/lib/finance-actions";
 import {
   FINANCIAL_FREQUENCY_LABELS,
   advanceFinancialRecurrence,
@@ -93,8 +102,11 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
     }
   });
 
+  /** Conta recorrente com campo da série alterado: pergunta o alcance antes de salvar. */
+  const [askScope, setAskScope] = useState(false);
+
   const createTransaction = useMutation({
-    mutationFn: async (data: typeof formData) => {
+    mutationFn: async ({ data, scope }: { data: typeof formData; scope: "one" | "following" }) => {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) throw new Error("Usuário não autenticado");
 
@@ -136,20 +148,15 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
             insertData.paid_date ? { paidDate: insertData.paid_date } : {},
           );
         }
-        // Mantém a regra de recorrência em sincronia com a edição, para as
-        // próximas ocorrências não saírem com valor/descrição defasados.
-        if (transaction.financial_recurrence_id) {
-          await supabase
-            .from('financial_recurrences')
-            .update({
-              description: insertData.description,
-              amount: insertData.amount,
-              category: insertData.category,
-              project_id: insertData.project_id,
-              contact_id: insertData.contact_id,
-              payment_method: insertData.payment_method,
-            })
-            .eq('id', transaction.financial_recurrence_id);
+        // Recorrente: só leva a mudança pros próximos meses se a pessoa
+        // escolheu "Nesta e nas próximas" (antes alterava todos sem perguntar).
+        if (transaction.financial_recurrence_id && scope === "following") {
+          await applyToFollowing(
+            transaction.financial_recurrence_id,
+            insertData.due_date,
+            seriesChanges(transaction, insertData),
+            { excludeId: transaction.id },
+          );
         }
         return;
       }
@@ -238,8 +245,25 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
       toast.error("Informe a data do vencimento");
       return;
     }
-    createTransaction.mutate(formData);
+    // Conta recorrente e mudou algo que vale pra série: pergunta o alcance.
+    if (isEditing && transaction?.financial_recurrence_id && Object.keys(seriesChanges(transaction, formToSeries(formData))).length > 0) {
+      setAskScope(true);
+      return;
+    }
+    createTransaction.mutate({ data: formData, scope: "one" });
   }, createTransaction.isPending);
+
+  /** Campos da série no mesmo formato do banco (pra comparar com o salvo). */
+  function formToSeries(d: typeof formData) {
+    return {
+      description: d.description,
+      amount: parseBRL(d.amount),
+      category: d.category,
+      project_id: d.project_id === "none" ? null : d.project_id,
+      contact_id: d.contact_id === "none" ? null : d.contact_id,
+      payment_method: d.payment_method === "none" ? null : d.payment_method,
+    };
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -249,6 +273,7 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
   const categories = FINANCE_CATEGORIES;
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[550px]">
         <DialogHeader>
@@ -459,5 +484,38 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
         </form>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={askScope} onOpenChange={setAskScope}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Esta conta se repete</AlertDialogTitle>
+          <AlertDialogDescription>
+            Aplicar a alteração só neste mês ou também nos próximos? Meses anteriores e contas já pagas não mudam.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="gap-2 sm:gap-0">
+          <AlertDialogCancel>Voltar</AlertDialogCancel>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setAskScope(false);
+              createTransaction.mutate({ data: formData, scope: "one" });
+            }}
+          >
+            Só nesta conta
+          </Button>
+          <Button
+            onClick={() => {
+              setAskScope(false);
+              createTransaction.mutate({ data: formData, scope: "following" });
+            }}
+          >
+            Nesta e nas próximas
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
+
   );
 }
