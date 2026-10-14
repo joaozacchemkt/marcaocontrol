@@ -442,7 +442,7 @@ function txPatch(i: {
 const editarLancamento = confirm({
   name: "editar_lancamento",
   description:
-    "Altera campos de um lançamento existente (valor, descrição, vencimento, categoria etc.). Precisa de confirmação do usuário. Para quitar/reabrir use marcar_lancamento_pago. Se for recorrente, edite só o lançamento do mês em questão (um só): o próprio cartão pergunta à pessoa se vale só pra ele ou também pros próximos meses — não pergunte você nem chame de novo pra outros meses.",
+    "Altera campos de um lançamento existente (valor, descrição, vencimento, categoria etc.). Precisa de confirmação do usuário. Para quitar/reabrir use marcar_lancamento_pago. Se for recorrente, edite só o lançamento do mês em questão (um só): quando muda descrição, valor, categoria, projeto ou contato, o próprio cartão pergunta à pessoa se vale só pra ele ou também pros próximos meses — não pergunte você nem chame de novo pra outros meses. Vencimento, data/forma de pagamento e observações são só daquele mês: nunca pergunte alcance.",
   schema: z.object({
     id: zId,
     descricao: zText(200).optional(),

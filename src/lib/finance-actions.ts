@@ -54,8 +54,13 @@ export async function setTransactionPaid(
   }
 }
 
-/** Campos que pertencem à série (a regra de recorrência), não a um mês só. */
-export const SERIES_FIELDS = ["description", "amount", "category", "project_id", "contact_id", "payment_method"] as const;
+/**
+ * Campos que pertencem à série (a regra de recorrência), não a um mês só —
+ * só eles fazem perguntar "Só nesta / Nesta e nas próximas". Baixa (status,
+ * data e forma de pagamento), vencimento e observações são do mês: salvam
+ * direto, sem pergunta (pedido do usuário, 2026-10-14).
+ */
+export const SERIES_FIELDS = ["description", "amount", "category", "project_id", "contact_id"] as const;
 export type SeriesPatch = Partial<Record<(typeof SERIES_FIELDS)[number], unknown>>;
 
 /** O que mudou nos campos da série entre o lançamento salvo e o novo. */
