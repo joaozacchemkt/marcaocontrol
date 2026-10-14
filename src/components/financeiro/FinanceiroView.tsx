@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -44,7 +44,7 @@ import { setTransactionPaid } from "@/lib/finance-actions";
 import {
   FINANCIAL_FREQUENCY_LABELS,
   MONTHLY_FACTOR,
-  nextFinancialOccurrence,
+  ensureFinancialOccurrences,
   type FinancialFrequency,
 } from "@/lib/financial-recurrence";
 import { TransactionModal } from "@/components/modals/TransactionModal";
@@ -54,66 +54,6 @@ type View = "extrato" | "receber" | "pagar" | "recorrencias";
 /** Período da tela: um mês inteiro (setas) ou datas escolhidas no filtro. */
 type Period = { from: Date; to: Date; custom: boolean };
 const monthPeriod = (d: Date): Period => ({ from: startOfMonth(d), to: endOfMonth(d), custom: false });
-
-/** Ocorrência de conta fixa que ainda não virou lançamento (simulação). */
-type Projected = {
-  key: string;
-  recurrence_id: string;
-  description: string;
-  type: "receita" | "despesa";
-  amount: number;
-  due_date: string;
-  category: string | null;
-  payment_method: string | null;
-};
-
-/**
- * Simula as contas fixas ativas dentro do período: parte do `next_run` e anda
- * pela mesma regra que gera os lançamentos de verdade. Datas que já têm
- * lançamento (pago ou não) ficam de fora — o real prevalece.
- */
-type RecurrenceLike = {
-  id: string;
-  active: boolean;
-  description: string;
-  type: string;
-  amount: number;
-  category: string | null;
-  payment_method: string | null;
-  frequency: string;
-  interval_count: number;
-  start_date: string;
-  next_run: string | null;
-  end_date: string | null;
-};
-
-function projectRecurrences(recs: RecurrenceLike[], fromStr: string, toStr: string, existing: Set<string>): Projected[] {
-  const out: Projected[] = [];
-  for (const r of recs) {
-    if (!r.active || !r.next_run) continue;
-    const anchorDay = (parseLocalDate(r.start_date) ?? parseLocalDate(r.next_run)!).getDate();
-    const endStr = r.end_date ? String(r.end_date).slice(0, 10) : null;
-    let cursor = parseLocalDate(r.next_run)!;
-    for (let i = 0; i < 400; i++) {
-      const d = format(cursor, "yyyy-MM-dd");
-      if (d > toStr || (endStr && d > endStr)) break;
-      if (d >= fromStr && !existing.has(`${r.id}|${d}`)) {
-        out.push({
-          key: `${r.id}|${d}`,
-          recurrence_id: r.id,
-          description: r.description,
-          type: r.type as Projected["type"],
-          amount: Number(r.amount),
-          due_date: d,
-          category: r.category,
-          payment_method: r.payment_method,
-        });
-      }
-      cursor = nextFinancialOccurrence(cursor, r.frequency as FinancialFrequency, r.interval_count, anchorDay);
-    }
-  }
-  return out.sort((a, b) => a.due_date.localeCompare(b.due_date));
-}
 
 const brl = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
@@ -178,21 +118,25 @@ export function FinanceiroView() {
     },
   });
 
-  // Ocorrências de contas fixas que já viraram lançamento no período (pago ou
-  // não) — pra simulação não contar duas vezes o mesmo vencimento.
-  const { data: recInRange = [] } = useQuery({
-    queryKey: ["financial_transactions", "recorrentes", fromStr, toStr],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("financial_transactions")
-        .select("financial_recurrence_id, due_date")
-        .not("financial_recurrence_id", "is", null)
-        .gte("due_date", fromStr)
-        .lte("due_date", toStr);
-      if (error) throw error;
-      return data;
-    },
-  });
+  // Conta fixa é fixa: ao abrir/trocar o período, cria os lançamentos
+  // pendentes das contas fixas até o fim dele (no mínimo o mês atual; no
+  // máximo 2 anos à frente, pra navegação longe não encher o banco).
+  const ensureUntil = useMemo(() => {
+    const thisMonth = format(endOfMonth(new Date()), "yyyy-MM-dd");
+    const cap = format(endOfMonth(addMonths(new Date(), 24)), "yyyy-MM-dd");
+    const want = toStr > thisMonth ? toStr : thisMonth;
+    return want < cap ? want : cap;
+  }, [toStr]);
+  useEffect(() => {
+    let alive = true;
+    ensureFinancialOccurrences(ensureUntil).then((n) => {
+      if (alive && n > 0) invalidate();
+    });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ensureUntil]);
 
   const { data: recorrencias = [], isLoading: loadingRec } = useQuery({
     queryKey: ["financial_recurrences"],
@@ -261,8 +205,8 @@ export function FinanceiroView() {
   // ---- Derivados ----
   // Tudo (cartões, extrato, A pagar/receber) segue o período escolhido:
   // - Entrou/Saiu/Resultado = realizado (quitado no período).
-  // - A pagar/receber = pendentes que vencem no período + contas fixas
-  //   previstas (simulação); se o período inclui hoje, soma também o que
+  // - A pagar/receber = pendentes que vencem no período (contas fixas já
+  //   entram como lançamento de verdade); se o período inclui hoje, soma o que
   //   ficou atrasado de antes.
   const receitasMes = monthTx.filter((t) => t.type === "receita").reduce((a, t) => a + Number(t.amount), 0);
   const despesasMes = monthTx.filter((t) => t.type === "despesa").reduce((a, t) => a + Number(t.amount), 0);
@@ -280,22 +224,15 @@ export function FinanceiroView() {
       if (due >= fromStr && due <= toStr) return true;
       return includesToday && due < fromStr;
     });
-  const projected = useMemo(() => {
-    const existing = new Set(recInRange.map((t) => `${t.financial_recurrence_id}|${String(t.due_date).slice(0, 10)}`));
-    // Ocorrências antes de hoje que não viraram lançamento não são "previsão".
-    const start = fromStr > todayStr ? fromStr : todayStr;
-    return projectRecurrences(recorrencias, start, toStr, existing);
-  }, [recorrencias, recInRange, fromStr, toStr, todayStr]);
   const sum = (list: { amount: number }[]) => list.reduce((a, t) => a + Number(t.amount), 0);
   const overdue = (list: { due_date: string | null }[]) =>
     list.filter((t) => t.due_date && String(t.due_date).slice(0, 10) < todayStr);
   const receberList = pendingOfPeriod("receita");
   const pagarList = pendingOfPeriod("despesa");
-  const previstoReceber = projected.filter((p) => p.type === "receita");
-  const previstoPagar = projected.filter((p) => p.type === "despesa");
-  const aReceber = sum(receberList) + sum(previstoReceber);
-  const aPagar = sum(pagarList) + sum(previstoPagar);
-  const resultadoPrevisto = resultadoMes + aReceber - aPagar;
+  const aReceber = sum(receberList);
+  const aPagar = sum(pagarList);
+  // Realizado + o que ainda vai entrar/sair no período.
+  const resultadoFinal = resultadoMes + aReceber - aPagar;
   const receberAtrasado = sum(overdue(receberList) as typeof receberList);
   const pagarAtrasado = sum(overdue(pagarList) as typeof pagarList);
 
@@ -396,35 +333,27 @@ export function FinanceiroView() {
         <SummaryCard
           label="A receber no período"
           value={brl(aReceber)}
-          hint={
-            receberAtrasado > 0
-              ? `${brl(receberAtrasado)} atrasado`
-              : `${receberList.length + previstoReceber.length} lançamento(s)${previstoReceber.length ? ` · ${previstoReceber.length} previsto(s)` : ""}`
-          }
+          hint={receberAtrasado > 0 ? `${brl(receberAtrasado)} atrasado` : `${receberList.length} lançamento(s)`}
           tone="good"
           icon={<ArrowUpRight className="h-4 w-4" />}
         />
         <SummaryCard
           label="A pagar no período"
           value={brl(aPagar)}
-          hint={
-            pagarAtrasado > 0
-              ? `${brl(pagarAtrasado)} atrasado`
-              : `${pagarList.length + previstoPagar.length} conta(s)${previstoPagar.length ? ` · ${previstoPagar.length} prevista(s)` : ""}`
-          }
+          hint={pagarAtrasado > 0 ? `${brl(pagarAtrasado)} atrasado` : `${pagarList.length} conta(s)`}
           tone="bad"
           icon={<ArrowDownLeft className="h-4 w-4" />}
         />
-        {/* Período futuro: nada foi realizado ainda, então mostra a simulação. */}
+        {/* Período futuro: nada foi pago ainda, então mostra o saldo das contas dele. */}
         <SummaryCard
-          label={isFuture ? "Resultado previsto" : "Resultado do período"}
-          value={brl(isFuture ? resultadoPrevisto : resultadoMes)}
+          label="Resultado do período"
+          value={brl(isFuture ? resultadoFinal : resultadoMes)}
           hint={
             isFuture
-              ? `Entra ${brl(aReceber)} · Sai ${brl(aPagar)}`
-              : `Entrou ${brl(receitasMes)} · Saiu ${brl(despesasMes)} · previsto ${brl(resultadoPrevisto)}`
+              ? `A receber ${brl(aReceber)} · A pagar ${brl(aPagar)}`
+              : `Entrou ${brl(receitasMes)} · Saiu ${brl(despesasMes)} · fechando ${brl(resultadoFinal)}`
           }
-          tone={(isFuture ? resultadoPrevisto : resultadoMes) >= 0 ? "neutral" : "warn"}
+          tone={(isFuture ? resultadoFinal : resultadoMes) >= 0 ? "neutral" : "warn"}
           icon={<Wallet className="h-4 w-4" />}
         />
         <SummaryCard
@@ -528,10 +457,7 @@ export function FinanceiroView() {
             (() => {
               const type = view === "receber" ? "receita" : "despesa";
               const g = bucketed(type);
-              const previstos = (type === "receita" ? previstoReceber : previstoPagar).filter((p) =>
-                p.description.toLowerCase().includes(q),
-              );
-              const total = Object.values(g).flat().length + previstos.length;
+              const total = Object.values(g).flat().length;
               if (total === 0) {
                 return (
                   <div className="rounded-xl border border-dashed p-10 text-center text-sm text-muted-foreground">
@@ -545,7 +471,6 @@ export function FinanceiroView() {
                   <BucketGroup title="Vence em até 7 dias" tone="warn" items={g.semana} busy={toggleStatus.isPending} onToggle={toggleStatus} onEdit={setEditingTransaction} onDelete={deleteTransaction} />
                   <BucketGroup title="Mais pra frente" tone="neutral" items={g.futuro} busy={toggleStatus.isPending} onToggle={toggleStatus} onEdit={setEditingTransaction} onDelete={deleteTransaction} />
                   <BucketGroup title="Sem data de vencimento" tone="neutral" items={g.sem_data} busy={toggleStatus.isPending} onToggle={toggleStatus} onEdit={setEditingTransaction} onDelete={deleteTransaction} />
-                  <ProjectedGroup items={previstos} />
                 </>
               );
             })()
@@ -561,7 +486,7 @@ export function FinanceiroView() {
               Recorrências ativas — sai/entra todo mês, sem você lançar de novo
             </CardTitle>
             <p className="text-xs text-muted-foreground">
-              Ao marcar o lançamento atual como pago, o próximo é criado sozinho na data certa.
+              Conta fixa entra sozinha todo mês em A pagar / A receber, até a última parcela ou até você remover.
               Para criar: use "Receita" ou "Despesa" acima e marque "repete".
             </p>
           </CardHeader>
@@ -592,11 +517,10 @@ export function FinanceiroView() {
                         </Badge>
                         {r.category && <span>{r.category}</span>}
                         {(r as any).projects?.name && <span>· {(r as any).projects.name}</span>}
-                        {r.active && (
-                          <span>
-                            · próximo{" "}
-                            {r.next_run ? format(parseLocalDate(r.next_run)!, "dd/MM/yyyy") : "—"}
-                          </span>
+                        {r.end_date ? (
+                          <span>· última parcela {format(parseLocalDate(r.end_date)!, "MM/yyyy")}</span>
+                        ) : (
+                          <span>· sem fim</span>
                         )}
                       </div>
                     </div>
@@ -696,55 +620,6 @@ function SummaryCard({
         {hint && <p className="mt-0.5 text-[11px] text-muted-foreground">{hint}</p>}
       </CardContent>
     </Card>
-  );
-}
-
-/** Contas fixas previstas no período (ainda não lançadas): só leitura. */
-function ProjectedGroup({ items }: { items: Projected[] }) {
-  if (items.length === 0) return null;
-  const subtotal = items.reduce((a, p) => a + p.amount, 0);
-  return (
-    <div>
-      <div className="mb-1.5 flex items-center justify-between">
-        <h4 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-          Previsto · contas fixas <span className="font-normal">({items.length})</span>
-        </h4>
-        <span className="text-xs font-bold tabular-nums text-muted-foreground">{brl(subtotal)}</span>
-      </div>
-      <ul className="divide-y rounded-xl border border-dashed bg-card/60">
-        {items.map((p) => (
-          <li key={p.key} className="flex items-center gap-3 p-3">
-            <div
-              className={cn(
-                "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
-                p.type === "receita" ? "bg-emerald-500/10 text-emerald-600" : "bg-destructive/10 text-destructive",
-              )}
-            >
-              <Repeat className="h-4 w-4" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5">
-                <p className="truncate text-sm font-bold">{p.description}</p>
-                <Badge variant="outline" className="text-[10px]">previsto</Badge>
-              </div>
-              <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                {p.category && <span>{p.category}</span>}
-                <span>· vence {format(parseLocalDate(p.due_date)!, "dd/MM/yyyy")}</span>
-                {p.payment_method && <span>· {p.payment_method}</span>}
-              </div>
-            </div>
-            <span
-              className={cn(
-                "shrink-0 text-sm font-black tabular-nums opacity-80",
-                p.type === "receita" ? "text-emerald-600" : "text-destructive",
-              )}
-            >
-              {p.type === "receita" ? "+" : "-"} {brl(p.amount)}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </div>
   );
 }
 

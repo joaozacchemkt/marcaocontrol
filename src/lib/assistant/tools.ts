@@ -17,14 +17,19 @@ import { z } from "zod/v4";
 import type { Db } from "@/lib/db";
 import type { Json } from "@/integrations/supabase/types";
 import { FINANCE_CATEGORIES, PAYMENT_METHODS } from "@/lib/finance-categories";
-import { advanceFinancialRecurrence, type FinancialFrequency } from "@/lib/financial-recurrence";
+import {
+  advanceFinancialRecurrence,
+  ensureFinancialOccurrences,
+  installmentEndDate,
+  type FinancialFrequency,
+} from "@/lib/financial-recurrence";
 import { applyToFollowing, seriesChanges, setTransactionPaid } from "@/lib/finance-actions";
 import { advanceRecurrence } from "@/lib/recurrence";
 import { advanceReminderRecurrence } from "@/lib/reminders";
 import { logActivity } from "@/lib/activity";
 import { OutlookError, listCalendar, listRecentMail } from "@/lib/outlook/graph";
 import { FEATURES } from "@/lib/features";
-import { addDaysStr, instantSP, isDateStr, isTimeStr, splitInstantSP, todaySP } from "./time";
+import { addDaysStr, endOfMonthStr, instantSP, isDateStr, isTimeStr, splitInstantSP, todaySP } from "./time";
 import { getSnapshot, snapshotText } from "./snapshot";
 
 // ---------------------------------------------------------------------------
@@ -231,6 +236,12 @@ const buscarLancamentos = read({
     limite: zLimit,
   }),
   async run(i, { db }) {
+    // Contas fixas existem todo mês: garante as do período consultado
+    // (no mínimo o mês atual; no máximo 2 anos à frente).
+    const esteMes = endOfMonthStr(todaySP());
+    const limite = endOfMonthStr(addDaysStr(todaySP(), 730));
+    const ate = i.vencimento_ate && i.vencimento_ate > esteMes ? endOfMonthStr(i.vencimento_ate) : esteMes;
+    await ensureFinancialOccurrences(ate < limite ? ate : limite, db);
     let q = db.from("financial_transactions").select(TX_COLS);
     if (i.texto) q = q.ilike("description", likeTerm(i.texto));
     if (i.tipo) q = q.eq("type", i.tipo);
@@ -309,6 +320,13 @@ const registrarLancamento = write({
     projeto_id: zId.optional(),
     observacoes: z.string().max(1000).optional(),
     repete: zFinancialFrequency.optional().describe("Só se a pessoa disser que se repete (conta fixa)"),
+    parcelas: z
+      .number()
+      .int()
+      .min(1)
+      .max(600)
+      .optional()
+      .describe("Só para conta fixa com nº de parcelas definido, contando esta como a 1ª (ex.: 'faltam 10 parcelas' = 10). Sem fim (salário, funcionário): omita."),
   }),
   async run(i, { db, userId }) {
     const today = todaySP();
@@ -333,6 +351,7 @@ const registrarLancamento = write({
           frequency: i.repete,
           start_date: i.vencimento,
           next_run: i.vencimento,
+          end_date: i.parcelas ? installmentEndDate(i.vencimento, i.repete, i.parcelas) : null,
         })
         .select("id")
         .single();

@@ -31,6 +31,7 @@ import { applyToFollowing, seriesChanges, setTransactionPaid } from "@/lib/finan
 import {
   FINANCIAL_FREQUENCY_LABELS,
   advanceFinancialRecurrence,
+  installmentEndDate,
   type FinancialFrequency,
 } from "@/lib/financial-recurrence";
 
@@ -60,6 +61,8 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
     status: "pendente" as 'pendente' | 'pago',
     notes: "",
     repete: "nao" as FinancialFrequency | "nao",
+    /** Nº de parcelas da conta fixa; vazio = sem fim (ex.: salário). */
+    parcelas: "",
   };
   const [formData, setFormData] = useState(emptyForm);
 
@@ -78,6 +81,7 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
         status: (transaction.status ?? "pendente") as 'pendente' | 'pago',
         notes: transaction.notes ?? "",
         repete: "nao",
+        parcelas: "",
       });
       return;
     }
@@ -135,7 +139,7 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
           .eq('id', transaction.id);
         if (updateError) throw updateError;
         // Mudou pago/pendente pelo formulário: mesma regra do botão da lista
-        // (gera a próxima conta fixa ao quitar; desfaz ao reabrir).
+        // (gera a próxima conta fixa ao quitar, se ainda não existir).
         const prevStatus = transaction.status ?? 'pendente';
         if (prevStatus !== data.status) {
           await setTransactionPaid(
@@ -179,6 +183,10 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
             // start_date = vencimento original: é o dia-âncora da série.
             start_date: data.due_date,
             next_run: data.due_date,
+            end_date:
+              Number(data.parcelas) > 0
+                ? installmentEndDate(data.due_date, data.repete, Number(data.parcelas))
+                : null,
           } as never)
           .select()
           .single();
@@ -420,9 +428,24 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
                 </SelectContent>
               </Select>
               {formData.repete !== "nao" && (
-                <p className="text-[11px] text-muted-foreground">
-                  Ao quitar este lançamento, o próximo é criado sozinho na data seguinte.
-                </p>
+                <div className="space-y-1.5">
+                  <Label htmlFor="parcelas">Nº de parcelas</Label>
+                  <Input
+                    id="parcelas"
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    placeholder="Vazio = sem fim (ex.: salário)"
+                    value={formData.parcelas}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, parcelas: e.target.value }))}
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Conta fixa: entra sozinha todo mês em A pagar/receber
+                    {Number(formData.parcelas) > 0
+                      ? `, até a ${formData.parcelas}ª parcela (contando esta como a 1ª).`
+                      : ", até você excluir a recorrência."}
+                  </p>
+                </div>
               )}
             </div>
           )}

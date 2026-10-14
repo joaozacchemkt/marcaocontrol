@@ -13,8 +13,7 @@ interface PayableTransaction {
  * Quita ou reabre um lançamento — regra única usada pela tela do Financeiro
  * e pelo assistente.
  * - Quitar: grava `paid_date` e gera a próxima ocorrência se for recorrente.
- * - Reabrir: limpa `paid_date` e desfaz a ocorrência futura que a quitação
- *   havia gerado, pra não ficar um lançamento fantasma "a pagar/receber".
+ * - Reabrir: só limpa `paid_date` — os próximos meses da conta fixa ficam.
  */
 export async function setTransactionPaid(
   t: PayableTransaction,
@@ -35,23 +34,8 @@ export async function setTransactionPaid(
   if (paid && t.financial_recurrence_id) {
     await advanceFinancialRecurrence(t.financial_recurrence_id, dueStr, db);
   }
-  if (!paid && t.financial_recurrence_id && dueStr) {
-    const { data: successors } = await db
-      .from("financial_transactions")
-      .select("id, due_date")
-      .eq("financial_recurrence_id", t.financial_recurrence_id)
-      .eq("status", "pendente")
-      .gt("due_date", dueStr)
-      .order("due_date", { ascending: true });
-    const ids = (successors ?? []).map((s) => s.id);
-    if (ids.length > 0) {
-      await db.from("financial_transactions").delete().in("id", ids);
-    }
-    await db
-      .from("financial_recurrences")
-      .update({ next_run: dueStr })
-      .eq("id", t.financial_recurrence_id);
-  }
+  // Reabrir não mexe nos meses seguintes: conta fixa existe todo mês
+  // independente de o anterior estar pago (ver ensureFinancialOccurrences).
 }
 
 /**

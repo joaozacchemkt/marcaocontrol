@@ -68,3 +68,10 @@ export function addDaysStr(date: string, days: number): string {
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
 }
+
+/** Último dia do mês de `date` (AAAA-MM-DD). */
+export function endOfMonthStr(date: string): string {
+  const [y, m] = date.slice(0, 7).split("-").map(Number);
+  const last = new Date(Date.UTC(y!, m!, 0)).getUTCDate();
+  return `${date.slice(0, 7)}-${String(last).padStart(2, "0")}`;
+}

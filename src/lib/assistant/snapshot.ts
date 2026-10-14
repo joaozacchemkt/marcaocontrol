@@ -7,7 +7,8 @@
  * Datas pelo fuso de São Paulo (vale no navegador e no servidor UTC).
  */
 import type { Db } from "@/lib/db";
-import { addDaysStr, instantSP, splitInstantSP, todaySP } from "./time";
+import { ensureFinancialOccurrences } from "@/lib/financial-recurrence";
+import { addDaysStr, endOfMonthStr, instantSP, splitInstantSP, todaySP } from "./time";
 
 export interface SnapshotItem {
   label: string;
@@ -34,6 +35,8 @@ export async function getSnapshot(db: Db, userId: string): Promise<Snapshot> {
   const in7 = addDaysStr(today, 7);
   const dayStart = instantSP(today, "00:00");
   const dayEnd = instantSP(addDaysStr(today, 1), "00:00");
+  // Contas fixas dos próximos 7 dias precisam existir antes de somar.
+  await ensureFinancialOccurrences(endOfMonthStr(in7), db);
 
   const [pend, tasks, events, reminders] = await Promise.all([
     db

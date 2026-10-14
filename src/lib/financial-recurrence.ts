@@ -203,3 +203,92 @@ export async function advanceFinancialRecurrence(
     console.warn("[recorrência financeira] erro inesperado:", e);
   }
 }
+
+/**
+ * Conta fixa é fixa: garante que toda regra ativa tenha seus lançamentos
+ * pendentes criados até `until` (AAAA-MM-DD), sem depender de alguém quitar
+ * o mês anterior. Usado ao abrir o Financeiro (mês atual ou o escolhido) e
+ * pelo assistente.
+ *
+ * - `next_run` é a marca d'água (último vencimento já gerado): só gera o que
+ *   vem DEPOIS dele. Assim um mês excluído de propósito não volta sozinho.
+ * - Respeita `end_date` (nº de parcelas): passou do fim, a regra é encerrada.
+ * - Idempotente (checa existência + índice único), seguro com duas abas.
+ */
+export async function ensureFinancialOccurrences(until: string, db: Db = supabase): Promise<number> {
+  let created = 0;
+  try {
+    const { data, error } = await db
+      .from("financial_recurrences")
+      .select("*")
+      .eq("active", true)
+      .lte("next_run", until);
+    if (error || !data) return 0;
+    // Não despeja meses velhos de uma regra esquecida (mesma regra da quitação).
+    const backlogCutoff = format(new Date(Date.now() - 45 * 86400000), "yyyy-MM-dd");
+
+    for (const rec of data as unknown as RecurrenceRow[]) {
+      const anchorDay = (parseLocalDate(rec.start_date) ?? parseLocalDate(rec.next_run) ?? new Date()).getDate();
+      const endStr = rec.end_date ? rec.end_date.slice(0, 10) : null;
+      let cursor = parseLocalDate(rec.next_run) ?? new Date();
+      let lastGenerated = "";
+      let finished = false;
+
+      for (let i = 0; i < 120; i++) {
+        const next = nextFinancialOccurrence(cursor, rec.frequency, rec.interval_count, anchorDay);
+        const nextStr = format(next, "yyyy-MM-dd");
+        if (endStr && nextStr > endStr) {
+          finished = true;
+          break;
+        }
+        if (nextStr > until) break;
+        if (nextStr >= backlogCutoff && !(await occurrenceExists(rec.id, nextStr, db))) {
+          const { error: insErr } = await db.from("financial_transactions").insert({
+            user_id: rec.user_id,
+            project_id: rec.project_id,
+            contact_id: rec.contact_id,
+            description: rec.description,
+            type: rec.type,
+            amount: rec.amount,
+            category: rec.category,
+            payment_method: rec.payment_method,
+            date: nextStr,
+            due_date: nextStr,
+            status: "pendente",
+            financial_recurrence_id: rec.id,
+          } as never);
+          if (insErr && (insErr as { code?: string }).code !== "23505") {
+            console.warn("[recorrência financeira] falha ao gerar lançamento:", insErr.message);
+            break;
+          }
+          if (!insErr) created++;
+        }
+        lastGenerated = nextStr;
+        cursor = next;
+      }
+
+      const patch: { next_run?: string; active?: boolean } = {};
+      if (lastGenerated && lastGenerated > rec.next_run) patch.next_run = lastGenerated;
+      if (finished) patch.active = false;
+      if (Object.keys(patch).length > 0) {
+        await db.from("financial_recurrences").update(patch).eq("id", rec.id);
+      }
+    }
+  } catch (e) {
+    console.warn("[recorrência financeira] erro ao garantir lançamentos:", e);
+  }
+  return created;
+}
+
+/** Vencimento da última parcela (`count` parcelas a partir de `start`). */
+export function installmentEndDate(
+  start: string,
+  frequency: FinancialFrequency,
+  count: number,
+  intervalCount = 1,
+): string {
+  const first = parseLocalDate(start);
+  let d = first;
+  for (let i = 1; i < count; i++) d = nextFinancialOccurrence(d, frequency, intervalCount, first.getDate());
+  return format(d, "yyyy-MM-dd");
+}
