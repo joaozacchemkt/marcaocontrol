@@ -204,6 +204,53 @@ export async function advanceFinancialRecurrence(
   }
 }
 
+/** Forma de pagamento que o banco quita sozinho no vencimento. */
+export const AUTO_DEBIT = "Débito automático";
+
+/** Hoje em São Paulo (AAAA-MM-DD) — igual no navegador e no servidor (UTC). */
+function todaySaoPaulo(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+/**
+ * Débito automático: o banco desconta sozinho, então o lançamento fica em
+ * "A pagar" até o dia do vencimento e, chegando o dia, vira pago (com
+ * `paid_date` = vencimento). Se for conta fixa, a régua anda como numa
+ * quitação manual. Idempotente — só pega o que ainda está pendente.
+ */
+export async function autoPayDirectDebits(db: Db = supabase): Promise<number> {
+  let paid = 0;
+  try {
+    const { data, error } = await db
+      .from("financial_transactions")
+      .select("id, due_date, financial_recurrence_id")
+      .eq("status", "pendente")
+      .eq("payment_method", AUTO_DEBIT)
+      .lte("due_date", todaySaoPaulo());
+    if (error || !data) return 0;
+    for (const t of data as { id: string; due_date: string | null; financial_recurrence_id: string | null }[]) {
+      const due = t.due_date ? String(t.due_date).slice(0, 10) : todaySaoPaulo();
+      const { data: upd, error: updErr } = await db
+        .from("financial_transactions")
+        .update({ status: "pago", paid_date: due } as never)
+        .eq("id", t.id)
+        .eq("status", "pendente")
+        .select("id");
+      if (updErr || !upd?.length) continue;
+      paid++;
+      if (t.financial_recurrence_id) await advanceFinancialRecurrence(t.financial_recurrence_id, due, db);
+    }
+  } catch (e) {
+    console.warn("[débito automático] erro ao dar baixa:", e);
+  }
+  return paid;
+}
+
 /**
  * Conta fixa é fixa: garante que toda regra ativa tenha seus lançamentos
  * pendentes criados até `until` (AAAA-MM-DD), sem depender de alguém quitar
@@ -277,6 +324,8 @@ export async function ensureFinancialOccurrences(until: string, db: Db = supabas
   } catch (e) {
     console.warn("[recorrência financeira] erro ao garantir lançamentos:", e);
   }
+  // Depois de gerar os meses: o que é débito automático e já venceu vira pago.
+  created += await autoPayDirectDebits(db);
   return created;
 }
 

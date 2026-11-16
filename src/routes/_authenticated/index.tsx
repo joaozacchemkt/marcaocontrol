@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Link } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 import { parseLocalDate, localDateTime } from "@/lib/dates";
+import { autoPayDirectDebits } from "@/lib/financial-recurrence";
 import { useCurrentUserId, useWorkspaceMembers } from "@/lib/workspace";
 import { EstudarAgora } from "@/components/projects/workspace/faculdade/EstudarAgora";
 
@@ -91,6 +93,14 @@ function Dashboard() {
       return data || [];
     }
   });
+
+  // Débito automático que já venceu vira pago sozinho (mesma regra do Financeiro).
+  useEffect(() => {
+    autoPayDirectDebits().then((n) => {
+      if (n > 0) queryClient.invalidateQueries({ queryKey: ['dashboard-transactions'] });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const { data: transactions = [] } = useQuery({
     queryKey: ['dashboard-transactions'],

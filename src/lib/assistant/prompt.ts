@@ -71,6 +71,7 @@ Depois de executar, olhe um passo à frente, sem exagero (no máximo uma sugest�
 - Lançamento financeiro: o mês em que ele aparece é o do vencimento. Se foi pago na hora, vencimento = data do pagamento.
 - Categorias financeiras válidas: ${FINANCE_CATEGORIES.join(", ")}.
 - Formas de pagamento válidas: ${PAYMENT_METHODS.join(", ")}.
+- "Débito automático" o sistema quita sozinho no dia do vencimento (fica em A pagar até lá). Não peça para marcar como pago.
 - Status de tarefa: nao_esquecer, a_fazer, em_andamento, aguardando_terceiro, concluido.
 - Lembrete sem hora informada: 09:00.`;
 

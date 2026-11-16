@@ -23,7 +23,7 @@ import {
   installmentEndDate,
   type FinancialFrequency,
 } from "@/lib/financial-recurrence";
-import { applyToFollowing, seriesChanges, setTransactionPaid } from "@/lib/finance-actions";
+import { applyToFollowing, seriesChanges, setTransactionPaid, syncAutoDebit } from "@/lib/finance-actions";
 import { advanceRecurrence } from "@/lib/recurrence";
 import { advanceReminderRecurrence } from "@/lib/reminders";
 import { logActivity } from "@/lib/activity";
@@ -519,6 +519,7 @@ const editarLancamento = confirm({
     if (i.observacoes !== undefined) patch["notes"] = i.observacoes;
     const { error } = await db.from("financial_transactions").update(patch as never).eq("id", tx.id);
     dbError(error, "Erro ao salvar");
+    await syncAutoDebit({ ...tx, due_date: String(patch["due_date"] ?? tx.due_date ?? "") || null }, i.forma_pagamento, db);
     // Mesma regra do formulário: só leva pros próximos meses se escolhido.
     if (tx.financial_recurrence_id && opts?.scope === "following") {
       await applyToFollowing(

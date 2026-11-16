@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Db } from "@/lib/db";
 import { todayLocalStr } from "@/lib/dates";
-import { advanceFinancialRecurrence } from "@/lib/financial-recurrence";
+import { AUTO_DEBIT, advanceFinancialRecurrence, autoPayDirectDebits } from "@/lib/financial-recurrence";
 
 interface PayableTransaction {
   id: string;
@@ -82,4 +82,31 @@ export async function applyToFollowing(
   if (opts.excludeId) q = q.neq("id", opts.excludeId);
   const { error } = await q;
   if (error) throw error;
+}
+
+/**
+ * Débito automático é da conta, não do mês: se a forma de pagamento de uma
+ * conta fixa passou a ser (ou deixou de ser) "Débito automático", leva isso
+ * pra regra e pros meses pendentes seguintes — sem perguntar alcance. Depois
+ * já dá baixa no que tiver vencido.
+ */
+export async function syncAutoDebit(
+  tx: { id: string; due_date: string | null; financial_recurrence_id: string | null; payment_method: string | null },
+  newMethod: string | null | undefined,
+  db: Db = supabase,
+): Promise<void> {
+  if (newMethod === undefined || newMethod === tx.payment_method) return;
+  if (tx.payment_method !== AUTO_DEBIT && newMethod !== AUTO_DEBIT) return;
+  if (tx.financial_recurrence_id) {
+    await db.from("financial_recurrences").update({ payment_method: newMethod } as never).eq("id", tx.financial_recurrence_id);
+    let q = db
+      .from("financial_transactions")
+      .update({ payment_method: newMethod } as never)
+      .eq("financial_recurrence_id", tx.financial_recurrence_id)
+      .eq("status", "pendente")
+      .neq("id", tx.id);
+    if (tx.due_date) q = q.gt("due_date", String(tx.due_date).slice(0, 10));
+    await q;
+  }
+  if (newMethod === AUTO_DEBIT) await autoPayDirectDebits(db);
 }

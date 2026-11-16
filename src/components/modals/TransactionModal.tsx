@@ -27,12 +27,14 @@ import { logActivity } from "@/lib/activity";
 import { useGuardedSubmit } from "@/lib/use-guarded-submit";
 import { FINANCE_CATEGORIES, PAYMENT_METHODS, amountToBRL, maskBRL, parseBRL } from "@/lib/finance-categories";
 import { todayLocalStr } from "@/lib/dates";
-import { applyToFollowing, seriesChanges, setTransactionPaid } from "@/lib/finance-actions";
+import { applyToFollowing, seriesChanges, setTransactionPaid, syncAutoDebit } from "@/lib/finance-actions";
 import {
   FINANCIAL_FREQUENCY_LABELS,
   advanceFinancialRecurrence,
   installmentEndDate,
   type FinancialFrequency,
+  AUTO_DEBIT,
+  autoPayDirectDebits,
 } from "@/lib/financial-recurrence";
 
 interface TransactionModalProps {
@@ -152,6 +154,16 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
             insertData.paid_date ? { paidDate: insertData.paid_date } : {},
           );
         }
+        // Débito automático vale pra conta toda e já quita o que venceu.
+        await syncAutoDebit(
+          {
+            id: transaction.id,
+            due_date: insertData.due_date,
+            financial_recurrence_id: transaction.financial_recurrence_id ?? null,
+            payment_method: transaction.payment_method ?? null,
+          },
+          insertData.payment_method,
+        );
         // Recorrente: só leva a mudança pros próximos meses se a pessoa
         // escolheu "Nesta e nas próximas" (antes alterava todos sem perguntar).
         if (transaction.financial_recurrence_id && scope === "following") {
@@ -213,6 +225,11 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
           entityType: 'transaction',
           entityId: created.id
         });
+      }
+
+      // Débito automático lançado com vencimento já passado: entra pago.
+      if (created?.status === "pendente" && created.payment_method === AUTO_DEBIT) {
+        await autoPayDirectDebits();
       }
 
       // Se o 1º lançamento da recorrência já entrou como pago, gera o próximo
