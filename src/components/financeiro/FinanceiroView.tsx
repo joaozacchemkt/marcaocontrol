@@ -34,6 +34,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format, startOfMonth, endOfMonth, addMonths, isPast, isToday, differenceInCalendarDays } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
@@ -45,6 +46,8 @@ import {
   FINANCIAL_FREQUENCY_LABELS,
   MONTHLY_FACTOR,
   ensureFinancialOccurrences,
+  occurrenceCount,
+  setRecurrenceEnd,
   type FinancialFrequency,
 } from "@/lib/financial-recurrence";
 import { TransactionModal } from "@/components/modals/TransactionModal";
@@ -187,6 +190,18 @@ export function FinanceiroView() {
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["financial_recurrences"] }),
+    onError: (e: Error) => toast.error("Erro: " + e.message),
+  });
+
+  const changeRecurrenceEnd = useMutation({
+    mutationFn: async ({ id, end }: { id: string; end: string | null }) => {
+      await setRecurrenceEnd(id, end);
+      await ensureFinancialOccurrences(ensureUntil);
+    },
+    onSuccess: (_d, { end }) => {
+      invalidate();
+      toast.success(end ? `Repete até ${end.split("-").reverse().join("/")}.` : "Repete sem data para acabar.");
+    },
     onError: (e: Error) => toast.error("Erro: " + e.message),
   });
 
@@ -517,11 +532,12 @@ export function FinanceiroView() {
                         </Badge>
                         {r.category && <span>{r.category}</span>}
                         {(r as any).projects?.name && <span>· {(r as any).projects.name}</span>}
-                        {r.end_date ? (
-                          <span>· última parcela {format(parseLocalDate(r.end_date)!, "MM/yyyy")}</span>
-                        ) : (
-                          <span>· sem fim</span>
-                        )}
+                        <RecurrenceEndEditor
+                          end={r.end_date ? String(r.end_date).slice(0, 10) : null}
+                          start={String(r.start_date).slice(0, 10)}
+                          frequency={r.frequency as FinancialFrequency}
+                          onSave={(end) => changeRecurrenceEnd.mutate({ id: r.id, end })}
+                        />
                       </div>
                     </div>
                     <span
@@ -773,5 +789,69 @@ function TxRow({
         </AlertDialog>
       </div>
     </li>
+  );
+}
+
+/** "até dd/mm/aaaa" / "sem fim" clicável: muda até quando a conta fixa repete. */
+function RecurrenceEndEditor({
+  end,
+  start,
+  frequency,
+  onSave,
+}: {
+  end: string | null;
+  start: string;
+  frequency: FinancialFrequency;
+  onSave: (end: string | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [value, setValue] = useState(end ?? "");
+  const fmt = (d: string) => d.split("-").reverse().join("/");
+  const total = value ? occurrenceCount(start, frequency, value) : 0;
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (o) setValue(end ?? "");
+      }}
+    >
+      <PopoverTrigger asChild>
+        <button type="button" className="underline decoration-dotted underline-offset-2 hover:text-foreground">
+          · {end ? `até ${fmt(end)}` : "sem fim"}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64 space-y-2" align="start">
+        <p className="text-xs font-semibold">Último pagamento em</p>
+        <Input type="date" min={start} value={value} onChange={(e) => setValue(e.target.value)} />
+        <p className="text-[11px] text-muted-foreground">
+          {value
+            ? `${total} pagamento(s) desde ${fmt(start)}. Pendentes depois dessa data são apagados; os pagos ficam.`
+            : "Escolha a data do último pagamento."}
+        </p>
+        <div className="flex justify-between gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              onSave(null);
+              setOpen(false);
+            }}
+          >
+            Sem fim
+          </Button>
+          <Button
+            size="sm"
+            disabled={!value || value < start}
+            onClick={() => {
+              onSave(value);
+              setOpen(false);
+            }}
+          >
+            Salvar
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }

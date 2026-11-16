@@ -341,3 +341,58 @@ export function installmentEndDate(
   for (let i = 1; i < count; i++) d = nextFinancialOccurrence(d, frequency, intervalCount, first.getDate());
   return format(d, "yyyy-MM-dd");
 }
+
+/** Quantos vencimentos a série tem de `start` até `end` (inclusive). */
+export function occurrenceCount(
+  start: string,
+  frequency: FinancialFrequency,
+  end: string,
+  intervalCount = 1,
+): number {
+  const first = parseLocalDate(start);
+  if (!first || end < start) return 0;
+  let d = first;
+  let n = 1;
+  for (let i = 0; i < 1000; i++) {
+    d = nextFinancialOccurrence(d, frequency, intervalCount, first.getDate());
+    if (format(d, "yyyy-MM-dd") > end) break;
+    n++;
+  }
+  return n;
+}
+
+/**
+ * Muda até quando a conta fixa repete (`end` = último vencimento; null = sem
+ * fim). Encurtou: apaga os pendentes que passaram do fim (pagos ficam).
+ * Aumentou: reativa a regra, e os meses novos entram no próximo ensure.
+ */
+export async function setRecurrenceEnd(recurrenceId: string, end: string | null, db: Db = supabase): Promise<void> {
+  const { data: rec, error } = await db
+    .from("financial_recurrences")
+    .select("start_date, frequency, interval_count, next_run")
+    .eq("id", recurrenceId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!rec) throw new Error("Recorrência não encontrada");
+  const r = rec as { start_date: string; frequency: FinancialFrequency; interval_count: number; next_run: string };
+  const nextRun = String(r.next_run).slice(0, 10);
+  const patch: Record<string, unknown> = { end_date: end };
+  if (!end || end > nextRun) patch["active"] = true;
+  if (end && end < nextRun) {
+    // A marca d'água volta pro último vencimento que cabe no novo fim — senão,
+    // se depois aumentarem o prazo, ficaria um buraco entre o fim e a marca.
+    const count = occurrenceCount(r.start_date, r.frequency, end, r.interval_count);
+    patch["next_run"] = count > 0 ? installmentEndDate(r.start_date, r.frequency, count, r.interval_count) : r.start_date;
+  }
+  const { error: upErr } = await db.from("financial_recurrences").update(patch as never).eq("id", recurrenceId);
+  if (upErr) throw upErr;
+  if (end) {
+    const { error: delErr } = await db
+      .from("financial_transactions")
+      .delete()
+      .eq("financial_recurrence_id", recurrenceId)
+      .eq("status", "pendente")
+      .gt("due_date", end);
+    if (delErr) throw delErr;
+  }
+}

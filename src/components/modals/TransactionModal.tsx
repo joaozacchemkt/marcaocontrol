@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -32,6 +33,7 @@ import {
   FINANCIAL_FREQUENCY_LABELS,
   advanceFinancialRecurrence,
   installmentEndDate,
+  occurrenceCount,
   type FinancialFrequency,
   AUTO_DEBIT,
   autoPayDirectDebits,
@@ -63,8 +65,12 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
     status: "pendente" as 'pendente' | 'pago',
     notes: "",
     repete: "nao" as FinancialFrequency | "nao",
-    /** Nº de parcelas da conta fixa; vazio = sem fim (ex.: salário). */
+    /** Nº de vezes da conta fixa (sincronizado com `ate`). */
     parcelas: "",
+    /** Último vencimento da conta fixa (AAAA-MM-DD). */
+    ate: "",
+    /** Conta fixa sem data pra acabar (salário, aluguel). */
+    sem_fim: false,
   };
   const [formData, setFormData] = useState(emptyForm);
 
@@ -84,6 +90,8 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
         notes: transaction.notes ?? "",
         repete: "nao",
         parcelas: "",
+        ate: "",
+        sem_fim: false,
       });
       return;
     }
@@ -195,10 +203,7 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
             // start_date = vencimento original: é o dia-âncora da série.
             start_date: data.due_date,
             next_run: data.due_date,
-            end_date:
-              Number(data.parcelas) > 0
-                ? installmentEndDate(data.due_date, data.repete, Number(data.parcelas))
-                : null,
+            end_date: data.sem_fim ? null : data.ate || null,
           } as never)
           .select()
           .single();
@@ -269,6 +274,16 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
     if (!formData.due_date) {
       toast.error("Informe a data do vencimento");
       return;
+    }
+    if (!isEditing && formData.repete !== "nao" && !formData.sem_fim) {
+      if (!formData.ate) {
+        toast.error("Informe até quando repete (ou marque \"Sem data para acabar\")");
+        return;
+      }
+      if (formData.ate < formData.due_date) {
+        toast.error("O último pagamento não pode ser antes do 1º vencimento");
+        return;
+      }
     }
     // Conta recorrente e mudou algo que vale pra série: pergunta o alcance.
     if (isEditing && transaction?.financial_recurrence_id && Object.keys(seriesChanges(transaction, formToSeries(formData))).length > 0) {
@@ -444,26 +459,68 @@ export function TransactionModal({ open, onOpenChange, type, initialProjectId, t
                   )}
                 </SelectContent>
               </Select>
-              {formData.repete !== "nao" && (
-                <div className="space-y-1.5">
-                  <Label htmlFor="parcelas">Nº de parcelas</Label>
-                  <Input
-                    id="parcelas"
-                    type="number"
-                    inputMode="numeric"
-                    min={1}
-                    placeholder="Vazio = sem fim (ex.: salário)"
-                    value={formData.parcelas}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, parcelas: e.target.value }))}
-                  />
-                  <p className="text-[11px] text-muted-foreground">
-                    Conta fixa: entra sozinha todo mês em A pagar/receber
-                    {Number(formData.parcelas) > 0
-                      ? `, até a ${formData.parcelas}ª parcela (contando esta como a 1ª).`
-                      : ", até você excluir a recorrência."}
-                  </p>
-                </div>
-              )}
+              {formData.repete !== "nao" && (() => {
+                const freq = formData.repete as FinancialFrequency;
+                const total = !formData.sem_fim && formData.ate && formData.due_date
+                  ? occurrenceCount(formData.due_date, freq, formData.ate)
+                  : 0;
+                const fmt = (d: string) => d.split("-").reverse().join("/");
+                return (
+                  <div className="space-y-2 rounded-lg border p-3">
+                    <p className="text-xs font-semibold">Até quando repete?</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="ate" className="text-xs">Último pagamento em</Label>
+                        <Input
+                          id="ate"
+                          type="date"
+                          disabled={formData.sem_fim}
+                          min={formData.due_date}
+                          value={formData.ate}
+                          onChange={(e) => {
+                            const ate = e.target.value;
+                            const n = ate && formData.due_date ? occurrenceCount(formData.due_date, freq, ate) : 0;
+                            setFormData((prev) => ({ ...prev, ate, parcelas: n > 0 ? String(n) : "" }));
+                          }}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="parcelas" className="text-xs">ou nº de vezes</Label>
+                        <Input
+                          id="parcelas"
+                          type="number"
+                          inputMode="numeric"
+                          min={1}
+                          disabled={formData.sem_fim}
+                          value={formData.parcelas}
+                          onChange={(e) => {
+                            const parcelas = e.target.value;
+                            const n = Number(parcelas);
+                            const ate = n > 0 && formData.due_date ? installmentEndDate(formData.due_date, freq, n) : "";
+                            setFormData((prev) => ({ ...prev, parcelas, ate }));
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <label className="flex items-center gap-2 text-xs">
+                      <Checkbox
+                        checked={formData.sem_fim}
+                        onCheckedChange={(v) =>
+                          setFormData((prev) => ({ ...prev, sem_fim: v === true, ...(v === true ? { ate: "", parcelas: "" } : {}) }))
+                        }
+                      />
+                      Sem data para acabar (ex.: salário, aluguel)
+                    </label>
+                    <p className="text-[11px] text-muted-foreground">
+                      {formData.sem_fim
+                        ? `${FINANCIAL_FREQUENCY_LABELS[freq]}, a partir de ${fmt(formData.due_date)}, até você encerrar em Recorrências.`
+                        : total > 0
+                          ? `${FINANCIAL_FREQUENCY_LABELS[freq]}: ${total} pagamento(s), de ${fmt(formData.due_date)} até ${fmt(installmentEndDate(formData.due_date, freq, total))}. Cada um entra sozinho em A pagar/receber.`
+                          : "Escolha a data do último pagamento ou quantas vezes repete."}
+                    </p>
+                  </div>
+                );
+              })()}
             </div>
           )}
 

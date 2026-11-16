@@ -327,6 +327,9 @@ const registrarLancamento = write({
       .max(600)
       .optional()
       .describe("Só para conta fixa com nº de parcelas definido, contando esta como a 1ª (ex.: 'faltam 10 parcelas' = 10). Sem fim (salário, funcionário): omita."),
+    repete_ate: zDate
+      .optional()
+      .describe("Só para conta fixa: data do último pagamento, se a pessoa disse até quando (ex.: 'toda sexta até 19/12'). Use isto OU parcelas."),
   }),
   async run(i, { db, userId }) {
     const today = todaySP();
@@ -351,7 +354,7 @@ const registrarLancamento = write({
           frequency: i.repete,
           start_date: i.vencimento,
           next_run: i.vencimento,
-          end_date: i.parcelas ? installmentEndDate(i.vencimento, i.repete, i.parcelas) : null,
+          end_date: i.repete_ate ?? (i.parcelas ? installmentEndDate(i.vencimento, i.repete, i.parcelas) : null),
         })
         .select("id")
         .single();
